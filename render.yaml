@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: folio-career-workspace
+    runtime: docker
+    plan: starter
+    region: singapore
+    numInstances: 1
+    healthCheckPath: /api/v1/health
+    maxShutdownDelaySeconds: 15
+    disk:
+      name: folio-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FOLIO_DATA_DIR
+        value: /data
+      - key: APP_ORIGIN
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.6-luna

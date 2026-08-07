@@ -114,6 +114,12 @@ http://localhost:4173
 
 개발 환경에서 Google 키가 비어 있으면 `Google로 계속하기`를 눌렀을 때 로컬 테스트 사용자로 로그인합니다. 입력한 데이터는 기본적으로 `.data/db.json`에 저장됩니다.
 
+현재 로컬 `.env` 파일은 기본 주소와 빈 비밀값으로 준비되어 있습니다. 설정 상태만 확인하려면 다음 명령을 사용합니다.
+
+```powershell
+npm.cmd run preflight
+```
+
 ## 환경 변수
 
 [.env.example](./.env.example)을 `.env`로 복사해서 사용합니다. 서버는 실행 시 `.env`를 자동으로 읽으며, 이미 설정된 시스템 환경 변수를 우선합니다.
@@ -243,6 +249,8 @@ window.FOLIO_CONFIG = Object.freeze({
 ├── test-server.js      # 서버 전체 흐름 통합 테스트
 ├── Dockerfile          # 운영 컨테이너 이미지
 ├── compose.yaml        # 영구 데이터 볼륨을 포함한 실행 구성
+├── render.yaml         # Render Blueprint 배포 구성
+├── preflight.js        # 비밀값을 노출하지 않는 배포 사전 점검
 ├── DEPLOYMENT.md       # HTTPS, OAuth, 볼륨과 운영 점검 가이드
 ├── BACKEND_API.md      # 상세 백엔드 API 계약
 ├── plan.md             # 제품 기획과 정보 구조
@@ -285,7 +293,13 @@ npm.cmd test
 
 ## 배포
 
-Docker 이미지와 영구 볼륨을 포함한 Compose 구성이 준비되어 있습니다. 실제 도메인, Google OAuth, OpenAI 키와 데이터 볼륨 설정은 [DEPLOYMENT.md](./DEPLOYMENT.md)를 참고합니다.
+Docker 이미지, 영구 볼륨을 포함한 Compose 구성과 Render Blueprint가 준비되어 있습니다. 실제 도메인, Google OAuth, OpenAI 키와 데이터 볼륨 설정은 [DEPLOYMENT.md](./DEPLOYMENT.md)를 참고합니다.
+
+운영용 값이 모두 준비되었는지 검사:
+
+```powershell
+npm.cmd run preflight:production
+```
 
 ## 현재 남은 운영 과제
 

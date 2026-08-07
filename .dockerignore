@@ -13,3 +13,4 @@ BACKEND_API.md
 DEPLOYMENT.md
 plan.md
 test-server.js
+preflight.js

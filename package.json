@@ -6,6 +6,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node test-server.js",
-    "check": "node --check server.js && node --check api.js && node --check app.js"
+    "check": "node --check server.js && node --check api.js && node --check app.js && node --check preflight.js",
+    "preflight": "node preflight.js",
+    "preflight:production": "node preflight.js --production"
   }
 }

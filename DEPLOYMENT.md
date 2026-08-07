@@ -7,6 +7,46 @@
 - 영구 볼륨 또는 운영용 데이터베이스
 - AI 기능을 사용할 경우 OpenAI API 키
 
+현재 로컬 `.env`는 생성되어 있지만 Google Client ID·Secret과 OpenAI API 키는 비어 있다. 비밀값을 채운 뒤 다음 명령으로 상태를 확인한다.
+
+```powershell
+npm.cmd run preflight
+npm.cmd run preflight:production
+```
+
+점검기는 비밀값 자체를 출력하지 않고 설정 여부와 URL 형식만 확인한다.
+
+## Render Blueprint로 배포
+
+저장소 루트의 `render.yaml`은 다음 리소스를 선언한다.
+
+- Singapore 리전의 Docker Web Service
+- `/api/v1/health` 상태 검사
+- `/data`에 연결되는 1GB 영구 디스크
+- 단일 인스턴스와 15초 정상 종료 대기
+- 대시보드에서 입력하는 Google 및 OpenAI 비밀값
+
+진행 순서:
+
+1. Render Dashboard에서 **New → Blueprint**를 선택한다.
+2. GitHub의 `Yuris99/Folio` 저장소를 연결한다.
+3. `render.yaml`을 확인하고 Blueprint를 적용한다.
+4. 생성된 HTTPS 서비스 주소를 확인한다.
+5. Render 환경 변수에 아래 값을 입력한다.
+
+```env
+APP_ORIGIN=https://생성된-서비스-주소
+GOOGLE_REDIRECT_URI=https://생성된-서비스-주소/api/v1/auth/google/callback
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+OPENAI_API_KEY=...
+```
+
+6. 동일한 `GOOGLE_REDIRECT_URI`를 Google Cloud Console의 승인된 리디렉션 URI에 등록한다.
+7. Manual Deploy를 실행한 뒤 운영 점검 항목을 수행한다.
+
+Render의 기본 파일시스템은 재배포 시 사라지므로 영구 디스크를 제거하면 안 된다. 영구 디스크가 연결된 웹 서비스는 유료 플랜과 단일 인스턴스를 사용한다.
+
 ## Docker로 실행
 
 `.env.example`을 `.env`로 복사한 뒤 실제 값을 입력한다.
