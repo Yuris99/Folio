@@ -1,5 +1,7 @@
 # Folio
 
+GitHub Actions와 개인 NAS 자동 배포 설정은 [GITHUB_ACTIONS.md](./GITHUB_ACTIONS.md)를 참고하세요.
+
 Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력 정보와 채용 공고를 한곳에서 관리하는 개인용 워크스페이스입니다.
 
 현재 저장소에는 반응형 프론트엔드와 Node.js API 서버가 함께 구현되어 있습니다. 별도의 패키지 설치나 외부 데이터베이스 없이 실행할 수 있으며, Google OAuth와 OpenAI API 키를 등록하면 실제 외부 서비스까지 연결됩니다.

@@ -1,0 +1,25 @@
+services:
+  folio:
+    image: ghcr.io/yuris99/folio:latest
+    container_name: folio
+    restart: unless-stopped
+    ports:
+      - "${FOLIO_HOST_PORT:-4173}:4173"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4173
+      FOLIO_DATA_DIR: /data
+    volumes:
+      - "${FOLIO_DATA_PATH:-./nas-data}:/data"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4173/api/v1/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
