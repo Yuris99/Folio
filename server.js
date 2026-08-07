@@ -43,6 +43,12 @@ function loadDb() {
   try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { return { users:{}, sessions:{} }; }
 }
 let db = loadDb();
+function pruneExpiredSessions() {
+  const current=Date.now();let changed=false;
+  for(const [id,session] of Object.entries(db.sessions))if(new Date(session.expiresAt).getTime()<=current){delete db.sessions[id];changed=true;}
+  for(const [state,pending] of oauthStates)if(pending.expiresAt<=current)oauthStates.delete(state);
+  if(changed)saveDb();
+}
 function saveDb() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const temp = `${DB_FILE}.tmp`;
@@ -73,6 +79,16 @@ async function body(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('INVALID_JSON'); }
 }
 function publicUser(user) { return { id:user.id, name:user.name, email:user.email, avatarUrl:user.avatarUrl || '' }; }
+function removeUserUploads(userId) {
+  const root=path.resolve(DATA_DIR,'uploads');
+  const target=path.resolve(root,String(userId));
+  if(target.startsWith(`${root}${path.sep}`)&&fs.existsSync(target))fs.rmSync(target,{recursive:true,force:true});
+}
+function exportWorkspace(user) {
+  const workspace=structuredClone(user.workspace);
+  workspace.attachments=(workspace.attachments||[]).map(({storageName,...item})=>item);
+  return {format:'folio-export',version:1,exportedAt:now(),user:publicUser(user),workspace};
+}
 function createSession(userId) {
   const id = crypto.randomBytes(32).toString('base64url');
   db.sessions[id] = { userId, expiresAt:new Date(Date.now()+14*86400000).toISOString() };
@@ -148,6 +164,7 @@ async function api(req,res,url) {
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
   if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
+  if(method==='GET'&&route==='/api/v1/account/export')return send(res,200,{data:exportWorkspace(user)},{'Content-Disposition':`attachment; filename="folio-export-${new Date().toISOString().slice(0,10)}.json"`,'Cache-Control':'no-store'});
   let fileMatch=route.match(/^\/api\/v1\/files\/([^/]+)$/);
   if(fileMatch&&method==='GET'){
     const item=(w.attachments||[]).find(x=>x.id===fileMatch[1]);if(!item)return fail(res,404,'파일을 찾을 수 없습니다.','NOT_FOUND');
@@ -155,7 +172,12 @@ async function api(req,res,url) {
     res.writeHead(200,{'Content-Type':item.type||'application/octet-stream','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(item.name)}`,'Content-Length':fs.statSync(filePath).size});return fs.createReadStream(filePath).pipe(res);
   }
   const payload=await body(req);
-  if(method==='POST'&&route==='/api/v1/workspace/reset'){user.workspace=defaultWorkspace(user.name,user.email);saveDb();return ok(res,user.workspace);}
+  if(method==='POST'&&route==='/api/v1/workspace/reset'){removeUserUploads(user.id);user.workspace=defaultWorkspace(user.name,user.email);saveDb();return ok(res,user.workspace);}
+  if(method==='DELETE'&&route==='/api/v1/account'){
+    removeUserUploads(user.id);
+    for(const [id,session] of Object.entries(db.sessions))if(session.userId===user.id)delete db.sessions[id];
+    delete db.users[user.id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();
+  }
   if(method==='PUT'&&route==='/api/v1/profile'){w.profile={...w.profile,...payload};saveDb();return ok(res,w.profile);}
   if(method==='POST'&&route==='/api/v1/career-stories'){const item={...payload,id:uid(),createdAt:now()};w.stories.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
@@ -197,8 +219,24 @@ function staticFile(req,res,url) {
 }
 
 const server=http.createServer(async(req,res)=>{
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('X-Frame-Options','DENY');
+  res.setHeader('Referrer-Policy','same-origin');
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+  if(IS_PROD)res.setHeader('Strict-Transport-Security','max-age=31536000; includeSubDomains');
+  if(req.url.startsWith('/api/v1/'))res.setHeader('Cache-Control','no-store');
   const url=new URL(req.url,origin(req));
   try { if(url.pathname.startsWith('/api/v1/'))await api(req,res,url); else staticFile(req,res,url); }
   catch(error){console.error(error);if(!res.headersSent)fail(res,error.message==='PAYLOAD_TOO_LARGE'?413:400,error.message==='INVALID_JSON'?'JSON 형식이 올바르지 않습니다.':'요청 처리 중 오류가 발생했습니다.','SERVER_ERROR');}
 });
-server.listen(PORT,()=>console.log(`Folio is running at http://localhost:${PORT}`));
+pruneExpiredSessions();
+const sessionCleanup=setInterval(pruneExpiredSessions,60*60_000);sessionCleanup.unref();
+server.listen(PORT,()=>{
+  console.log(`Folio is running at http://localhost:${PORT}`);
+  if(IS_PROD&&!APP_ORIGIN)console.warn('APP_ORIGIN is recommended in production.');
+  if(IS_PROD&&(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET))console.warn('Google OAuth is not configured.');
+});
+function shutdown(signal){console.log(`${signal} received, shutting down.`);clearInterval(sessionCleanup);server.close(()=>{saveDb();process.exit(0)});setTimeout(()=>process.exit(1),10_000).unref();}
+process.on('SIGTERM',()=>shutdown('SIGTERM'));
+process.on('SIGINT',()=>shutdown('SIGINT'));

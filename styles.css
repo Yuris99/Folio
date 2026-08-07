@@ -419,6 +419,12 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 .asset-list strong, .asset-list small { display: block; }
 .asset-list small { color: var(--muted); font-size: 10px; }
 .asset-list i { color: var(--muted); font-size: 10px; font-style: normal; }
+.data-management { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.data-management h2 { margin-bottom: 5px; }
+.data-management p { margin: 0; color: var(--muted); font-size: 11px; }
+.data-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.button.danger { border-color: #70434a; background: transparent; color: #df9aa0; }
+.button.danger:hover { background: #392c30; }
 
 .calendar-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 15px; }
 .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -468,6 +474,8 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
   .resume-experience { grid-template-columns: 1fr; gap: 8px; }
   .resume-experience .tag-row { grid-column: 1; }
   .asset-list { grid-template-columns: 1fr; }
+  .data-management { align-items: stretch; flex-direction: column; }
+  .data-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .calendar-layout { margin: 0 -17px; }
   .calendar { padding: 13px 9px; border-right: 0; border-left: 0; }
   .calendar-day { min-height: 58px; padding: 5px 3px; }

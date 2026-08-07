@@ -1,0 +1,15 @@
+.git
+.gitignore
+.chrome-*
+.data
+.env
+.env.*
+!.env.example
+*.png
+node_modules
+npm-debug.log*
+README.md
+BACKEND_API.md
+DEPLOYMENT.md
+plan.md
+test-server.js

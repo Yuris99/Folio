@@ -10,6 +10,12 @@ const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(),'folio-test-'));
 const server = spawn(process.execPath, ['server.js'], { cwd:__dirname, env:{...process.env,PORT:String(port),NODE_ENV:'development',FOLIO_DATA_DIR:testDataDir,GOOGLE_CLIENT_ID:'',GOOGLE_CLIENT_SECRET:'',OPENAI_API_KEY:''}, stdio:['ignore','pipe','pipe'] });
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function stopServer(){
+  if(server.exitCode!==null)return;
+  const exited=new Promise(resolve=>server.once('exit',resolve));
+  server.kill('SIGTERM');
+  await Promise.race([exited,wait(3000)]);
+}
 async function ready() {
   for(let i=0;i<30;i++) { try { const r=await fetch(`${base}/api/v1/health`); if(r.ok)return; } catch {} await wait(100); }
   throw new Error('server did not start');
@@ -26,6 +32,10 @@ async function json(path, options={}, cookie='') {
     const health=await json('/api/v1/health');
     assert.equal(health.response.status,200);
     assert.equal(health.data.data.status,'ok');
+    assert.equal(health.response.headers.get('x-content-type-options'),'nosniff');
+    assert.equal(health.response.headers.get('x-frame-options'),'DENY');
+    assert.match(health.response.headers.get('content-security-policy'),/frame-ancestors 'none'/);
+    assert.equal(health.response.headers.get('cache-control'),'no-store');
 
     const unauthenticated=await json('/api/v1/bootstrap');
     assert.equal(unauthenticated.response.status,401);
@@ -81,6 +91,14 @@ async function json(path, options={}, cookie='') {
     assert.equal(downloaded.status,200);
     assert.equal(await downloaded.text(),'%PDF-test');
 
+    const exported=await json('/api/v1/account/export',{},cookie);
+    assert.equal(exported.response.status,200);
+    assert.equal(exported.data.data.format,'folio-export');
+    assert.equal(exported.data.data.version,1);
+    assert.equal(exported.data.data.workspace.attachments[0].name,'resume.pdf');
+    assert.equal('storageName' in exported.data.data.workspace.attachments[0],false);
+    assert.match(exported.response.headers.get('content-disposition'),/attachment/);
+
     const removed=await json(`/api/v1/applications/${applicationId}`,{method:'DELETE'},cookie);
     assert.equal(removed.response.status,204);
     const interviewRemoved=await json(`/api/v1/interviews/${interview.data.data.id}`,{method:'DELETE'},cookie);
@@ -89,12 +107,27 @@ async function json(path, options={}, cookie='') {
     const reset=await json('/api/v1/workspace/reset',{method:'POST'},cookie);
     assert.equal(reset.response.status,200);
     assert.equal(reset.data.data.applications.length,0);
+    const removedFile=await fetch(`${base}/api/v1/files/${file.data.data.id}`,{headers:{Cookie:cookie}});
+    assert.equal(removedFile.status,404);
+    assert.equal(fs.existsSync(path.join(testDataDir,'uploads',session.data.data.id)),false);
 
     const logout=await json('/api/v1/auth/logout',{method:'POST'},cookie);
     assert.equal(logout.response.status,204);
-    console.log('PASS health auth privacy bootstrap profile applications tasks interviews AI documents files reset logout');
+    const relogin=await fetch(`${base}/api/v1/auth/google?returnTo=${encodeURIComponent(base+'/')}`,{redirect:'manual'});
+    const secondCookie=relogin.headers.get('set-cookie').split(';')[0];
+    const secondSession=await json('/api/v1/auth/session',{},secondCookie);
+    const secondFile=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'delete-with-account.pdf',type:'application/pdf',data:`data:application/pdf;base64,${Buffer.from('%PDF-account-delete').toString('base64')}`})},secondCookie);
+    assert.equal(secondFile.response.status,201);
+    const secondUploadDir=path.join(testDataDir,'uploads',secondSession.data.data.id);
+    assert.equal(fs.existsSync(secondUploadDir),true);
+    const deleted=await json('/api/v1/account',{method:'DELETE'},secondCookie);
+    assert.equal(deleted.response.status,204);
+    assert.equal(fs.existsSync(secondUploadDir),false);
+    const deletedSession=await json('/api/v1/auth/session',{},secondCookie);
+    assert.equal(deletedSession.response.status,401);
+    console.log('PASS health security auth privacy bootstrap profile applications tasks interviews AI documents files export reset logout account-delete');
   } finally {
-    server.kill();
+    await stopServer();
     fs.rmSync(testDataDir,{recursive:true,force:true});
   }
-})().catch(error=>{console.error(error);server.kill();fs.rmSync(testDataDir,{recursive:true,force:true});process.exitCode=1});
+})().catch(error=>{console.error(error);process.exitCode=1});

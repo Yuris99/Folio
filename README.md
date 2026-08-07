@@ -10,10 +10,12 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 
 - Google OAuth 2.0 Authorization Code Flow, PKCE와 `state` 검증
 - HttpOnly, SameSite=Lax 쿠키 기반 14일 세션
+- 만료 세션 자동 정리와 SIGTERM/SIGINT 정상 종료 처리
 - 로그인 사용자별 독립 워크스페이스
 - 로그아웃과 현재 사용자 세션 조회
 - 개발 환경에서 Google 키가 없을 경우 로컬 테스트 계정 제공
 - 운영 환경에서 Google 설정이 없으면 명시적인 설정 오류 반환
+- CSP, HSTS, 클릭재킹 방지, MIME 스니핑 방지와 개인정보 API 캐시 차단 헤더
 
 ### 홈
 
@@ -60,6 +62,8 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 - 경력 및 프로젝트 경험 추가
 - GitHub와 포트폴리오 URL 관리
 - PDF 이력서 업로드, 열람과 삭제
+- 전체 워크스페이스 JSON 내보내기
+- 확인 문구 입력 후 계정과 저장 파일 영구 삭제
 
 ### 공고 보관함과 AI
 
@@ -206,6 +210,8 @@ OPENAI_MODEL=gpt-5.6-luna
 | 공고 AI 분석 | POST | `/api/v1/ai/jobs/analyze` |
 | 지원서 AI 생성 | POST | `/api/v1/ai/documents/generate` |
 | 내 데이터 초기화 | POST | `/api/v1/workspace/reset` |
+| 데이터 내보내기 | GET | `/api/v1/account/export` |
+| 계정 탈퇴 | DELETE | `/api/v1/account` |
 
 자세한 요청과 응답 계약은 [BACKEND_API.md](./BACKEND_API.md)를 참고합니다.
 
@@ -235,6 +241,9 @@ window.FOLIO_CONFIG = Object.freeze({
 ├── config.js           # API 연결 설정
 ├── server.js           # 정적 서버, 인증, 데이터, 파일과 AI API
 ├── test-server.js      # 서버 전체 흐름 통합 테스트
+├── Dockerfile          # 운영 컨테이너 이미지
+├── compose.yaml        # 영구 데이터 볼륨을 포함한 실행 구성
+├── DEPLOYMENT.md       # HTTPS, OAuth, 볼륨과 운영 점검 가이드
 ├── BACKEND_API.md      # 상세 백엔드 API 계약
 ├── plan.md             # 제품 기획과 정보 구조
 ├── .env.example        # 환경 변수 예시
@@ -271,7 +280,12 @@ npm.cmd test
 → PDF 검증·업로드·다운로드
 → 사용자 데이터 초기화
 → 로그아웃
+→ 데이터 내보내기와 계정 탈퇴
 ```
+
+## 배포
+
+Docker 이미지와 영구 볼륨을 포함한 Compose 구성이 준비되어 있습니다. 실제 도메인, Google OAuth, OpenAI 키와 데이터 볼륨 설정은 [DEPLOYMENT.md](./DEPLOYMENT.md)를 참고합니다.
 
 ## 현재 남은 운영 과제
 
@@ -279,6 +293,6 @@ npm.cmd test
 - PDF 저장소를 S3, Cloudflare R2 등의 객체 스토리지로 이전
 - 경력, 공고, 할 일과 문서의 세부 수정·삭제 기능 확대
 - 지원 문서 버전 이력과 제출본 보존
-- 개인정보 처리방침, 이용약관과 계정 탈퇴 기능
+- 개인정보 처리방침과 이용약관
 - 오류 수집, 모니터링, 백업과 복구 정책
 - 실제 모바일 기기 및 주요 브라우저 회귀 테스트

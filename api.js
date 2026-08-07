@@ -41,6 +41,8 @@
     },
     session: () => remote('/auth/session'),
     logout: () => remote('/auth/logout', { method: 'POST' }),
+    exportUrl: () => `${config.apiBaseUrl}/account/export`,
+    deleteAccount: () => remote('/account', { method: 'DELETE' }),
     bootstrap: () => remote('/bootstrap'),
     createApplication: payload => remote('/applications', { method: 'POST', body: JSON.stringify(payload) }),
     updateApplication: (id, payload) => remote(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),

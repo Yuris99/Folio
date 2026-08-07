@@ -11,6 +11,9 @@
 - 실패 응답: `{ "message": "사용자 메시지", "code": "ERROR_CODE", "details": {} }`
 - 프론트엔드 origin에 대해 credential 포함 CORS 허용
 - 모든 사용자 데이터 API는 인증된 사용자 ID로 범위를 제한
+- API 응답은 `Cache-Control: no-store`로 캐시하지 않음
+- 정적 페이지와 API에 CSP, 클릭재킹 방지, MIME 스니핑 방지 헤더 적용
+- 운영 환경에서는 HSTS와 Secure 세션 쿠키 적용
 
 ## Google 로그인
 
@@ -148,6 +151,15 @@ GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 ## 워크스페이스 초기화
 
 - `POST /api/v1/workspace/reset` — 현재 로그인 사용자의 데이터만 빈 워크스페이스로 초기화
+
+초기화 시 해당 사용자가 업로드한 PDF 원본도 함께 삭제한다.
+
+## 데이터 내보내기와 계정 탈퇴
+
+- `GET /api/v1/account/export` — 사용자 정보와 워크스페이스를 JSON 파일로 내보내기
+- `DELETE /api/v1/account` — 사용자, 모든 세션, 워크스페이스와 업로드 파일 영구 삭제
+
+내보내기 응답에는 내부 파일 저장명이 포함되지 않는다. 계정 탈퇴가 완료되면 세션 쿠키도 즉시 만료된다.
 
 ## AI 연결
 

@@ -1,0 +1,17 @@
+services:
+  folio:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "4173:4173"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 4173
+      FOLIO_DATA_DIR: /data
+    volumes:
+      - folio-data:/data
+
+volumes:
+  folio-data:
