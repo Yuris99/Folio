@@ -336,6 +336,18 @@ Folio와 `cloudflared`가 같은 Compose 네트워크에 있지 않은 상태입
 - `folio` 로그와 상태 검사를 확인합니다.
 - Published application의 Service URL이 `http://folio:4173`인지 확인합니다.
 
+### `EACCES: permission denied` 또는 오류 코드 `-13`
+
+NAS 데이터 폴더의 소유권과 컨테이너 실행 사용자가 일치하지 않는 상태입니다. 최신 Folio 이미지는 시작할 때 `/data`의 소유권만 안전하게 정리한 뒤 일반 `node` 사용자로 권한을 낮춥니다.
+
+1. GitHub Actions의 최신 이미지 발행이 성공했는지 확인합니다.
+2. Container Manager에서 Folio 프로젝트를 중지합니다.
+3. 최신 `ghcr.io/yuris99/folio:latest` 이미지를 가져옵니다.
+4. Folio 프로젝트를 다시 생성합니다.
+5. `folio` 로그에서 쓰기 권한 오류가 사라졌는지 확인합니다.
+
+NAS의 `folio-data` 폴더를 `Everyone` 쓰기 권한으로 열거나 Folio 애플리케이션을 계속 root로 실행하지 않습니다.
+
 ## 최종 보안 체크리스트
 
 - [ ] 공유기에 Folio용 포트 포워딩이 없음

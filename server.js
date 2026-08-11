@@ -37,11 +37,23 @@ function defaultWorkspace(name = '사용자', email = '') {
     stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: []
   };
 }
+function assertDataDirectoryWritable() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const probe = path.join(DATA_DIR, `.folio-write-check-${process.pid}-${crypto.randomBytes(4).toString('hex')}`);
+  try {
+    fs.writeFileSync(probe, 'ok');
+    fs.unlinkSync(probe);
+  } catch (error) {
+    console.error(`FOLIO_DATA_DIR is not writable: ${DATA_DIR}`);
+    throw error;
+  }
+}
 function loadDb() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_FILE)) return { users:{}, sessions:{} };
   try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { return { users:{}, sessions:{} }; }
 }
+assertDataDirectoryWritable();
 let db = loadDb();
 function pruneExpiredSessions() {
   const current=Date.now();let changed=false;
