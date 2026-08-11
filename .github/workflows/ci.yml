@@ -36,5 +36,8 @@ jobs:
       - name: Run API integration tests
         run: npm test
 
+      - name: Validate NAS Compose
+        run: docker compose --env-file .env.example -f compose.nas.yaml config --quiet
+
       - name: Build Docker image
         run: docker build --tag folio:ci .

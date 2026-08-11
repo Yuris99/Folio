@@ -16,7 +16,7 @@ NAS 예약 작업
 - `.github/workflows/ci.yml`: `main` push와 Pull Request마다 검사합니다.
 - `.github/workflows/publish-container.yml`: `main`에 반영된 커밋을 `ghcr.io/yuris99/folio:latest`와 커밋 SHA 태그로 발행합니다.
 - 이미지는 Intel/AMD NAS용 `linux/amd64`와 ARM NAS용 `linux/arm64`를 함께 지원합니다.
-- 비밀 값은 이미지에 포함하지 않습니다. Google/OpenAI 설정은 NAS의 `.env`에만 둡니다.
+- 비밀 값은 이미지에 포함하지 않습니다. Google, AI, Tunnel 설정은 NAS의 `.env`에만 둡니다.
 
 ## 1. 첫 Actions 실행 확인
 
@@ -59,8 +59,14 @@ GOOGLE_REDIRECT_URI=https://folio.example.com/api/v1/auth/google/callback
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-5.6-luna
 
-FOLIO_HOST_PORT=4173
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_DEFAULT_MODEL=gemini-3.6-flash
+GEMINI_EXTRACTION_MODEL=gemini-3.5-flash-lite
+GEMINI_WRITING_MODEL=gemini-3.5-flash
+
 FOLIO_DATA_PATH=/volume1/docker/folio-data
+CLOUDFLARE_TUNNEL_TOKEN=...
 ```
 
 `FOLIO_DATA_PATH`는 실제 NAS의 영구 저장 폴더로 바꿉니다. Synology가 아니라면 `/volume1/docker` 대신 해당 NAS의 절대 경로를 사용합니다.
@@ -98,6 +104,6 @@ docker compose -f compose.nas.yaml logs --tail=100 folio
 ## 주의 사항
 
 - `.env`, `/data`, 업로드 파일은 GitHub나 컨테이너 이미지에 포함하지 않습니다.
-- 외부 공개 시 NAS의 4173 포트를 그대로 포트 포워딩하기보다 NAS 리버스 프록시와 HTTPS 인증서를 사용합니다.
+- 외부 공개 시 NAS 포트를 직접 열지 않고 [Cloudflare Tunnel 구성](./CLOUDFLARE_TUNNEL.md)을 사용합니다.
 - Google OAuth의 승인된 리디렉션 URI는 `GOOGLE_REDIRECT_URI`와 글자 하나까지 같아야 합니다.
 - 데이터 백업 대상은 `FOLIO_DATA_PATH`로 지정한 폴더 전체입니다.

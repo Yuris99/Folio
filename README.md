@@ -1,6 +1,6 @@
 # Folio
 
-GitHub Actions와 개인 NAS 자동 배포 설정은 [GITHUB_ACTIONS.md](./GITHUB_ACTIONS.md)를 참고하세요.
+전체 운영 배포 절차는 [SETUP_GUIDE.md](./SETUP_GUIDE.md), Cloudflare Tunnel 설정은 [CLOUDFLARE_TUNNEL.md](./CLOUDFLARE_TUNNEL.md), GitHub Actions와 개인 NAS 자동 배포 설정은 [GITHUB_ACTIONS.md](./GITHUB_ACTIONS.md)를 참고하세요.
 
 Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력 정보와 채용 공고를 한곳에서 관리하는 개인용 워크스페이스입니다.
 
