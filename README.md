@@ -4,7 +4,7 @@
 
 Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력 정보와 채용 공고를 한곳에서 관리하는 개인용 워크스페이스입니다.
 
-현재 저장소에는 반응형 프론트엔드와 Node.js API 서버가 함께 구현되어 있습니다. 별도의 패키지 설치나 외부 데이터베이스 없이 실행할 수 있으며, Google OAuth와 OpenAI API 키를 등록하면 실제 외부 서비스까지 연결됩니다.
+현재 저장소에는 React·TypeScript·Vite 반응형 프론트엔드와 Node.js API 서버가 함께 구현되어 있습니다. Google OAuth와 AI API 키를 등록하면 실제 외부 서비스와 연결됩니다.
 
 ## 현재 구현 상태
 
@@ -58,11 +58,12 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 
 ### 내 정보
 
-- 이름, 희망 직무, 이메일, 연락처, 거주 지역과 한 줄 소개
-- 학교, 전공과 재학 기간
-- 보유 기술을 쉼표로 구분해 관리
-- 경력 및 프로젝트 경험 추가
-- GitHub와 포트폴리오 URL 관리
+- 이력서 순서대로 기본 정보, 영문명, 생년월일, 주소와 연락처 관리
+- 한 줄 소개, 자기소개 요약과 고용 형태·근무지·연봉·입사 가능일 관리
+- 복수 학력, 경력, 프로젝트를 항목별로 추가·삭제
+- 자격증, 어학, 수상·대외활동과 보유 기술 관리
+- GitHub, 포트폴리오, 블로그, LinkedIn URL 관리
+- 상세 경력과 프로젝트 정보를 AI 지원서 초안의 사실 근거로 사용
 - PDF 이력서 업로드, 열람과 삭제
 - 전체 워크스페이스 JSON 내보내기
 - 확인 문구 입력 후 계정과 저장 파일 영구 삭제
@@ -90,31 +91,36 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 
 | 영역 | 구현 |
 | --- | --- |
-| 프론트엔드 | HTML, CSS, Vanilla JavaScript |
+| 프론트엔드 | React 19, TypeScript, Vite |
 | API 서버 | Node.js 기본 `http` 모듈 |
 | 데이터 저장 | 사용자별 JSON 영속 저장소 |
 | 인증 | Google OAuth 2.0, PKCE, 쿠키 세션 |
 | AI | OpenAI Responses API, 로컬 대체 생성기 |
 | 파일 | 사용자별 로컬 PDF 저장소 |
-| 테스트 | Node.js 기반 전체 API 통합 테스트 |
-
-외부 런타임 패키지가 없으므로 `npm install` 없이 실행할 수 있습니다.
+| 테스트 | TypeScript 타입 검사, Vite 빌드, Node.js API 통합 테스트 |
 
 ## 실행 방법
 
-Node.js 18 이상이 필요합니다.
+Node.js 22 이상이 필요합니다. 먼저 의존성을 설치합니다.
 
 ```powershell
-npm.cmd start
+npm.cmd install
 ```
 
-브라우저에서 다음 주소를 엽니다.
+개발 시에는 API와 Vite를 각각 실행합니다.
+
+```powershell
+npm.cmd run dev:api
+npm.cmd run dev
+```
+
+프론트엔드는 다음 주소에서 열립니다.
 
 ```text
-http://localhost:4173
+http://localhost:5173
 ```
 
-개발 환경에서 Google 키가 비어 있으면 `Google로 계속하기`를 눌렀을 때 로컬 테스트 사용자로 로그인합니다. 입력한 데이터는 기본적으로 `.data/db.json`에 저장됩니다.
+운영 빌드는 `npm.cmd run build`, 빌드된 프론트와 API 통합 실행은 `npm.cmd start`를 사용합니다. 입력한 데이터는 기본적으로 `.data/db.json`에 저장됩니다.
 
 현재 로컬 `.env` 파일은 기본 주소와 빈 비밀값으로 준비되어 있습니다. 설정 상태만 확인하려면 다음 명령을 사용합니다.
 
@@ -157,7 +163,7 @@ http://localhost:4173/api/v1/auth/google/callback
 
 ## 실제 AI 연결
 
-서버의 `.env`에 OpenAI API 키를 설정합니다. API 키는 브라우저 코드나 `config.js`에 넣지 않습니다.
+서버의 `.env`에 OpenAI API 키를 설정합니다. API 키는 브라우저 코드나 `VITE_` 환경 변수에 넣지 않습니다.
 
 ```env
 OPENAI_API_KEY=...
@@ -225,28 +231,21 @@ OPENAI_MODEL=gpt-5.6-luna
 
 ## 프론트엔드와 별도 백엔드 연결
 
-[config.js](./config.js)의 API 주소를 변경하면 동일한 계약을 구현한 외부 백엔드를 사용할 수 있습니다.
-
-```js
-window.FOLIO_CONFIG = Object.freeze({
-  useMockBackend: false,
-  apiBaseUrl: '/api/v1',
-  googleLoginPath: '/auth/google',
-  requestTimeoutMs: 15000
-});
-```
-
-외부 도메인을 사용하면 `apiBaseUrl`을 전체 HTTPS 주소로 변경하고, 백엔드에서 credential을 포함한 CORS 요청을 허용해야 합니다.
+기본적으로 동일 출처의 `/api/v1`을 사용합니다. Vercel에서는 [vercel.json](./vercel.json)의 Rewrite가 NAS 백엔드로 요청을 전달합니다. 직접 다른 API를 사용하려면 Vite 빌드 환경 변수 `VITE_API_BASE_URL`을 설정합니다.
 
 ## 프로젝트 구조
 
 ```text
 .
-├── index.html          # 애플리케이션 화면과 모달
+├── index.html          # Vite 진입점
 ├── styles.css          # 다크 모드 및 반응형 레이아웃
-├── app.js              # 화면 렌더링과 사용자 상호작용
-├── api.js              # 프론트엔드 API 클라이언트
-├── config.js           # API 연결 설정
+├── src/                # React·TypeScript 프론트엔드
+│   ├── components/      # 공통 레이아웃과 모달
+│   ├── pages/           # 홈, 지원, 일정, 이력서 등 페이지
+│   ├── hooks/           # 사용자·워크스페이스 상태
+│   ├── api.ts           # 타입이 있는 API 클라이언트
+│   └── types.ts         # 도메인 타입
+├── vite.config.mts     # Vite 개발·빌드 설정
 ├── server.js           # 정적 서버, 인증, 데이터, 파일과 AI API
 ├── test-server.js      # 서버 전체 흐름 통합 테스트
 ├── Dockerfile          # 운영 컨테이너 이미지
@@ -262,7 +261,7 @@ window.FOLIO_CONFIG = Object.freeze({
 
 ## 검사
 
-JavaScript 문법 검사:
+TypeScript 타입과 Node.js 문법 검사:
 
 ```powershell
 npm.cmd run check

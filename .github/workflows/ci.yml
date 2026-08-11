@@ -28,16 +28,19 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          package-manager-cache: false
+          cache: npm
 
-      - name: Check JavaScript syntax
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types and syntax
         run: npm run check
 
       - name: Run API integration tests
         run: npm test
 
       - name: Build Vercel frontend
-        run: npm run build:frontend
+        run: npm run build
 
       - name: Validate NAS Compose
         run: docker compose --env-file .env.example -f compose.nas.yaml config --quiet

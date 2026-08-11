@@ -55,8 +55,18 @@ async function json(path, options={}, cookie='') {
     assert.equal(bootstrap.response.status,200);
     assert.ok(Array.isArray(bootstrap.data.data.applications));
 
-    const profile=await json('/api/v1/profile',{method:'PUT',body:JSON.stringify({name:'테스트 사용자',role:'Frontend Developer'})},cookie);
+    const profile=await json('/api/v1/profile',{method:'PUT',body:JSON.stringify({
+      name:'테스트 사용자',
+      role:'Frontend Developer',
+      summary:'사용자 문제를 해결하는 개발자',
+      educations:[{school:'테스트대학교',major:'컴퓨터공학',startDate:'2020-03',endDate:'2026-02'}],
+      experiences:[{company:'테스트 회사',position:'개발자',description:'제품 개발'}],
+      projects:[{name:'Folio',role:'Frontend',tech:'JavaScript'}],
+      certifications:[{name:'정보처리기사',issuer:'한국산업인력공단'}]
+    })},cookie);
     assert.equal(profile.data.data.name,'테스트 사용자');
+    assert.equal(profile.data.data.educations[0].major,'컴퓨터공학');
+    assert.equal(profile.data.data.experiences[0].company,'테스트 회사');
 
     const created=await json('/api/v1/applications',{method:'POST',body:JSON.stringify({company:'테스트 회사',role:'개발자',status:'작성 중',deadline:'2026-09-01',next:'지원서 작성'})},cookie);
     assert.equal(created.response.status,201);

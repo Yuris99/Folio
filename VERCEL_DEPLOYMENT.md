@@ -11,16 +11,15 @@ https://folio.yuris.io
 → NAS 백엔드
 ```
 
-## 현재 404 원인과 해결
+## 빌드 구성
 
-기존 Vercel 배포의 `404: NOT_FOUND`는 Vercel이 제공할 빌드 결과와 `index.html`을 찾지 못해서 발생했습니다.
-
-저장소에는 다음 구성이 추가되어야 합니다.
+Vercel은 Vite 사이트를 빌드하고 `dist` 결과물을 배포합니다.
 
 ```text
-build-frontend.js
+src/
+vite.config.mts
 vercel.json
-package.json의 build:frontend
+package.json의 build
 ```
 
 빌드 결과에는 프론트 파일만 포함됩니다.
@@ -28,10 +27,9 @@ package.json의 build:frontend
 ```text
 dist/
 ├─ index.html
-├─ styles.css
-├─ config.js
-├─ api.js
-└─ app.js
+└─ assets/
+   ├─ index-[hash].css
+   └─ index-[hash].js
 ```
 
 ## 1. 사전 확인
@@ -77,7 +75,7 @@ Root Directory: ./
 저장소의 `vercel.json`이 다음 값을 지정하므로 Vercel 화면에서 별도로 Override하지 않습니다.
 
 ```text
-Build Command: npm run build:frontend
+Build Command: npm run build
 Output Directory: dist
 ```
 
@@ -203,7 +201,7 @@ NAS `.env`를 바꾸면 Container Manager에서 Folio 프로젝트를 다시 생
 ### `404: NOT_FOUND`
 
 1. Vercel의 최신 Deployment 커밋을 확인합니다.
-2. Build Logs에 `npm run build:frontend`가 있는지 확인합니다.
+2. Build Logs에 `npm run build`가 있는지 확인합니다.
 3. 로그에 `Built 5 frontend files`가 있는지 확인합니다.
 4. Project의 Root Directory가 `./`인지 확인합니다.
 5. Build Command와 Output Directory Override를 꺼서 `vercel.json`을 사용합니다.

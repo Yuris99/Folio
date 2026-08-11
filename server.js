@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const ROOT = __dirname;
+const PUBLIC_DIR = path.join(ROOT, 'dist');
 function loadEnvFile() {
   const file=path.join(ROOT,'.env');
   if(!fs.existsSync(file))return;
@@ -24,16 +25,46 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const APP_ORIGIN = (process.env.APP_ORIGIN || '').replace(/\/$/,'');
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || '';
+const DEV_AUTH_BYPASS = !IS_PROD && process.env.FOLIO_DEV_AUTH_BYPASS === 'true';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
-const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json; charset=utf-8', '.md':'text/markdown; charset=utf-8', '.svg':'image/svg+xml' };
+const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json; charset=utf-8', '.md':'text/markdown; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.ico':'image/x-icon', '.woff':'font/woff', '.woff2':'font/woff2' };
 const oauthStates = new Map();
 
 function uid() { return crypto.randomUUID(); }
 function now() { return new Date().toISOString(); }
 function defaultWorkspace(name = '사용자', email = '') {
   return {
-    profile: { name, role:'희망 직무를 입력하세요', target:'', email, phone:'', location:'', education:'', period:'', links:[], skills:[] },
+    profile: {
+      name,
+      englishName:'',
+      role:'희망 직무를 입력하세요',
+      target:'',
+      summary:'',
+      email,
+      phone:'',
+      birthDate:'',
+      location:'',
+      address:'',
+      employmentType:'',
+      desiredLocation:'',
+      salary:'',
+      availableDate:'',
+      education:'',
+      period:'',
+      github:'',
+      portfolio:'',
+      blog:'',
+      linkedin:'',
+      links:[],
+      skills:[],
+      educations:[],
+      experiences:[],
+      projects:[],
+      certifications:[],
+      languages:[],
+      awards:[]
+    },
     stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: []
   };
 }
@@ -118,6 +149,11 @@ function safeReturnTo(value, req) { try { const url=new URL(value||'/',origin(re
 
 async function googleStart(req,res,url) {
   const returnTo=safeReturnTo(url.searchParams.get('returnTo'),req);
+  if (DEV_AUTH_BYPASS) {
+    const user=upsertUser({providerId:'local-google-demo',name:'Folio 사용자',email:'demo@folio.local'});
+    const session=createSession(user.id);
+    res.writeHead(302,{Location:returnTo,'Set-Cookie':sessionCookie(session)}); return res.end();
+  }
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     if (IS_PROD) return fail(res,503,'Google OAuth 환경 변수가 설정되지 않았습니다.','GOOGLE_AUTH_NOT_CONFIGURED');
     const user=upsertUser({providerId:'local-google-demo',name:'Folio 사용자',email:'demo@folio.local'});
@@ -163,8 +199,13 @@ function localAnalyze(description='') {
 }
 function localDocument(workspace,job) {
   const stories=workspace.stories.slice(0,3);
-  const content=`${job.company}의 ${job.role} 직무에 지원하며, 사용자 문제를 구체적인 결과로 연결한 경험을 강조하고 싶습니다.\n\n${stories.map(s=>`${s.title} 경험에서 ${s.summary}`).join('\n\n')||'내 정보에 경력과 프로젝트를 추가하면 사실 기반 초안을 더 구체적으로 만들 수 있습니다.'}\n\n이 경험을 바탕으로 팀과 함께 측정 가능한 제품 개선을 만들겠습니다.`;
-  return {id:uid(),title:`${job.company} · 맞춤 지원서`,content,citations:stories.map((s,i)=>({sentence:i+2,careerStoryId:s.id})),warnings:stories.length?[]:['연결할 경력 정보가 부족합니다.'],source:'local'};
+  const profileEvidence=[
+    ...(workspace.profile?.experiences||[]).map(item=>[item.company,item.position,item.description,item.achievements].filter(Boolean).join(' · ')),
+    ...(workspace.profile?.projects||[]).map(item=>[item.name,item.role,item.description,item.achievements].filter(Boolean).join(' · '))
+  ].filter(Boolean).slice(0,3);
+  const evidence=stories.length?stories.map(s=>`${s.title} 경험에서 ${s.summary}`):profileEvidence;
+  const content=`${job.company}의 ${job.role} 직무에 지원하며, 사용자 문제를 구체적인 결과로 연결한 경험을 강조하고 싶습니다.\n\n${evidence.join('\n\n')||'내 정보에 경력과 프로젝트를 추가하면 사실 기반 초안을 더 구체적으로 만들 수 있습니다.'}\n\n이 경험을 바탕으로 팀과 함께 측정 가능한 제품 개선을 만들겠습니다.`;
+  return {id:uid(),title:`${job.company} · 맞춤 지원서`,content,citations:stories.map((s,i)=>({sentence:i+2,careerStoryId:s.id})),warnings:evidence.length?[]:['연결할 경력 정보가 부족합니다.'],source:'local'};
 }
 
 async function api(req,res,url) {
@@ -217,17 +258,21 @@ async function api(req,res,url) {
   match=route.match(/^\/api\/v1\/documents\/([^/]+)$/);
   if(match&&method==='PUT'){const item=w.docs.find(x=>x.id===match[1]);if(!item)return fail(res,404,'문서를 찾을 수 없습니다.','NOT_FOUND');Object.assign(item,payload,{updatedAt:now()});saveDb();return ok(res,item);}
   if(method==='POST'&&route==='/api/v1/ai/jobs/analyze'){let result;try{result=await openaiJson('채용 공고를 분석해 JSON만 출력하세요. 키: skills, responsibilities, requirements, preferredQualifications. 모든 값은 문자열 배열이며 원문에 없는 사실을 만들지 마세요.',payload.description||'')}catch(e){console.error(e);result=null}return ok(res,result||localAnalyze(payload.description));}
-  if(method==='POST'&&route==='/api/v1/ai/documents/generate'){const job=w.jobs.find(j=>j.id===payload.jobId);if(!job)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');const selected=w.stories.filter(s=>(payload.careerStoryIds||[]).includes(s.id));let result;try{result=await openaiJson('사용자가 제공한 사실만 사용해 한국어 자기소개서 초안을 작성하고 JSON만 출력하세요. 키: title, content, citations, warnings. 근거 없는 성과나 수치를 만들지 마세요.',JSON.stringify({job,careerStories:selected}))}catch(e){console.error(e);result=null}const item={...(result||localDocument(w,job)),id:uid(),jobId:job.id,createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
+  if(method==='POST'&&route==='/api/v1/ai/documents/generate'){const job=w.jobs.find(j=>j.id===payload.jobId);if(!job)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');const selected=w.stories.filter(s=>(payload.careerStoryIds||[]).includes(s.id));let result;try{result=await openaiJson('사용자가 제공한 사실만 사용해 한국어 자기소개서 초안을 작성하고 JSON만 출력하세요. 키: title, content, citations, warnings. 근거 없는 성과나 수치를 만들지 마세요.',JSON.stringify({job,profile:w.profile,careerStories:selected}))}catch(e){console.error(e);result=null}const item={...(result||localDocument(w,job)),id:uid(),jobId:job.id,createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
   return fail(res,404,'API 경로를 찾을 수 없습니다.','NOT_FOUND');
 }
 
 function staticFile(req,res,url) {
   const file=url.pathname==='/'?'index.html':decodeURIComponent(url.pathname).replace(/^\/+/, '');
-  const publicFiles=new Set(['index.html','styles.css','config.js','api.js','app.js']);
-  if(!publicFiles.has(file)){res.writeHead(404);return res.end('Not found');}
-  const target=path.resolve(ROOT,file);
-  if(!target.startsWith(ROOT+path.sep)) { res.writeHead(403); return res.end('Forbidden'); }
-  fs.readFile(target,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found');}res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':IS_PROD?'public, max-age=300':'no-store'});res.end(data);});
+  if(file.split('/').some(part=>part.startsWith('.'))){res.writeHead(404);return res.end('Not found');}
+  if(!fs.existsSync(PUBLIC_DIR)){res.writeHead(503,{'Content-Type':'text/plain; charset=utf-8'});return res.end('Frontend build is not available. Run npm run build.');}
+  let target=path.resolve(PUBLIC_DIR,file);
+  if(target!==PUBLIC_DIR&&!target.startsWith(PUBLIC_DIR+path.sep)){res.writeHead(403);return res.end('Forbidden');}
+  if(!fs.existsSync(target)||fs.statSync(target).isDirectory()){
+    if(path.extname(file)||file.startsWith('.')){res.writeHead(404);return res.end('Not found');}
+    target=path.join(PUBLIC_DIR,'index.html');
+  }
+  fs.readFile(target,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found');}const hashedAsset=target.includes(`${path.sep}assets${path.sep}`);res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':IS_PROD?(hashedAsset?'public, max-age=31536000, immutable':'public, max-age=300'):'no-store'});res.end(data);});
 }
 
 const server=http.createServer(async(req,res)=>{

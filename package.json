@@ -3,12 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build:frontend": "node build-frontend.js",
+    "build": "tsc -b && vite build",
     "start": "node server.js",
-    "dev": "node server.js",
+    "dev": "vite",
+    "dev:api": "node server.js",
+    "preview": "vite preview",
     "test": "node test-server.js",
-    "check": "node --check server.js && node --check api.js && node --check app.js && node --check preflight.js && node --check build-frontend.js",
+    "check": "tsc -b --pretty false && node --check server.js && node --check preflight.js",
     "preflight": "node preflight.js",
     "preflight:production": "node preflight.js --production"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
   }
 }

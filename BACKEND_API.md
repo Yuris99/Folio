@@ -1,6 +1,6 @@
 # Folio 백엔드 연결 계약
 
-현재 프로젝트에는 이 계약을 구현한 Node.js 백엔드가 포함되어 있으며 [config.js](./config.js)는 동일 출처의 `/api/v1`을 사용한다. 별도 백엔드로 교체할 때도 아래 계약을 유지하면 프론트엔드를 수정하지 않고 연결할 수 있다.
+현재 프로젝트에는 이 계약을 구현한 Node.js 백엔드가 포함되어 있으며 [src/api.ts](./src/api.ts)는 동일 출처의 `/api/v1`을 사용한다. 별도 백엔드로 교체할 때도 아래 계약을 유지하면 프론트엔드를 수정하지 않고 연결할 수 있다.
 
 ## 공통 규칙
 
@@ -71,7 +71,7 @@ GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 }
 ```
 
-필드명은 현재 [app.js](./app.js)의 `seed` 구조를 기준으로 한다. 운영 단계에서는 ISO 8601 날짜와 UUID 사용을 권장한다.
+필드명은 [src/types.ts](./src/types.ts)의 `Workspace` 구조를 기준으로 한다. 운영 단계에서는 ISO 8601 날짜와 UUID 사용을 권장한다.
 
 ## 지원 관리
 

@@ -1,0 +1,45 @@
+import { useState, type FormEvent } from 'react';
+import { api } from '../api';
+import { EmptyState, PageHead } from '../components/Common';
+import { Modal } from '../components/Modal';
+import type { Mutation } from '../hooks/useFolio';
+import type { Job, View, Workspace } from '../types';
+import { dateLabel, daysUntil } from '../utils';
+
+export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+  const [selectedId, setSelectedId] = useState('');
+  const [creating, setCreating] = useState(false);
+  const selected = workspace.jobs.find((item) => item.id === selectedId);
+
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const base = { company: String(data.get('company')), role: String(data.get('role')), deadline: String(data.get('deadline')), url: String(data.get('url')), description: String(data.get('description')) };
+    const analysis = await mutate('공고 분석', () => api.analyzeJob(base), false);
+    const job = await mutate('공고 저장', () => api.createJob({ ...base, skills: analysis.skills || [] })) as Job;
+    setSelectedId(job.id);
+    setCreating(false);
+  }
+
+  async function createApplication(job: Job) {
+    if (workspace.applications.some((item) => item.jobId === job.id)) { window.alert('이미 지원 관리에 등록된 공고입니다.'); navigate('applications'); return; }
+    await mutate('지원 추가', () => api.createApplication({ jobId: job.id, company: job.company, role: job.role, status: '관심', deadline: job.deadline, next: '지원 여부 결정', url: job.url, memo: '' }));
+    navigate('applications');
+  }
+
+  async function generate(job: Job) {
+    await mutate('AI 초안 생성', () => api.generateDocument({ jobId: job.id, documentType: 'cover_letter', careerStoryIds: workspace.stories.map((item) => item.id) }));
+    navigate('documents');
+  }
+
+  if (selected) {
+    const requirements = selected.skills.map((skill) => ({ skill, story: workspace.stories.find((story) => story.skills.some((item) => item.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(item.toLowerCase()))) }));
+    return <><button className="text-button" onClick={() => setSelectedId('')}>← 공고 목록</button><div className="detail-hero" style={{ marginTop: 18 }}><p className="eyebrow">JOB POSTING</p><h2>{selected.company} · {selected.role}</h2><p>{dateLabel(selected.deadline)} 마감 · 저장된 공고 원문</p><div className="detail-meta">{selected.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></div><div className="grid dashboard-grid"><article className="card"><div className="section-head"><h2>주요 요구사항</h2></div><div className="requirements">{requirements.map((item) => <div className="requirement" key={item.skill}><span>•</span><div><b>{item.skill}</b><small style={{ display: 'block', marginTop: 4 }}>{item.story ? `관련 경험: ${item.story.title}` : '관련 경험을 내 정보에 추가할 수 있습니다.'}</small></div></div>)}</div></article><article className="card"><div className="section-head"><h2>공고 원문</h2></div><p className="muted job-description">{selected.description}</p><div className="detail-actions"><button className="button primary" onClick={() => void createApplication(selected)}>지원 건 만들기</button><button className="button" onClick={() => void generate(selected)}>맞춤 초안 만들기</button></div></article></div></>;
+  }
+
+  return <>
+    <PageHead kicker="JOB ARCHIVE" title="공고 보관함" description="관심 있는 공고 원문을 저장하고 지원으로 전환합니다." actions={<button className="button primary" onClick={() => setCreating(true)}>+ 공고 저장</button>} />
+    {workspace.jobs.length ? <div className="grid list-grid">{workspace.jobs.map((job) => <button className="card posting-card posting-button" key={job.id} onClick={() => setSelectedId(job.id)}><div className="section-head"><div className="company-logo">{job.company[0]}</div><span className="deadline">{daysUntil(job.deadline) >= 0 ? `D-${daysUntil(job.deadline)}` : '마감'}</span></div><h3>{job.company}</h3><strong>{job.role}</strong><p>{job.description.slice(0, 110)}{job.description.length > 110 ? '…' : ''}</p><div className="tag-row">{job.skills.slice(0, 4).map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></button>)}</div> : <EmptyState title="저장한 공고가 없습니다." description="공고 본문을 붙여 넣으면 핵심 기술을 정리하고 지원 기록으로 연결할 수 있습니다." action={<button className="button primary" onClick={() => setCreating(true)}>첫 공고 저장</button>} />}
+    {creating && <Modal title="채용 공고 저장" kicker="NEW OPPORTUNITY" onClose={() => setCreating(false)}><form onSubmit={create}><p className="muted">공고 본문을 붙여 넣으면 핵심 기술을 분석해 저장합니다.</p><div className="form-grid two"><label>회사명<input required name="company" /></label><label>직무명<input required name="role" /></label></div><div className="form-grid two"><label>마감일<input name="deadline" type="date" /></label><label>공고 URL<input name="url" type="url" placeholder="https://..." /></label></div><label>채용 공고 본문<textarea required name="description" rows={10} placeholder="주요 업무, 자격 요건, 우대 사항을 붙여 넣으세요." /></label><div className="modal-actions"><button type="button" className="button ghost" onClick={() => setCreating(false)}>취소</button><button className="button primary">분석하고 저장</button></div></form></Modal>}
+  </>;
+}

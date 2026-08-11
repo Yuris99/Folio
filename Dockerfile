@@ -1,3 +1,15 @@
+FROM node:22-alpine AS frontend-build
+
+WORKDIR /build
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY index.html styles.css tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.mts ./
+COPY src ./src
+
+RUN npm run build
+
 FROM node:22-alpine
 
 WORKDIR /app
@@ -6,8 +18,8 @@ ENV NODE_ENV=production \
     PORT=4173 \
     FOLIO_DATA_DIR=/data
 
-COPY --chown=node:node package.json ./
-COPY --chown=node:node index.html styles.css config.js api.js app.js server.js ./
+COPY --chown=node:node package.json server.js ./
+COPY --from=frontend-build --chown=node:node /build/dist ./dist
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/folio-entrypoint
 
 RUN apk add --no-cache su-exec \
