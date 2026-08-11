@@ -37,6 +37,7 @@
 - 사용자별 JSON 데이터 저장
 - Docker 이미지와 NAS용 Compose
 - Cloudflare Tunnel이 포함된 NAS Compose
+- Vercel 프론트 전용 빌드와 API Rewrite
 - GitHub Actions 테스트 및 GHCR 발행
 - `linux/amd64`, `linux/arm64` 이미지 지원
 - Cloudflare 원격 관리 Tunnel `folio-nas` 생성
@@ -53,8 +54,6 @@ Cloudflare: Waiting for connector
 
 - OpenAI 전용 구현을 Gemini provider 구조로 변경
 - 작업별 Gemini 모델 라우팅
-- Vercel 프론트 전용 빌드
-- Vercel API Rewrite
 - SSH가 없는 NAS를 위한 업데이트 방식 정리
 
 최종 NAS 및 Vercel 배포는 위 코드 작업이 `main`에 반영된 후 진행합니다.
@@ -379,7 +378,7 @@ uploads/
 코드에서 처리할 항목:
 
 - Gemini provider와 모델 라우팅
-- Vercel 프론트 빌드와 Rewrite
+- Vercel 프론트 빌드와 Rewrite 완료
 - NAS Compose 갱신 완료
 - SSH 없는 업데이트 방식
 - 통합 테스트와 GitHub 반영
