@@ -27,7 +27,11 @@ const APP_ORIGIN = (process.env.APP_ORIGIN || '').replace(/\/$/,'');
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || '';
 const DEV_AUTH_BYPASS = !IS_PROD && process.env.FOLIO_DEV_AUTH_BYPASS === 'true';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.4-mini';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_DEFAULT_MODEL = process.env.GEMINI_DEFAULT_MODEL || 'gemini-2.5-flash';
+const GEMINI_EXTRACTION_MODEL = process.env.GEMINI_EXTRACTION_MODEL || GEMINI_DEFAULT_MODEL;
+const AI_PROVIDER = (process.env.AI_PROVIDER || (GEMINI_API_KEY ? 'gemini' : 'openai')).toLowerCase();
 const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json; charset=utf-8', '.md':'text/markdown; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.ico':'image/x-icon', '.woff':'font/woff', '.woff2':'font/woff2' };
 const oauthStates = new Map();
 
@@ -38,7 +42,7 @@ function defaultWorkspace(name = '사용자', email = '') {
     profile: {
       name,
       englishName:'',
-      role:'희망 직무를 입력하세요',
+      role:'',
       target:'',
       summary:'',
       email,
@@ -65,8 +69,27 @@ function defaultWorkspace(name = '사용자', email = '') {
       languages:[],
       awards:[]
     },
-    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: []
+    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [],
+    careerVaultVersion:1, careerSources:[], careerFacts:[]
   };
+}
+function careerFact(category,title,organization='',period='',description='',achievements='',skills=[]) {
+  return {id:uid(),category,title:String(title||'').trim(),organization:String(organization||'').trim(),period:String(period||'').trim(),description:String(description||'').trim(),achievements:String(achievements||'').trim(),skills:(skills||[]).filter(Boolean),sourceIds:[],status:'verified',sensitive:false,createdAt:now(),updatedAt:now()};
+}
+function ensureCareerVault(workspace) {
+  if(workspace.careerVaultVersion===1&&Array.isArray(workspace.careerSources)&&Array.isArray(workspace.careerFacts))return false;
+  workspace.careerSources=(workspace.attachments||[]).map(file=>({id:uid(),name:file.name,type:'resume',attachmentId:file.id,status:'ready',createdAt:file.createdAt||now()}));
+  const p=workspace.profile||{}, facts=[];
+  for(const item of p.educations||[])if(item.school)facts.push(careerFact('education',item.school,item.major,[item.startDate,item.endDate].filter(Boolean).join(' ~ '),[item.degree,item.status,item.gpa,item.description].filter(Boolean).join(' · ')));
+  for(const item of p.experiences||[])if(item.company||item.position)facts.push(careerFact('experience',item.position||item.company,item.company,[item.startDate,item.endDate].filter(Boolean).join(' ~ '),[item.department,item.employmentType,item.description].filter(Boolean).join(' · '),item.achievements));
+  for(const item of p.projects||[])if(item.name)facts.push(careerFact('project',item.name,item.organization,[item.startDate,item.endDate].filter(Boolean).join(' ~ '),[item.role,item.description,item.url].filter(Boolean).join(' · '),item.achievements,String(item.tech||'').split(',').map(x=>x.trim())));
+  for(const item of p.certifications||[])if(item.name)facts.push(careerFact('certification',item.name,item.issuer,item.acquiredDate,item.credentialId));
+  for(const item of p.languages||[])if(item.name)facts.push(careerFact('language',item.name,'',item.acquiredDate,[item.level,item.score].filter(Boolean).join(' · ')));
+  for(const item of p.awards||[])if(item.name)facts.push(careerFact('activity',item.name,item.issuer,item.date,item.description));
+  if((p.skills||[]).length)facts.push(careerFact('skill','보유 기술','','','검증된 기술 및 도구','',p.skills));
+  workspace.careerFacts=facts;
+  workspace.careerVaultVersion=1;
+  return true;
 }
 function assertDataDirectoryWritable() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -192,6 +215,42 @@ async function openaiJson(instructions,input) {
   const text=extractResponseText(await response.json()).replace(/^```json\s*|\s*```$/g,'');
   return JSON.parse(text);
 }
+async function geminiJson(instructions,input,model=GEMINI_DEFAULT_MODEL) {
+  if(!GEMINI_API_KEY)return null;
+  const parts=Array.isArray(input)?input:[{text:String(input)}];
+  const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:instructions}]},contents:[{role:'user',parts}],generationConfig:{responseMimeType:'application/json'}})});
+  if(!response.ok)throw new Error(`GEMINI_${response.status}`);
+  const result=await response.json();
+  const text=(result.candidates?.[0]?.content?.parts||[]).map(part=>part.text||'').join('').replace(/^```json\s*|\s*```$/g,'');
+  if(!text)throw new Error('GEMINI_EMPTY_RESPONSE');
+  return JSON.parse(text);
+}
+async function aiJson(instructions,input,model) {
+  return AI_PROVIDER==='gemini'?geminiJson(instructions,input,model):openaiJson(instructions,input);
+}
+const careerCategories=new Set(['profile','education','experience','project','skill','certification','language','activity','other']);
+function normalizeExtractedFact(item,sourceId) {
+  const category=careerCategories.has(item?.category)?item.category:'other';
+  return {id:uid(),category,title:String(item?.title||'확인할 정보').slice(0,200),organization:String(item?.organization||'').slice(0,200),period:String(item?.period||'').slice(0,100),description:String(item?.description||'').slice(0,10000),achievements:String(item?.achievements||'').slice(0,5000),skills:(Array.isArray(item?.skills)?item.skills:[]).map(String).map(x=>x.trim()).filter(Boolean).slice(0,30),sourceIds:[sourceId],status:'review',sensitive:Boolean(item?.sensitive||category==='profile'),createdAt:now(),updatedAt:now()};
+}
+async function extractCareerFacts(user,source) {
+  const instructions='이력서 또는 포트폴리오에서 확인 가능한 사실만 추출해 JSON만 출력하세요. 형식: {"facts":[{"category":"profile|education|experience|project|skill|certification|language|activity|other","title":"","organization":"","period":"","description":"","achievements":"","skills":[],"sensitive":false}]}. 회사, 프로젝트, 학력은 각각 한 항목으로 분리하고 날짜와 수치를 원문 그대로 보존하세요. 추측하거나 내용을 보완하지 마세요. 이메일, 전화번호, 생년월일, 주소는 sensitive=true로 표시하세요.';
+  let input='', canFallback=false, pdf=null;
+  if(source.rawText){input=source.rawText;canFallback=true;}
+  else if(source.attachmentId){
+    const file=(user.workspace.attachments||[]).find(x=>x.id===source.attachmentId);
+    if(file){const filePath=path.join(DATA_DIR,'uploads',user.id,file.storageName);if(fs.existsSync(filePath)){const data=fs.readFileSync(filePath).toString('base64');pdf={name:file.name,data};}}
+  }
+  let result=null;
+  try{
+    if(input)result=await aiJson(instructions,input,GEMINI_EXTRACTION_MODEL);
+    else if(pdf&&AI_PROVIDER==='gemini')result=await geminiJson(instructions,[{inlineData:{mimeType:'application/pdf',data:pdf.data}},{text:'이 PDF의 커리어 정보를 구조화하세요.'}],GEMINI_EXTRACTION_MODEL);
+    else if(pdf)result=await openaiJson(instructions,[{role:'user',content:[{type:'input_file',filename:pdf.name,file_data:`data:application/pdf;base64,${pdf.data}`},{type:'input_text',text:'이 PDF의 커리어 정보를 구조화하세요.'}]}]);
+  }catch(error){console.error('career extraction failed',error);}
+  let items=Array.isArray(result?.facts)?result.facts:[];
+  if(!items.length&&canFallback&&String(source.rawText).trim())items=[{category:'other',title:source.name,description:String(source.rawText).trim().slice(0,10000),skills:[],sensitive:false}];
+  return items.map(item=>normalizeExtractedFact(item,source.id));
+}
 function localAnalyze(description='') {
   const dictionary=['React','TypeScript','JavaScript','Next.js','Vue','Java','Spring','Python','AWS','Docker','Kubernetes','SQL','WebSocket','접근성','성능 최적화','디자인 시스템','A/B 테스트','사용자 경험','협업'];
   const skills=dictionary.filter(k=>description.toLowerCase().includes(k.toLowerCase()));
@@ -210,12 +269,13 @@ function localDocument(workspace,job) {
 
 async function api(req,res,url) {
   const method=req.method, route=url.pathname;
-  if(method==='GET'&&route==='/api/v1/health') return ok(res,{status:'ok',googleConfigured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET),aiConfigured:Boolean(OPENAI_API_KEY)});
+  if(method==='GET'&&route==='/api/v1/health') return ok(res,{status:'ok',googleConfigured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET),aiProvider:AI_PROVIDER,aiConfigured:AI_PROVIDER==='gemini'?Boolean(GEMINI_API_KEY):Boolean(OPENAI_API_KEY)});
   if(method==='GET'&&route==='/api/v1/auth/google') return googleStart(req,res,url);
   if(method==='GET'&&route==='/api/v1/auth/google/callback') return googleCallback(req,res,url);
   if(method==='GET'&&route==='/api/v1/auth/session'){const user=requireUser(req,res);if(user)return ok(res,publicUser(user));return;}
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
+  if(ensureCareerVault(w))saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
   if(method==='GET'&&route==='/api/v1/account/export')return send(res,200,{data:exportWorkspace(user)},{'Content-Disposition':`attachment; filename="folio-export-${new Date().toISOString().slice(0,10)}.json"`,'Cache-Control':'no-store'});
   let fileMatch=route.match(/^\/api\/v1\/files\/([^/]+)$/);
@@ -225,6 +285,62 @@ async function api(req,res,url) {
     res.writeHead(200,{'Content-Type':item.type||'application/octet-stream','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(item.name)}`,'Content-Length':fs.statSync(filePath).size});return fs.createReadStream(filePath).pipe(res);
   }
   const payload=await body(req);
+  if(method==='POST'&&route==='/api/v1/chat-import'){
+    const kinds=new Set(['applications','interviews','documents','tasks']);
+    if(payload?.format!=='folio-chat-import'||payload?.version!==1||!kinds.has(payload?.kind)||!payload.data||typeof payload.data!=='object'||Array.isArray(payload.data))return fail(res,400,'Folio 채팅 가져오기 형식이 올바르지 않습니다.','INVALID_CHAT_IMPORT');
+    for(const value of Object.values(payload.data))if(!Array.isArray(value))return fail(res,400,'가져오기 항목은 배열이어야 합니다.','INVALID_CHAT_IMPORT_LIST');
+    const clean=(value,max=10000)=>String(value??'').trim().slice(0,max);
+    let total=0,skippedDuplicates=0;
+    const findJob=(company,role)=>w.jobs.find(job=>clean(job.company).toLowerCase()===clean(company).toLowerCase()&&clean(job.role).toLowerCase()===clean(role).toLowerCase());
+    const ensureJob=(company,role)=>{let job=findJob(company,role);if(!job&&clean(company)){job={id:uid(),company:clean(company,200),role:clean(role,200),deadline:'',url:'',description:'',skills:[],createdAt:now()};w.jobs.unshift(job);total++;}return job;};
+    if(payload.kind==='applications'){
+      for(const raw of payload.data.jobs||[]){if(!raw||typeof raw!=='object'||!clean(raw.company))continue;if(findJob(raw.company,raw.role)){skippedDuplicates++;continue;}w.jobs.unshift({id:uid(),company:clean(raw.company,200),role:clean(raw.role,200),deadline:clean(raw.deadline,50),url:clean(raw.url,2000),description:clean(raw.description),skills:(Array.isArray(raw.skills)?raw.skills:[]).map(x=>clean(x,100)).filter(Boolean).slice(0,50),createdAt:now()});total++;}
+      const statuses=new Set(['관심','작성 중','지원 완료','서류 통과','면접','합격','탈락']);
+      for(const raw of payload.data.applications||[]){if(!raw||typeof raw!=='object')continue;const job=ensureJob(raw.company,raw.role);if(!job)continue;if(w.applications.some(item=>item.jobId===job.id)){skippedDuplicates++;continue;}w.applications.unshift({id:uid(),jobId:job.id,status:statuses.has(raw.status)?raw.status:'관심',next:clean(raw.next,500),memo:clean(raw.memo,5000),createdAt:now(),updatedAt:now()});total++;}
+    }
+    if(payload.kind==='interviews')for(const raw of payload.data.interviews||[]){if(!raw||typeof raw!=='object'||!clean(raw.company))continue;const key=[raw.company,raw.role,raw.date,raw.type].map(x=>clean(x).toLowerCase()).join('|');if(w.interviews.some(item=>[item.company,item.role,item.date,item.type].map(x=>clean(x).toLowerCase()).join('|')===key)){skippedDuplicates++;continue;}w.interviews.push({id:uid(),company:clean(raw.company,200),role:clean(raw.role,200),date:clean(raw.date,50),type:clean(raw.type,100)||'기타',memo:clean(raw.memo,5000),prepared:Math.max(0,Math.min(100,Number(raw.prepared)||0)),createdAt:now()});total++;}
+    if(payload.kind==='interviews')w.interviews.sort((a,b)=>a.date.localeCompare(b.date));
+    if(payload.kind==='documents')for(const raw of payload.data.documents||[]){if(!raw||typeof raw!=='object'||!clean(raw.title)||!clean(raw.content))continue;const title=clean(raw.title,300),content=clean(raw.content,50000);if(w.docs.some(item=>clean(item.title).toLowerCase()===title.toLowerCase()&&clean(item.content)===content)){skippedDuplicates++;continue;}const job=clean(raw.company)?ensureJob(raw.company,raw.role):null;w.docs.unshift({id:uid(),title,jobId:job?.id,content,warnings:(Array.isArray(raw.warnings)?raw.warnings:[]).map(x=>clean(x,500)).filter(Boolean),createdAt:now(),updatedAt:now()});total++;}
+    if(payload.kind==='tasks')for(const raw of payload.data.tasks||[]){if(!raw||typeof raw!=='object'||!clean(raw.text))continue;const text=clean(raw.text,1000),date=clean(raw.date,50);if(w.tasks.some(item=>clean(item.text).toLowerCase()===text.toLowerCase()&&clean(item.date)===date)){skippedDuplicates++;continue;}w.tasks.unshift({id:uid(),text,date,done:Boolean(raw.done),createdAt:now()});total++;}
+    saveDb();return ok(res,{workspace:w,imported:{total,skippedDuplicates}});
+  }
+  if(method==='POST'&&route==='/api/v1/career-import'){
+    if(payload?.format!=='folio-career-import'||payload?.version!==1)return fail(res,400,'Folio 커리어 가져오기 형식이 올바르지 않습니다.','INVALID_IMPORT_FORMAT');
+    const listKeys=['educations','experiences','projects','certifications','languages','awards'];
+    if(payload.profile!==undefined&&(typeof payload.profile!=='object'||Array.isArray(payload.profile)))return fail(res,400,'profile 형식이 올바르지 않습니다.','INVALID_IMPORT_PROFILE');
+    for(const key of [...listKeys,'careerFacts'])if(payload[key]!==undefined&&!Array.isArray(payload[key]))return fail(res,400,`${key}는 배열이어야 합니다.`,'INVALID_IMPORT_LIST');
+    const cleanText=(value,max=10000)=>String(value??'').trim().slice(0,max);
+    const profileKeys=['name','englishName','role','target','summary','email','phone','birthDate','location','address','github','portfolio','blog','linkedin'];
+    let profileFields=0,profileItems=0,skippedDuplicates=0;
+    for(const key of profileKeys){const value=cleanText(payload.profile?.[key]);if(value&&!w.profile[key]){w.profile[key]=value;profileFields++;}}
+    const incomingSkills=Array.isArray(payload.profile?.skills)?payload.profile.skills.map(x=>cleanText(x,100)).filter(Boolean):[];
+    const knownSkills=new Set((w.profile.skills||[]).map(x=>String(x).toLowerCase()));
+    for(const skill of incomingSkills)if(!knownSkills.has(skill.toLowerCase())){w.profile.skills.push(skill);knownSkills.add(skill.toLowerCase());profileFields++;}
+    const identityKeys={educations:['school','major','startDate'],experiences:['company','position','startDate'],projects:['name','organization','startDate'],certifications:['name','issuer','acquiredDate'],languages:['name','level','score'],awards:['name','issuer','date']};
+    for(const key of listKeys){
+      const target=Array.isArray(w.profile[key])?w.profile[key]:(w.profile[key]=[]);
+      const identity=item=>identityKeys[key].map(field=>cleanText(item?.[field],200).toLowerCase()).join('|');
+      const known=new Set(target.map(identity));
+      for(const raw of payload[key]||[]){if(!raw||typeof raw!=='object'||Array.isArray(raw))continue;const item={};for(const [field,value] of Object.entries(raw))item[field]=Array.isArray(value)?value.map(x=>cleanText(x,100)).filter(Boolean):cleanText(value);const id=identity(item);if(!id.replaceAll('|',''))continue;if(known.has(id)){skippedDuplicates++;continue;}target.push(item);known.add(id);profileItems++;}
+    }
+    const source={id:uid(),name:`AI 채팅 가져오기 ${new Date().toISOString().slice(0,10)}`,type:'career-note',status:'review',createdAt:now()};
+    const suppliedFacts=Array.isArray(payload.careerFacts)?payload.careerFacts.filter(x=>x&&typeof x==='object'&&!Array.isArray(x)):[];
+    const derived=[];
+    if(!suppliedFacts.length){
+      for(const item of payload.educations||[])if(item?.school)derived.push({category:'education',title:item.school,organization:item.school,period:[item.startDate,item.endDate].filter(Boolean).join(' ~ '),description:[item.major,item.degree,item.status,item.description].filter(Boolean).join(' · ')});
+      for(const item of payload.experiences||[])if(item?.company||item?.position)derived.push({category:'experience',title:item.position||item.company,organization:item.company,period:[item.startDate,item.endDate].filter(Boolean).join(' ~ '),description:[item.department,item.employmentType,item.description].filter(Boolean).join(' · '),achievements:item.achievements});
+      for(const item of payload.projects||[])if(item?.name)derived.push({category:'project',title:item.name,organization:item.organization,period:[item.startDate,item.endDate].filter(Boolean).join(' ~ '),description:[item.role,item.description,item.url].filter(Boolean).join(' · '),achievements:item.achievements,skills:cleanText(item.tech).split(',').map(x=>x.trim()).filter(Boolean)});
+      for(const item of payload.certifications||[])if(item?.name)derived.push({category:'certification',title:item.name,organization:item.issuer,period:item.acquiredDate,description:item.credentialId});
+      for(const item of payload.languages||[])if(item?.name)derived.push({category:'language',title:item.name,period:item.acquiredDate,description:[item.level,item.score].filter(Boolean).join(' · ')});
+      for(const item of payload.awards||[])if(item?.name)derived.push({category:'activity',title:item.name,organization:item.issuer,period:item.date,description:item.description});
+    }
+    const candidates=suppliedFacts.length?suppliedFacts:derived;
+    const knownFacts=new Set(w.careerFacts.filter(x=>x.status!=='excluded').map(x=>`${x.category}|${String(x.title).trim().toLowerCase()}|${String(x.organization).trim().toLowerCase()}|${String(x.period).trim().toLowerCase()}`));
+    const facts=[];
+    for(const raw of candidates){const fact=normalizeExtractedFact(raw,source.id);if(!fact.title.trim())continue;const key=`${fact.category}|${fact.title.toLowerCase()}|${fact.organization.toLowerCase()}|${fact.period.toLowerCase()}`;if(knownFacts.has(key)){skippedDuplicates++;continue;}knownFacts.add(key);facts.push(fact);}
+    if(facts.length){w.careerSources.unshift(source);w.careerFacts.unshift(...facts);}
+    saveDb();return ok(res,{workspace:w,imported:{profileFields,profileItems,facts:facts.length,skippedDuplicates}});
+  }
   if(method==='POST'&&route==='/api/v1/workspace/reset'){removeUserUploads(user.id);user.workspace=defaultWorkspace(user.name,user.email);saveDb();return ok(res,user.workspace);}
   if(method==='DELETE'&&route==='/api/v1/account'){
     removeUserUploads(user.id);
@@ -233,6 +349,40 @@ async function api(req,res,url) {
   }
   if(method==='PUT'&&route==='/api/v1/profile'){w.profile={...w.profile,...payload};saveDb();return ok(res,w.profile);}
   if(method==='POST'&&route==='/api/v1/career-stories'){const item={...payload,id:uid(),createdAt:now()};w.stories.unshift(item);saveDb();return ok(res,item,201);}
+  if(method==='POST'&&route==='/api/v1/career-sources'){
+    if(!payload.name)return fail(res,400,'원본 이름을 입력하세요.','INVALID_SOURCE');
+    if(payload.attachmentId&&!(w.attachments||[]).some(x=>x.id===payload.attachmentId))return fail(res,404,'연결할 파일을 찾을 수 없습니다.','NOT_FOUND');
+    const item={id:uid(),name:String(payload.name).slice(0,200),type:['resume','portfolio','career-note'].includes(payload.type)?payload.type:'resume',attachmentId:payload.attachmentId||undefined,rawText:String(payload.rawText||'').slice(0,150000)||undefined,status:'ready',createdAt:now()};
+    w.careerSources.unshift(item);saveDb();return ok(res,item,201);
+  }
+  let sourceMatch=route.match(/^\/api\/v1\/career-sources\/([^/]+)(?:\/(extract))?$/);
+  if(sourceMatch&&method==='POST'&&sourceMatch[2]==='extract'){
+    const source=w.careerSources.find(x=>x.id===sourceMatch[1]);if(!source)return fail(res,404,'원본을 찾을 수 없습니다.','NOT_FOUND');
+    const facts=await extractCareerFacts(user,source);
+    w.careerFacts=w.careerFacts.filter(f=>f.status==='verified'||!f.sourceIds.includes(source.id));
+    w.careerFacts.unshift(...facts);source.status=facts.length?'review':'needs-text';source.extractedAt=now();saveDb();return ok(res,{source,facts});
+  }
+  if(sourceMatch&&method==='DELETE'&&!sourceMatch[2]){
+    const index=w.careerSources.findIndex(x=>x.id===sourceMatch[1]);if(index<0)return fail(res,404,'원본을 찾을 수 없습니다.','NOT_FOUND');
+    const [source]=w.careerSources.splice(index,1);w.careerFacts=w.careerFacts.filter(f=>!f.sourceIds.includes(source.id));
+    if(source.attachmentId){const fileIndex=(w.attachments||[]).findIndex(x=>x.id===source.attachmentId);if(fileIndex>=0){const [file]=w.attachments.splice(fileIndex,1);const filePath=path.join(DATA_DIR,'uploads',user.id,file.storageName);if(fs.existsSync(filePath))fs.unlinkSync(filePath);}}
+    saveDb();res.writeHead(204);return res.end();
+  }
+  if(method==='POST'&&route==='/api/v1/career-facts'){
+    const item=normalizeExtractedFact(payload,'');item.sourceIds=Array.isArray(payload.sourceIds)?payload.sourceIds.filter(id=>w.careerSources.some(source=>source.id===id)):[];item.status=['review','verified','excluded'].includes(payload.status)?payload.status:'review';item.sensitive=Boolean(payload.sensitive);w.careerFacts.unshift(item);saveDb();return ok(res,item,201);
+  }
+  let factMatch=route.match(/^\/api\/v1\/career-facts\/([^/]+)$/);
+  if(factMatch&&method==='PATCH'){
+    const item=w.careerFacts.find(x=>x.id===factMatch[1]);if(!item)return fail(res,404,'커리어 정보를 찾을 수 없습니다.','NOT_FOUND');
+    if(payload.category!==undefined&&careerCategories.has(payload.category))item.category=payload.category;
+    for(const key of ['title','organization','period','description','achievements'])if(payload[key]!==undefined)item[key]=String(payload[key]).slice(0,key==='description'?10000:5000);
+    if(payload.skills!==undefined)item.skills=(Array.isArray(payload.skills)?payload.skills:[]).map(String).map(x=>x.trim()).filter(Boolean).slice(0,30);
+    if(payload.sourceIds!==undefined)item.sourceIds=(Array.isArray(payload.sourceIds)?payload.sourceIds:[]).filter(id=>w.careerSources.some(source=>source.id===id));
+    if(payload.status!==undefined&&['review','verified','excluded'].includes(payload.status))item.status=payload.status;
+    if(payload.sensitive!==undefined)item.sensitive=Boolean(payload.sensitive);
+    item.updatedAt=now();saveDb();return ok(res,item);
+  }
+  if(factMatch&&method==='DELETE'){const before=w.careerFacts.length;w.careerFacts=w.careerFacts.filter(x=>x.id!==factMatch[1]);if(before===w.careerFacts.length)return fail(res,404,'커리어 정보를 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/applications'){let job=w.jobs.find(j=>j.id===payload.jobId);if(!job){job={id:uid(),company:payload.company,role:payload.role,deadline:payload.deadline||'',url:payload.url||'',description:'',skills:[]};w.jobs.unshift(job)}const item={id:uid(),jobId:job.id,status:payload.status||'관심',next:payload.next||'',memo:payload.memo||'',createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/tasks'){const item={...payload,id:uid(),createdAt:now()};w.tasks.unshift(item);saveDb();return ok(res,item,201);}
@@ -257,8 +407,8 @@ async function api(req,res,url) {
   if(method==='POST'&&route==='/api/v1/documents'){const item={...payload,id:uid(),createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
   match=route.match(/^\/api\/v1\/documents\/([^/]+)$/);
   if(match&&method==='PUT'){const item=w.docs.find(x=>x.id===match[1]);if(!item)return fail(res,404,'문서를 찾을 수 없습니다.','NOT_FOUND');Object.assign(item,payload,{updatedAt:now()});saveDb();return ok(res,item);}
-  if(method==='POST'&&route==='/api/v1/ai/jobs/analyze'){let result;try{result=await openaiJson('채용 공고를 분석해 JSON만 출력하세요. 키: skills, responsibilities, requirements, preferredQualifications. 모든 값은 문자열 배열이며 원문에 없는 사실을 만들지 마세요.',payload.description||'')}catch(e){console.error(e);result=null}return ok(res,result||localAnalyze(payload.description));}
-  if(method==='POST'&&route==='/api/v1/ai/documents/generate'){const job=w.jobs.find(j=>j.id===payload.jobId);if(!job)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');const selected=w.stories.filter(s=>(payload.careerStoryIds||[]).includes(s.id));let result;try{result=await openaiJson('사용자가 제공한 사실만 사용해 한국어 자기소개서 초안을 작성하고 JSON만 출력하세요. 키: title, content, citations, warnings. 근거 없는 성과나 수치를 만들지 마세요.',JSON.stringify({job,profile:w.profile,careerStories:selected}))}catch(e){console.error(e);result=null}const item={...(result||localDocument(w,job)),id:uid(),jobId:job.id,createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
+  if(method==='POST'&&route==='/api/v1/ai/jobs/analyze'){let result;try{result=await aiJson('채용 공고를 분석해 JSON만 출력하세요. 키: skills, responsibilities, requirements, preferredQualifications. 모든 값은 문자열 배열이며 원문에 없는 사실을 만들지 마세요.',payload.description||'')}catch(e){console.error(e);result=null}return ok(res,result||localAnalyze(payload.description));}
+  if(method==='POST'&&route==='/api/v1/ai/documents/generate'){const job=w.jobs.find(j=>j.id===payload.jobId);if(!job)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');const selected=w.stories.filter(s=>(payload.careerStoryIds||[]).includes(s.id));let result;try{result=await aiJson('사용자가 제공한 사실만 사용해 한국어 자기소개서 초안을 작성하고 JSON만 출력하세요. 키: title, content, citations, warnings. 근거 없는 성과나 수치를 만들지 마세요.',JSON.stringify({job,profile:w.profile,careerStories:selected}))}catch(e){console.error(e);result=null}const item={...(result||localDocument(w,job)),id:uid(),jobId:job.id,createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
   return fail(res,404,'API 경로를 찾을 수 없습니다.','NOT_FOUND');
 }
 

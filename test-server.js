@@ -7,7 +7,7 @@ const path = require('path');
 const port = 4187;
 const base = `http://localhost:${port}`;
 const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(),'folio-test-'));
-const server = spawn(process.execPath, ['server.js'], { cwd:__dirname, env:{...process.env,PORT:String(port),NODE_ENV:'development',FOLIO_DATA_DIR:testDataDir,GOOGLE_CLIENT_ID:'',GOOGLE_CLIENT_SECRET:'',OPENAI_API_KEY:''}, stdio:['ignore','pipe','pipe'] });
+const server = spawn(process.execPath, ['server.js'], { cwd:__dirname, env:{...process.env,PORT:String(port),NODE_ENV:'development',FOLIO_DATA_DIR:testDataDir,GOOGLE_CLIENT_ID:'',GOOGLE_CLIENT_SECRET:'',AI_PROVIDER:'openai',GEMINI_API_KEY:'',OPENAI_API_KEY:''}, stdio:['ignore','pipe','pipe'] });
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function stopServer(){
@@ -67,6 +67,19 @@ async function json(path, options={}, cookie='') {
     assert.equal(profile.data.data.name,'테스트 사용자');
     assert.equal(profile.data.data.educations[0].major,'컴퓨터공학');
     assert.equal(profile.data.data.experiences[0].company,'테스트 회사');
+
+    const careerSource=await json('/api/v1/career-sources',{method:'POST',body:JSON.stringify({name:'텍스트 이력서',type:'resume',rawText:'테스트 회사에서 React 제품 개발과 성능 개선을 담당했습니다.'})},cookie);
+    assert.equal(careerSource.response.status,201);
+    const extracted=await json(`/api/v1/career-sources/${careerSource.data.data.id}/extract`,{method:'POST'},cookie);
+    assert.equal(extracted.response.status,200);
+    assert.equal(extracted.data.data.facts.length,1);
+    assert.equal(extracted.data.data.facts[0].status,'review');
+    const careerFactId=extracted.data.data.facts[0].id;
+    const verifiedFact=await json(`/api/v1/career-facts/${careerFactId}`,{method:'PATCH',body:JSON.stringify({status:'verified',title:'React 제품 개발'})},cookie);
+    assert.equal(verifiedFact.data.data.status,'verified');
+    const manualFact=await json('/api/v1/career-facts',{method:'POST',body:JSON.stringify({category:'project',title:'Folio',organization:'개인 프로젝트',period:'2026',description:'커리어 데이터 관리',achievements:'LLM용 데이터 정리',skills:['React'],sourceIds:[],status:'verified',sensitive:false})},cookie);
+    assert.equal(manualFact.response.status,201);
+    assert.equal(manualFact.data.data.title,'Folio');
 
     const created=await json('/api/v1/applications',{method:'POST',body:JSON.stringify({company:'테스트 회사',role:'개발자',status:'작성 중',deadline:'2026-09-01',next:'지원서 작성'})},cookie);
     assert.equal(created.response.status,201);
@@ -135,7 +148,7 @@ async function json(path, options={}, cookie='') {
     assert.equal(fs.existsSync(secondUploadDir),false);
     const deletedSession=await json('/api/v1/auth/session',{},secondCookie);
     assert.equal(deletedSession.response.status,401);
-    console.log('PASS health security auth privacy bootstrap profile applications tasks interviews AI documents files export reset logout account-delete');
+    console.log('PASS health security auth privacy bootstrap profile career-vault applications tasks interviews AI documents files export reset logout account-delete');
   } finally {
     await stopServer();
     fs.rmSync(testDataDir,{recursive:true,force:true});

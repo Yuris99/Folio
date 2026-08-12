@@ -1,4 +1,4 @@
-import type { Application, ApplicationPayload, Attachment, CareerStory, Interview, Job, Profile, SupportDocument, TaskItem, User, Workspace } from './types';
+import type { Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, Interview, Job, Profile, SupportDocument, TaskItem, User, Workspace } from './types';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 const requestTimeoutMs = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
@@ -47,10 +47,18 @@ export const api = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   bootstrap: () => request<Workspace>('/bootstrap'),
   exportUrl: () => `${apiBaseUrl}/account/export`,
+  importCareerData: (payload: unknown) => request<{ workspace: Workspace; imported: { profileFields: number; profileItems: number; facts: number; skippedDuplicates: number } }>('/career-import', json('POST', payload)),
+  importChatData: (payload: unknown) => request<{ workspace: Workspace; imported: { total: number; skippedDuplicates: number } }>('/chat-import', json('POST', payload)),
   deleteAccount: () => request<void>('/account', { method: 'DELETE' }),
   resetWorkspace: () => request<Workspace>('/workspace/reset', { method: 'POST' }),
   updateProfile: (payload: Profile) => request<Profile>('/profile', json('PUT', payload)),
   createCareerStory: (payload: Omit<CareerStory, 'id'>) => request<CareerStory>('/career-stories', json('POST', payload)),
+  createCareerSource: (payload: Omit<CareerSource, 'id' | 'status' | 'createdAt' | 'extractedAt'>) => request<CareerSource>('/career-sources', json('POST', payload)),
+  extractCareerSource: (id: string) => request<{ source: CareerSource; facts: CareerFact[] }>(`/career-sources/${id}/extract`, json('POST')),
+  deleteCareerSource: (id: string) => request<void>(`/career-sources/${id}`, { method: 'DELETE' }),
+  createCareerFact: (payload: Omit<CareerFact, 'id' | 'createdAt' | 'updatedAt'>) => request<CareerFact>('/career-facts', json('POST', payload)),
+  updateCareerFact: (id: string, payload: Partial<CareerFact>) => request<CareerFact>(`/career-facts/${id}`, json('PATCH', payload)),
+  deleteCareerFact: (id: string) => request<void>(`/career-facts/${id}`, { method: 'DELETE' }),
   createJob: (payload: Omit<Job, 'id'>) => request<Job>('/jobs', json('POST', payload)),
   analyzeJob: (payload: Pick<Job, 'company' | 'role' | 'deadline' | 'url' | 'description'>) => request<{ skills: string[] }>('/ai/jobs/analyze', json('POST', payload)),
   createApplication: (payload: ApplicationPayload) => request<Application>('/applications', json('POST', payload)),

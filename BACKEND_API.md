@@ -101,13 +101,29 @@ GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 
 지원 삭제 시 연결된 문서와 면접 기록은 즉시 삭제보다 soft delete 또는 사용자 확인 정책을 권장한다.
 
-## 내 정보와 경험
+## 기본 프로필과 커리어 데이터 보관함
 
-- `PUT /api/v1/profile` — 기본 정보 전체 저장
-- `POST /api/v1/career-stories` — 경력/프로젝트 추가
-- 후속 구현: `PATCH/DELETE /career-stories/:id`
+- `PUT /api/v1/profile` — 이름, 희망 직무, 연락처와 요약 저장
+- `POST /api/v1/career-sources` — PDF 또는 텍스트 원본 등록
+- `POST /api/v1/career-sources/:id/extract` — 원본에서 검토 항목 추출
+- `DELETE /api/v1/career-sources/:id` — 원본, 연결 파일과 추출 항목 삭제
+- `POST /api/v1/career-facts` — 커리어 항목 직접 추가
+- `PATCH /api/v1/career-facts/:id` — 내용 및 검증 상태 변경
+- `DELETE /api/v1/career-facts/:id` — 커리어 항목 삭제
 
-프로필에는 이름, 희망 직무, 이메일, 연락처, 거주 지역, 소개, 학력, 기간, 기술 목록과 포트폴리오 링크가 포함된다.
+원본은 `resume | portfolio | career-note`, 커리어 항목은 `review | verified | excluded` 상태를 사용한다. 기본 LLM 내보내기에는 `verified` 항목만 들어간다.
+
+텍스트 원본 예시:
+
+```json
+{
+  "name": "2026 프론트엔드 이력서",
+  "type": "resume",
+  "rawText": "이력서 전체 내용"
+}
+```
+
+PDF 원본은 먼저 `/files`에 업로드한 뒤 반환된 ID를 `attachmentId`로 전달한다. 추출된 항목은 원본 ID를 `sourceIds`로 보존하므로 사용자가 사실의 출처를 확인할 수 있다.
 
 ## 문서
 
@@ -163,7 +179,7 @@ GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 
 ## AI 연결
 
-AI API 키는 브라우저에 두지 않고 반드시 백엔드에서 관리한다.
+AI API 키는 브라우저에 두지 않고 반드시 백엔드에서 관리한다. `AI_PROVIDER=gemini`이면 Gemini `generateContent`, `AI_PROVIDER=openai`이면 OpenAI Responses API를 사용한다.
 
 ### `POST /api/v1/ai/jobs/analyze`
 
@@ -192,33 +208,11 @@ AI API 키는 브라우저에 두지 않고 반드시 백엔드에서 관리한�
 }
 ```
 
-### `POST /api/v1/ai/documents/generate`
+### 커리어 원본 추출
 
-입력:
+`POST /api/v1/career-sources/:id/extract`는 Gemini 또는 OpenAI가 설정된 경우 PDF 또는 텍스트에서 학력, 경력, 프로젝트, 기술, 자격과 활동을 분리한다. 모든 결과는 우선 `review` 상태이며 사용자가 직접 확인해야 한다. API가 없을 때 텍스트 원본은 원문을 하나의 검토 항목으로 보존하고, PDF는 `needs-text` 상태로 전환한다.
 
-```json
-{
-  "jobId": "job_uuid",
-  "documentType": "cover_letter",
-  "careerStoryIds": ["story_uuid"]
-}
-```
-
-출력:
-
-```json
-{
-  "data": {
-    "id": "document_uuid",
-    "title": "회사명 · 맞춤 지원서",
-    "content": "생성된 초안",
-    "citations": [{ "sentence": 1, "careerStoryId": "story_uuid" }],
-    "warnings": []
-  }
-}
-```
-
-생성 시 저장된 사용자 경험만 근거로 사용하고, 근거가 없는 수치나 경력을 만들지 않도록 서버 측 검증을 둔다.
+지원서 초안 생성 엔드포인트는 이전 클라이언트 호환을 위해 남아 있지만 현재 제품 UI에서는 사용하지 않는다. 자기소개서는 외부 채팅에서 작성하고 Folio는 검증된 입력 데이터와 최종 문서를 관리한다.
 
 ## 구현 상태
 

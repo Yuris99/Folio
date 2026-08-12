@@ -27,14 +27,9 @@ export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace
     navigate('applications');
   }
 
-  async function generate(job: Job) {
-    await mutate('AI 초안 생성', () => api.generateDocument({ jobId: job.id, documentType: 'cover_letter', careerStoryIds: workspace.stories.map((item) => item.id) }));
-    navigate('documents');
-  }
-
   if (selected) {
-    const requirements = selected.skills.map((skill) => ({ skill, story: workspace.stories.find((story) => story.skills.some((item) => item.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(item.toLowerCase()))) }));
-    return <><button className="text-button" onClick={() => setSelectedId('')}>← 공고 목록</button><div className="detail-hero" style={{ marginTop: 18 }}><p className="eyebrow">JOB POSTING</p><h2>{selected.company} · {selected.role}</h2><p>{dateLabel(selected.deadline)} 마감 · 저장된 공고 원문</p><div className="detail-meta">{selected.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></div><div className="grid dashboard-grid"><article className="card"><div className="section-head"><h2>주요 요구사항</h2></div><div className="requirements">{requirements.map((item) => <div className="requirement" key={item.skill}><span>•</span><div><b>{item.skill}</b><small style={{ display: 'block', marginTop: 4 }}>{item.story ? `관련 경험: ${item.story.title}` : '관련 경험을 내 정보에 추가할 수 있습니다.'}</small></div></div>)}</div></article><article className="card"><div className="section-head"><h2>공고 원문</h2></div><p className="muted job-description">{selected.description}</p><div className="detail-actions"><button className="button primary" onClick={() => void createApplication(selected)}>지원 건 만들기</button><button className="button" onClick={() => void generate(selected)}>맞춤 초안 만들기</button></div></article></div></>;
+    const requirements = selected.skills.map((skill) => ({ skill, evidence: workspace.careerFacts.find((fact) => fact.status === 'verified' && fact.skills.some((item) => item.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(item.toLowerCase()))) }));
+    return <><button className="text-button" onClick={() => setSelectedId('')}>← 공고 목록</button><div className="detail-hero" style={{ marginTop: 18 }}><p className="eyebrow">JOB POSTING</p><h2>{selected.company} · {selected.role}</h2><p>{dateLabel(selected.deadline)} 마감 · 저장된 공고 원문</p><div className="detail-meta">{selected.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></div><div className="grid dashboard-grid"><article className="card"><div className="section-head"><h2>주요 요구사항</h2></div><div className="requirements">{requirements.map((item) => <div className="requirement" key={item.skill}><span>•</span><div><b>{item.skill}</b><small style={{ display: 'block', marginTop: 4 }}>{item.evidence ? `확인된 경험: ${item.evidence.title}` : '연결할 커리어 데이터가 없습니다.'}</small></div></div>)}</div></article><article className="card"><div className="section-head"><h2>공고 원문</h2></div><p className="muted job-description">{selected.description}</p><div className="detail-actions"><button className="button primary" onClick={() => void createApplication(selected)}>지원 건 만들기</button><button className="button" onClick={() => navigate('career')}>LLM용 커리어 데이터 열기</button></div></article></div></>;
   }
 
   return <>

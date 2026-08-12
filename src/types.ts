@@ -161,6 +161,38 @@ export interface Attachment {
   createdAt?: string;
 }
 
+export type CareerSourceType = 'resume' | 'portfolio' | 'career-note';
+export type CareerSourceStatus = 'ready' | 'review' | 'complete' | 'needs-text';
+export type CareerFactStatus = 'review' | 'verified' | 'excluded';
+export type CareerFactCategory = 'profile' | 'education' | 'experience' | 'project' | 'skill' | 'certification' | 'language' | 'activity' | 'other';
+
+export interface CareerSource {
+  id: string;
+  name: string;
+  type: CareerSourceType;
+  attachmentId?: string;
+  rawText?: string;
+  status: CareerSourceStatus;
+  extractedAt?: string;
+  createdAt?: string;
+}
+
+export interface CareerFact {
+  id: string;
+  category: CareerFactCategory;
+  title: string;
+  organization: string;
+  period: string;
+  description: string;
+  achievements: string;
+  skills: string[];
+  sourceIds: string[];
+  status: CareerFactStatus;
+  sensitive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Workspace {
   profile: Profile;
   stories: CareerStory[];
@@ -170,6 +202,9 @@ export interface Workspace {
   docs: SupportDocument[];
   interviews: Interview[];
   attachments: Attachment[];
+  careerVaultVersion: number;
+  careerSources: CareerSource[];
+  careerFacts: CareerFact[];
 }
 
 export interface ApplicationPayload {

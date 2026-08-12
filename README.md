@@ -2,7 +2,7 @@
 
 전체 운영 배포 절차는 [SETUP_GUIDE.md](./SETUP_GUIDE.md), Cloudflare Tunnel 설정은 [CLOUDFLARE_TUNNEL.md](./CLOUDFLARE_TUNNEL.md), Vercel 배포는 [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md), GitHub Actions와 개인 NAS 자동 배포 설정은 [GITHUB_ACTIONS.md](./GITHUB_ACTIONS.md)를 참고하세요.
 
-Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력 정보와 채용 공고를 한곳에서 관리하는 개인용 워크스페이스입니다.
+Folio는 여러 이력서를 검증된 커리어 데이터로 통합하고, 그 데이터를 ChatGPT 같은 LLM에서 재사용하면서 지원 현황과 일정을 함께 관리하는 개인용 워크스페이스입니다.
 
 현재 저장소에는 React·TypeScript·Vite 반응형 프론트엔드와 Node.js API 서버가 함께 구현되어 있습니다. Google OAuth와 AI API 키를 등록하면 실제 외부 서비스와 연결됩니다.
 
@@ -45,8 +45,8 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 - 회사별 지원 문서 분류
 - 새 문서 생성, 본문 편집과 글자 수 확인
 - 서버에 문서 내용 저장
-- 저장한 경력 정보를 활용한 AI 맞춤 지원서 초안 생성
-- AI가 만든 초안도 일반 문서와 동일하게 편집 가능
+- ChatGPT 등 외부 채팅에서 작성한 자기소개서 보관
+- 자소서 생성 기능과 문서 관리 기능을 분리해 회사별 최종본에 집중
 
 ### 일정과 면접
 
@@ -56,34 +56,34 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 - 면접 일정 수정 및 삭제
 - 홈과 일정 화면의 데이터 연동
 
-### 내 정보
+### 커리어 데이터 보관함
 
-- 이력서 순서대로 기본 정보, 영문명, 생년월일, 주소와 연락처 관리
-- 한 줄 소개, 자기소개 요약과 고용 형태·근무지·연봉·입사 가능일 관리
-- 복수 학력, 경력, 프로젝트를 항목별로 추가·삭제
-- 자격증, 어학, 수상·대외활동과 보유 기술 관리
-- GitHub, 포트폴리오, 블로그, LinkedIn URL 관리
-- 상세 경력과 프로젝트 정보를 AI 지원서 초안의 사실 근거로 사용
-- PDF 이력서 업로드, 열람과 삭제
-- 전체 워크스페이스 JSON 내보내기
-- 확인 문구 입력 후 계정과 저장 파일 영구 삭제
+- 여러 PDF 이력서, 포트폴리오와 텍스트 경력 메모를 원본으로 등록
+- 원본별 학력, 경력, 프로젝트, 기술, 자격과 활동 정보를 구조화
+- 추출 결과를 `검토 필요 · 확인 완료 · 제외` 상태로 관리
+- 비슷한 항목을 중복 가능성으로 표시하고 원본 이름을 근거로 보존
+- 기존 상세 프로필을 첫 접근 시 새 커리어 데이터로 자동 이전
+- 사용자 확인을 마친 정보만 기본 내보내기에 포함
+- 개인정보 포함 여부와 검토 중 정보 포함 여부를 직접 선택
+- ChatGPT에 바로 붙여넣을 Markdown과 자동화용 JSON 미리보기·복사·다운로드
+- 상단 사용 가이드와 빈 화면별 다음 행동 안내
+- 전체 워크스페이스 JSON 백업과 계정 삭제
 
 ### 공고 보관함과 AI
 
 - 회사, 직무, 마감일, URL과 공고 본문 저장
 - 공고 본문에서 기술, 담당 업무, 필수 요건과 우대 사항 분석
-- 공고의 핵심 기술과 저장된 경력 경험 연결
+- 공고의 핵심 기술과 확인 완료된 커리어 데이터 연결
 - 공고에서 지원 기록 생성
-- 공고와 선택한 경력 정보를 바탕으로 지원 문서 초안 생성
-- OpenAI API가 없거나 호출에 실패하면 로컬 규칙 기반 분석기로 자동 전환
-- 생성 문서에는 연결한 경력 근거와 부족한 정보에 대한 경고 포함
+- OpenAI 연결 시 PDF·텍스트 이력서에서 커리어 항목 추출
+- API가 없거나 추출에 실패해도 텍스트 붙여넣기와 직접 입력으로 사용 가능
 
 ### 반응형 UI
 
 - 기본 다크 모드
 - 눈에 강하게 튀는 원색 대신 낮은 채도의 로즈 계열 강조색 사용
 - PC에서는 고정 사이드바와 넓은 콘텐츠 영역 제공
-- 모바일에서는 홈, 지원, 일정, 내 정보의 하단 4개 핵심 탭 제공
+- 모바일에서는 홈, 지원, 일정, 커리어의 하단 4개 핵심 탭 제공
 - 공고, 지원 문서와 면접 등의 세부 기능은 각 화면 또는 더보기 메뉴에서 접근
 - 500px 이하 모바일과 1440px PC 화면에서 브라우저 렌더링 확인
 
@@ -95,7 +95,7 @@ Folio는 취업 준비에 필요한 지원 현황, 일정, 지원 문서, 이력
 | API 서버 | Node.js 기본 `http` 모듈 |
 | 데이터 저장 | 사용자별 JSON 영속 저장소 |
 | 인증 | Google OAuth 2.0, PKCE, 쿠키 세션 |
-| AI | OpenAI Responses API, 로컬 대체 생성기 |
+| AI | Gemini 또는 OpenAI 기반 원본 구조화, 텍스트 대체 경로 |
 | 파일 | 사용자별 로컬 PDF 저장소 |
 | 테스트 | TypeScript 타입 검사, Vite 빌드, Node.js API 통합 테스트 |
 
@@ -143,7 +143,7 @@ GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.6-luna
+OPENAI_MODEL=gpt-5.4-mini
 ```
 
 `.env`와 `.data`는 Git에 포함되지 않습니다.
@@ -163,17 +163,23 @@ http://localhost:4173/api/v1/auth/google/callback
 
 ## 실제 AI 연결
 
-서버의 `.env`에 OpenAI API 키를 설정합니다. API 키는 브라우저 코드나 `VITE_` 환경 변수에 넣지 않습니다.
+서버의 `.env`에서 Gemini 또는 OpenAI 중 하나를 선택합니다. API 키는 브라우저 코드나 `VITE_` 환경 변수에 넣지 않습니다.
 
 ```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_EXTRACTION_MODEL=gemini-3.5-flash-lite
+
+# 또는
+AI_PROVIDER=openai
 OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-5.6-luna
+OPENAI_MODEL=gpt-5.4-mini
 ```
 
-키가 설정되면 다음 기능이 OpenAI Responses API를 사용합니다.
+키가 설정되면 선택한 공급자의 API를 사용합니다.
 
 - 채용 공고 핵심 요건 분석
-- 사용자 경력에 근거한 지원서 초안 생성
+- PDF·텍스트 이력서의 커리어 데이터 구조화
 
 키가 없거나 요청에 실패해도 동일한 응답 구조를 반환하는 로컬 분석기와 문서 생성기가 동작합니다.
 
@@ -209,7 +215,11 @@ OPENAI_MODEL=gpt-5.6-luna
 | 로그아웃 | POST | `/api/v1/auth/logout` |
 | 초기 데이터 | GET | `/api/v1/bootstrap` |
 | 프로필 저장 | PUT | `/api/v1/profile` |
-| 경력 추가 | POST | `/api/v1/career-stories` |
+| 커리어 원본 등록 | POST | `/api/v1/career-sources` |
+| 커리어 원본 분석 | POST | `/api/v1/career-sources/:id/extract` |
+| 커리어 원본 삭제 | DELETE | `/api/v1/career-sources/:id` |
+| 검증 항목 추가 | POST | `/api/v1/career-facts` |
+| 검증 항목 수정·삭제 | PATCH, DELETE | `/api/v1/career-facts/:id` |
 | 공고 저장 | POST | `/api/v1/jobs` |
 | 지원 생성 | POST | `/api/v1/applications` |
 | 지원 수정·삭제 | PATCH, DELETE | `/api/v1/applications/:id` |
@@ -222,7 +232,6 @@ OPENAI_MODEL=gpt-5.6-luna
 | PDF 업로드 | POST | `/api/v1/files` |
 | PDF 조회·삭제 | GET, DELETE | `/api/v1/files/:id` |
 | 공고 AI 분석 | POST | `/api/v1/ai/jobs/analyze` |
-| 지원서 AI 생성 | POST | `/api/v1/ai/documents/generate` |
 | 내 데이터 초기화 | POST | `/api/v1/workspace/reset` |
 | 데이터 내보내기 | GET | `/api/v1/account/export` |
 | 계정 탈퇴 | DELETE | `/api/v1/account` |
@@ -241,7 +250,7 @@ OPENAI_MODEL=gpt-5.6-luna
 ├── styles.css          # 다크 모드 및 반응형 레이아웃
 ├── src/                # React·TypeScript 프론트엔드
 │   ├── components/      # 공통 레이아웃과 모달
-│   ├── pages/           # 홈, 지원, 일정, 이력서 등 페이지
+│   ├── pages/           # 홈, 지원, 일정, 커리어 보관함 등 페이지
 │   ├── hooks/           # 사용자·워크스페이스 상태
 │   ├── api.ts           # 타입이 있는 API 클라이언트
 │   └── types.ts         # 도메인 타입
@@ -280,11 +289,11 @@ npm.cmd test
 → 인증되지 않은 요청 차단
 → 개발용 Google 로그인
 → 세션 및 초기 데이터
-→ 프로필
+→ 프로필과 커리어 원본·검증 데이터
 → 지원 CRUD
 → 할 일
 → 면접 CRUD
-→ AI 로컬 대체 경로
+→ 커리어 추출 및 AI 로컬 대체 경로
 → 문서 생성
 → PDF 검증·업로드·다운로드
 → 사용자 데이터 초기화

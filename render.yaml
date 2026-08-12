@@ -24,7 +24,15 @@ services:
         sync: false
       - key: GOOGLE_REDIRECT_URI
         sync: false
+      - key: AI_PROVIDER
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_DEFAULT_MODEL
+        sync: false
+      - key: GEMINI_EXTRACTION_MODEL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-5.6-luna
+        value: gpt-5.4-mini

@@ -5,7 +5,7 @@ const navItems: Array<{ view: View; icon: string; label: string; mobile?: boolea
   { view: 'home', icon: '⌂', label: '홈', mobile: true },
   { view: 'applications', icon: '▦', label: '지원 관리', mobile: true },
   { view: 'calendar', icon: '◫', label: '일정', mobile: true },
-  { view: 'career', icon: '◇', label: '내 정보', mobile: true },
+  { view: 'career', icon: '◇', label: '커리어', mobile: true },
   { view: 'interviews', icon: '◉', label: '면접' },
   { view: 'jobs', icon: '▤', label: '공고 보관함' }
 ];
@@ -47,7 +47,7 @@ export function Layout({ view, navigate, user, workspace, syncState, error, onLo
       <nav className="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
         {navItems.filter((item) => item.mobile).map((item) => <button key={item.view} className={`nav-item ${view === item.view ? 'active' : ''}`} onClick={() => move(item.view)}><span>{item.icon}</span><small>{item.label.replace(' 관리', '')}</small></button>)}
       </nav>
-      {menuOpen && <div className="mobile-menu-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><section className="mobile-menu-sheet react-sheet"><div className="sheet-handle" /><div className="sheet-head"><button className="sheet-home" onClick={() => move('home')}><span className="brand-mark">F</span> 홈</button><button className="modal-close" onClick={() => setMenuOpen(false)}>×</button></div><nav>{navItems.map((item) => <button key={item.view} onClick={() => move(item.view)}><span>{item.icon}</span><div><strong>{item.label}</strong><small>{item.view === 'career' ? '이력서와 경험 관리' : item.view === 'jobs' ? '저장한 채용 공고' : '화면으로 이동'}</small></div><i>→</i></button>)}</nav></section></div>}
+      {menuOpen && <div className="mobile-menu-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><section className="mobile-menu-sheet react-sheet"><div className="sheet-handle" /><div className="sheet-head"><button className="sheet-home" onClick={() => move('home')}><span className="brand-mark">F</span> 홈</button><button className="modal-close" onClick={() => setMenuOpen(false)}>×</button></div><nav>{navItems.map((item) => <button key={item.view} onClick={() => move(item.view)}><span>{item.icon}</span><div><strong>{item.label}</strong><small>{item.view === 'career' ? '이력서를 모아 LLM용 데이터로 정리' : item.view === 'jobs' ? '저장한 채용 공고' : '화면으로 이동'}</small></div><i>→</i></button>)}</nav></section></div>}
     </div>
   );
 }

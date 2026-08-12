@@ -39,9 +39,12 @@ for(const name of ['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_REDIRECT_UR
   else if(!production&&!has(name))warnings.push(`${name} 미설정: 개발용 로그인으로 동작합니다.`);
 }
 
-mark('OPENAI_API_KEY',has('OPENAI_API_KEY'),has('OPENAI_API_KEY')?'설정됨':'미설정');
-if(production&&!has('OPENAI_API_KEY'))errors.push('OPENAI_API_KEY를 설정하세요.');
-else if(!production&&!has('OPENAI_API_KEY'))warnings.push('OPENAI_API_KEY 미설정: 로컬 AI 대체 경로로 동작합니다.');
+const aiProvider=(env.AI_PROVIDER||'openai').toLowerCase();
+const aiKey=aiProvider==='gemini'?'GEMINI_API_KEY':'OPENAI_API_KEY';
+mark('AI 공급자',true,aiProvider);
+mark(aiKey,has(aiKey),has(aiKey)?'설정됨':'미설정');
+if(production&&!has(aiKey))errors.push(`${aiKey}를 설정하세요.`);
+else if(!production&&!has(aiKey))warnings.push(`${aiKey} 미설정: 텍스트 보존 대체 경로로 동작합니다.`);
 
 if(production){
   if(env.NODE_ENV!=='production')errors.push('NODE_ENV를 production으로 설정하세요.');
