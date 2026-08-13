@@ -3,7 +3,7 @@ import type { Profile, Workspace } from './types';
 export const emptyProfile: Profile = {
   name: '', englishName: '', role: '', target: '', summary: '', email: '', phone: '', birthDate: '', location: '', address: '',
   employmentType: '', desiredLocation: '', salary: '', availableDate: '', github: '', portfolio: '', blog: '', linkedin: '',
-  education: '', period: '', links: [], skills: [], educations: [], experiences: [], projects: [], certifications: [], languages: [], awards: []
+  education: '', period: '', links: [], skills: [], educations: [], experiences: [], projects: [], certifications: [], languages: [], awards: [], activities: [], militaryServices: []
 };
 
 export const emptyWorkspace: Workspace = {
@@ -27,7 +27,9 @@ export function normalizeProfile(value: Partial<Profile> | undefined): Profile {
     projects: array(value?.projects),
     certifications: array(value?.certifications),
     languages: array(value?.languages),
-    awards: array(value?.awards)
+    awards: array(value?.awards),
+    activities: array(value?.activities),
+    militaryServices: array(value?.militaryServices)
   };
   if (!profile.github && profile.links[0]) profile.github = profile.links[0];
   if (!profile.portfolio && profile.links[1]) profile.portfolio = profile.links[1];

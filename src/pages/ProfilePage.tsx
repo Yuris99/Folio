@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { Modal } from '../components/Modal';
 import { CareerImportModal } from '../components/CareerImportModal';
+import { ResumeDetailModal, type SectionKey } from '../components/ResumeDetailModal';
 import type { Mutation } from '../hooks/useFolio';
 import type { Attachment, CareerFact, CareerFactCategory, CareerFactStatus, CareerSource, Profile, Workspace } from '../types';
 
@@ -55,6 +56,8 @@ function createMarkdown(workspace: Workspace, includeSensitive: boolean, include
     ['자격증', profile.certifications.map((item) => `- ${item.name}${item.issuer ? ` · ${item.issuer}` : ''}${item.acquiredDate ? ` (${item.acquiredDate})` : ''}`)],
     ['어학', profile.languages.map((item) => `- ${item.name}${item.level ? ` · ${item.level}` : ''}${item.score ? ` · ${item.score}` : ''}`)],
     ['수상', profile.awards.map((item) => `- ${item.name}${item.issuer ? ` · ${item.issuer}` : ''}${item.date ? ` (${item.date})` : ''}${item.description ? `\n  ${item.description}` : ''}`)]
+    ,['활동·교육', profile.activities.map((item) => `- ${item.name}${item.organization ? ` · ${item.organization}` : ''} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)]
+    ,['병역', profile.militaryServices.map((item) => `- ${[item.branch, item.rank, item.role].filter(Boolean).join(' · ')} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)]
   ] as const;
   for (const [title, items] of structured) if (items.length) lines.push('', `## ${title}`, ...items);
   for (const category of categories.filter((item) => item.value !== 'profile')) {
@@ -79,7 +82,7 @@ function createMarkdown(workspace: Workspace, includeSensitive: boolean, include
 
 function createJson(workspace: Workspace, includeSensitive: boolean, includeReview: boolean) {
   const source = workspace.profile;
-  const profile = { name: source.name, englishName: source.englishName, role: source.role, target: source.target, summary: source.summary, location: source.location, skills: source.skills, links: { github: source.github, portfolio: source.portfolio, blog: source.blog, linkedin: source.linkedin }, educations: source.educations, experiences: source.experiences, projects: source.projects, certifications: source.certifications, languages: source.languages, awards: source.awards, ...(includeSensitive ? { email: source.email, phone: source.phone, birthDate: source.birthDate, address: source.address } : {}) };
+  const profile = { name: source.name, englishName: source.englishName, role: source.role, target: source.target, summary: source.summary, location: source.location, skills: source.skills, links: { github: source.github, portfolio: source.portfolio, blog: source.blog, linkedin: source.linkedin }, educations: source.educations, experiences: source.experiences, projects: source.projects, certifications: source.certifications, languages: source.languages, awards: source.awards, activities: source.activities, militaryServices: source.militaryServices, ...(includeSensitive ? { email: source.email, phone: source.phone, birthDate: source.birthDate, address: source.address } : {}) };
   const facts = workspace.careerFacts.filter((fact) => fact.status === 'verified' || (includeReview && fact.status === 'review')).filter((fact) => includeSensitive || !fact.sensitive);
   return JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), profile, facts: facts.map((fact) => ({ ...fact, sourceNames: fact.sourceIds.map((id) => workspace.careerSources.find((source) => source.id === id)?.name).filter(Boolean) })), instructions: ['등록된 사실만 사용', '정보가 없거나 충돌하면 질문', '수치와 날짜를 추측하지 않음'] }, null, 2);
 }
@@ -91,6 +94,7 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   const [factOpen, setFactOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [resumeDetail, setResumeDetail] = useState<{ section: SectionKey; index: number } | null>(null);
   const [editingFact, setEditingFact] = useState<CareerFact | null>(null);
   const [filter, setFilter] = useState<'all' | CareerFactStatus>('all');
   const [includeSensitive, setIncludeSensitive] = useState(false);
@@ -107,15 +111,15 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   }, [workspace.careerFacts]);
   const filteredFacts = workspace.careerFacts.filter((fact) => filter === 'all' || fact.status === filter);
   const resumeGroups = [
-    { label: '학력', items: workspace.profile.educations.map((item) => ({ title: item.school, meta: [item.major, item.degree, [item.startDate, item.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '), detail: item.description })) },
-    { label: '경력', items: workspace.profile.experiences.map((item) => ({ title: item.company, meta: [item.position, [item.startDate, item.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '), detail: item.description })) },
-    { label: '프로젝트', items: workspace.profile.projects.map((item) => ({ title: item.name, meta: [item.organization, item.role, [item.startDate, item.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '), detail: item.description })) },
-    { label: '자격증·어학·수상', items: [
-      ...workspace.profile.certifications.map((item) => ({ title: item.name, meta: [item.issuer, item.acquiredDate].filter(Boolean).join(' · '), detail: '' })),
-      ...workspace.profile.languages.map((item) => ({ title: item.name, meta: [item.level, item.score, item.acquiredDate].filter(Boolean).join(' · '), detail: '' })),
-      ...workspace.profile.awards.map((item) => ({ title: item.name, meta: [item.issuer, item.date].filter(Boolean).join(' · '), detail: item.description }))
-    ] }
-  ].filter((group) => group.items.length);
+    { label:'학력',items:workspace.profile.educations.map((x,index)=>({section:'educations' as const,index,title:x.school,meta:[x.major,x.degree,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:[x.gpa&&`전체 ${x.gpa}`,x.majorGpa&&`전공 ${x.majorGpa}`,x.description].filter(Boolean).join(' · '),verified:x.verified})) },
+    { label:'경력',items:workspace.profile.experiences.map((x,index)=>({section:'experiences' as const,index,title:x.company,meta:[x.position,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'프로젝트',items:workspace.profile.projects.map((x,index)=>({section:'projects' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'자격증',items:workspace.profile.certifications.map((x,index)=>({section:'certifications' as const,index,title:x.name,meta:[x.issuer,x.acquiredDate].filter(Boolean).join(' · '),detail:x.credentialId,verified:x.verified})) },
+    { label:'어학',items:workspace.profile.languages.map((x,index)=>({section:'languages' as const,index,title:x.name,meta:[x.level,x.score,x.acquiredDate].filter(Boolean).join(' · '),detail:'',verified:x.verified})) },
+    { label:'수상',items:workspace.profile.awards.map((x,index)=>({section:'awards' as const,index,title:x.name,meta:[x.issuer,x.date].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'활동·교육',items:workspace.profile.activities.map((x,index)=>({section:'activities' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'병역',items:workspace.profile.militaryServices.map((x,index)=>({section:'militaryServices' as const,index,title:[x.branch,x.rank].filter(Boolean).join(' · '),meta:[x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) }
+  ].filter((group)=>group.items.length);
 
   function showNotice(message: string) { setNotice(message); window.setTimeout(() => setNotice(''), 2200); }
 
@@ -167,7 +171,22 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
     setFactOpen(false); setEditingFact(null);
   }
 
-  async function setStatus(fact: CareerFact, status: CareerFactStatus) { await mutate(status === 'verified' ? '정보 확인' : '정보 제외', () => api.updateCareerFact(fact.id, { status })); }
+  async function setStatus(fact: CareerFact, status: CareerFactStatus) { if (status === 'verified' && fact.status === 'review') return promoteFact(fact); await mutate(status === 'verified' ? '정보 확인' : '정보 제외', () => api.updateCareerFact(fact.id, { status })); }
+  async function promoteFact(fact: CareerFact) {
+    const suggested = fact.category === 'education' ? '학력' : fact.category === 'experience' ? '경력' : fact.category === 'project' ? '프로젝트' : fact.category === 'certification' ? '자격증' : fact.category === 'language' ? '어학' : fact.category === 'activity' ? '활동' : '';
+    const target = window.prompt('정식 이력 분류: 학력, 경력, 프로젝트, 자격증, 어학, 수상, 활동, 병역', suggested); if (!target) return;
+    const [startDate='',endDate=''] = fact.period.split(/\s*~\s*/); const next: Profile = { ...workspace.profile };
+    if(target==='학력')next.educations=[...next.educations,{school:fact.organization||fact.title,major:fact.organization?fact.title:'',degree:'',status:'',startDate,endDate,gpa:'',description:fact.description,verified:true}];
+    else if(target==='경력')next.experiences=[...next.experiences,{company:fact.organization,department:'',position:fact.title,employmentType:'',startDate,endDate,description:fact.description,achievements:fact.achievements,verified:true}];
+    else if(target==='프로젝트')next.projects=[...next.projects,{name:fact.title,organization:fact.organization,role:'',tech:fact.skills.join(', '),startDate,endDate,url:'',description:fact.description,achievements:fact.achievements,verified:true}];
+    else if(target==='자격증')next.certifications=[...next.certifications,{name:fact.title,issuer:fact.organization,acquiredDate:fact.period,credentialId:fact.description,verified:true}];
+    else if(target==='어학')next.languages=[...next.languages,{name:fact.title,level:fact.description,score:'',acquiredDate:fact.period,verified:true}];
+    else if(target==='수상')next.awards=[...next.awards,{name:fact.title,issuer:fact.organization,date:fact.period,description:[fact.description,fact.achievements].filter(Boolean).join('\n'),verified:true}];
+    else if(target==='활동')next.activities=[...next.activities,{name:fact.title,organization:fact.organization,role:'',startDate,endDate,description:fact.description,achievements:fact.achievements,skills:fact.skills,verified:true}];
+    else if(target==='병역')next.militaryServices=[...next.militaryServices,{branch:fact.organization,rank:'',role:fact.title,startDate,endDate,dischargeType:'',description:[fact.description,fact.achievements].filter(Boolean).join('\n'),verified:true}];
+    else return window.alert('목록에 있는 분류를 입력해 주세요.');
+    await mutate('정식 이력 반영',async()=>{await api.updateProfile(next);return api.updateCareerFact(fact.id,{status:'excluded'});});
+  }
   async function removeFact(fact: CareerFact) { if (window.confirm('이 항목을 완전히 삭제할까요?')) await mutate('정보 삭제', () => api.deleteCareerFact(fact.id)); }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -204,7 +223,7 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
       <section className="canonical-resume">
         <div className="canonical-resume-head"><div><span>MY RESUME</span><h2>내 기본 이력</h2><p>가져오기에서 정리된 프로필·학력·경력·프로젝트입니다. 아래 검토 항목과 별개로 보관되며 LLM 내보내기에도 함께 포함됩니다.</p></div><button className="button small" onClick={() => setImportOpen(true)}>내용 더 가져오기</button></div>
         <div className="profile-facts"><span><b>이메일</b>{workspace.profile.email || '미입력'}</span><span><b>지역</b>{workspace.profile.location || '미입력'}</span><span><b>핵심 기술</b>{workspace.profile.skills.join(', ') || '미입력'}</span></div>
-        {resumeGroups.length ? <div className="canonical-groups">{resumeGroups.map((group) => <div key={group.label}><h3>{group.label}<small>{group.items.length}</small></h3>{group.items.map((item, index) => <article key={`${item.title}-${index}`}><strong>{item.title || '제목 미입력'}</strong>{item.meta && <span>{item.meta}</span>}{item.detail && <p>{item.detail}</p>}</article>)}</div>)}</div> : <div className="canonical-empty">아직 정리된 학력·경력·프로젝트가 없습니다. AI 채팅에서 가져오거나 기본 정보를 입력해 주세요.</div>}
+        {resumeGroups.length ? <div className="canonical-groups">{resumeGroups.map((group) => <div key={group.label}><h3>{group.label}<small>{group.items.length}</small></h3>{group.items.map((item) => <article className="canonical-item" key={`${item.section}-${item.index}`} onClick={() => setResumeDetail({ section:item.section,index:item.index })}><div><strong>{item.title || '제목 미입력'}</strong><em className={item.verified ? 'verified' : ''}>{item.verified ? '검수 완료' : '검수 필요'}</em></div>{item.meta && <span>{item.meta}</span>}{item.detail && <p>{item.detail}</p>}<small>상세 보기 · 수정 · 자료 관리 →</small></article>)}</div>)}</div> : <div className="canonical-empty">아직 정리된 학력·경력·프로젝트가 없습니다. AI 채팅에서 가져오거나 기본 정보를 입력해 주세요.</div>}
       </section>
       <div className="vault-panel-head fact-head"><div><h2>추출된 내용을 직접 확인하세요</h2><p>확인 완료한 정보만 기본 내보내기에 포함됩니다. 중복 표시는 서로 다른 원본을 비교하라는 뜻입니다.</p></div><button className="button primary" onClick={() => openFact()}>+ 직접 추가</button></div>
       <div className="fact-toolbar"><div className="filters">{([['all', '전체'], ['review', `검토 필요 ${review}`], ['verified', `확인 완료 ${verified}`], ['excluded', '제외됨']] as const).map(([value, label]) => <button key={value} className={`filter ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{label}</button>)}</div><span>{conflictIds.size ? `중복 가능성 ${conflictIds.size}개` : '충돌 없음'}</span></div>
@@ -220,6 +239,7 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
     <section className="vault-data-management"><span>데이터 관리</span><div><button onClick={() => setImportOpen(true)}>기존 AI 채팅에서 가져오기</button><button onClick={() => window.location.assign(api.exportUrl())}>백업 JSON 받기</button><button className="danger-text" onClick={() => void deleteAccount()}>계정 탈퇴</button></div></section>
     {notice && <div className="vault-notice">✓ {notice}</div>}
     {importOpen && <CareerImportModal mutate={mutate} onClose={() => setImportOpen(false)} onImported={(kind) => { if (kind === 'career') setTab('facts'); }} />}
+    {resumeDetail && <ResumeDetailModal section={resumeDetail.section} index={resumeDetail.index} profile={workspace.profile} attachments={workspace.attachments} mutate={mutate} onClose={() => setResumeDetail(null)} />}
 
     {guideOpen && <Modal title="커리어 데이터 보관함 사용법" kicker="QUICK GUIDE" onClose={() => setGuideOpen(false)}><div className="guide-flow"><div><i>1</i><span><b>원본을 모두 등록하세요</b><small>최신 이력서뿐 아니라 직무별 버전과 포트폴리오도 함께 넣습니다.</small></span></div><div><i>2</i><span><b>추출 결과를 확인하세요</b><small>날짜, 회사명, 성과 수치를 원본과 비교한 뒤 ‘내용 확인 완료’를 누릅니다.</small></span></div><div><i>3</i><span><b>중복과 충돌을 정리하세요</b><small>비슷한 항목이 여러 개면 최신 정보만 남기거나 내용을 합칩니다.</small></span></div><div><i>4</i><span><b>LLM용 데이터를 복사하세요</b><small>Markdown을 복사해 ChatGPT 대화 첫 메시지에 붙여넣습니다.</small></span></div></div><div className="guide-example"><b>ChatGPT에서는 이렇게 시작하세요</b><p>“아래는 사실 확인을 마친 내 커리어 데이터야. 이 정보만 사용하고, 부족한 내용은 추측하지 말고 질문해 줘.”</p></div><div className="guide-privacy"><b>개인정보 보호</b><p>기본 내보내기에서는 이메일·전화번호와 민감 표시 항목을 제외합니다. 지원서에 꼭 필요할 때만 개인정보 포함을 켜세요.</p></div><div className="modal-actions"><button className="button primary" onClick={() => setGuideOpen(false)}>시작하기</button></div></Modal>}
     {textSourceOpen && <Modal title="텍스트로 원본 등록" kicker="ADD SOURCE" onClose={() => setTextSourceOpen(false)}><form onSubmit={addTextSource}><div className="form-grid two"><label>자료 이름<input name="name" required placeholder="예: 2026 백엔드 이력서" /></label><label>자료 종류<select name="type" defaultValue="resume"><option value="resume">이력서</option><option value="portfolio">포트폴리오</option><option value="career-note">경력 메모</option></select></label></div><label>전체 내용<textarea name="rawText" required rows={14} placeholder="이력서나 포트폴리오 내용을 그대로 붙여넣으세요. 형식이 깨져도 괜찮습니다." /></label><p className="form-help">등록 후 자동으로 항목을 나눕니다. API가 연결되지 않은 경우 원문 전체가 하나의 검토 항목으로 저장됩니다.</p><div className="modal-actions"><button type="button" className="button ghost" onClick={() => setTextSourceOpen(false)}>취소</button><button className="button primary">등록하고 정리하기</button></div></form></Modal>}

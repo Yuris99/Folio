@@ -628,7 +628,28 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 .canonical-groups article strong { font-size: 11px; }
 .canonical-groups article span { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .canonical-groups article p { margin: 5px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.canonical-item { cursor: pointer; }
+.canonical-item:hover { background: #28272a; }
+.canonical-item > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.canonical-item em { padding: 3px 6px; border-radius: 10px; background: #3a3030; color: #d9a3a3; font-size: 8px; font-style: normal; }
+.canonical-item em.verified { background: #26372d; color: #82d79e; }
+.canonical-item > small { display: block; margin-top: 7px; color: var(--accent); font-size: 8px; }
 .canonical-empty { padding: 18px; border: 1px dashed var(--line); color: var(--faint); font-size: 10px; text-align: center; }
+.course-editor, .record-files { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.course-editor .section-head, .record-files .section-head { margin-bottom: 10px; }
+.course-editor .section-head h3, .record-files .section-head h3 { margin: 0; font-size: 12px; }
+.course-editor .section-head p, .record-files .section-head p { margin: 3px 0 0; color: var(--muted); font-size: 9px; }
+.course-row { display: grid; grid-template-columns: 90px 1fr 70px 70px 24px; gap: 6px; margin-top: 6px; }
+.course-row input, .course-row select { min-width: 0; margin: 0; padding: 7px; }
+.course-row button { border: 0; background: transparent; color: var(--faint); cursor: pointer; }
+.record-file { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); }
+.record-file span { flex: 1; min-width: 0; }
+.record-file b, .record-file small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-file b { font-size: 10px; }.record-file small { color: var(--faint); font-size: 8px; }
+.record-file button { border: 0; background: transparent; color: var(--accent); font-size: 9px; cursor: pointer; }
+.pdf-viewer-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.82); }
+.pdf-viewer { width: min(1100px,100%); height: min(850px,95vh); display: grid; grid-template-rows: auto 1fr; background: var(--panel); border: 1px solid var(--line); }
+.pdf-viewer header { display: flex; justify-content: space-between; padding: 12px; }.pdf-viewer header button { border: 0; background: transparent; color: var(--text); cursor: pointer; }.pdf-viewer iframe { width: 100%; height: 100%; border: 0; background: white; }
 .fact-head { margin-bottom: 12px; }
 .fact-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .fact-toolbar .filters { margin: 0 0 14px; }

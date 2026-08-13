@@ -67,7 +67,9 @@ function defaultWorkspace(name = '사용자', email = '') {
       projects:[],
       certifications:[],
       languages:[],
-      awards:[]
+      awards:[],
+      activities:[],
+      militaryServices:[]
     },
     stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [],
     careerVaultVersion:1, careerSources:[], careerFacts:[]
@@ -306,7 +308,7 @@ async function api(req,res,url) {
   }
   if(method==='POST'&&route==='/api/v1/career-import'){
     if(payload?.format!=='folio-career-import'||payload?.version!==1)return fail(res,400,'Folio 커리어 가져오기 형식이 올바르지 않습니다.','INVALID_IMPORT_FORMAT');
-    const listKeys=['educations','experiences','projects','certifications','languages','awards'];
+    const listKeys=['educations','experiences','projects','certifications','languages','awards','activities','militaryServices'];
     if(payload.profile!==undefined&&(typeof payload.profile!=='object'||Array.isArray(payload.profile)))return fail(res,400,'profile 형식이 올바르지 않습니다.','INVALID_IMPORT_PROFILE');
     for(const key of [...listKeys,'careerFacts'])if(payload[key]!==undefined&&!Array.isArray(payload[key]))return fail(res,400,`${key}는 배열이어야 합니다.`,'INVALID_IMPORT_LIST');
     const cleanText=(value,max=10000)=>String(value??'').trim().slice(0,max);
@@ -316,7 +318,7 @@ async function api(req,res,url) {
     const incomingSkills=Array.isArray(payload.profile?.skills)?payload.profile.skills.map(x=>cleanText(x,100)).filter(Boolean):[];
     const knownSkills=new Set((w.profile.skills||[]).map(x=>String(x).toLowerCase()));
     for(const skill of incomingSkills)if(!knownSkills.has(skill.toLowerCase())){w.profile.skills.push(skill);knownSkills.add(skill.toLowerCase());profileFields++;}
-    const identityKeys={educations:['school','major','startDate'],experiences:['company','position','startDate'],projects:['name','organization','startDate'],certifications:['name','issuer','acquiredDate'],languages:['name','level','score'],awards:['name','issuer','date']};
+    const identityKeys={educations:['school','major','startDate'],experiences:['company','position','startDate'],projects:['name','organization','startDate'],certifications:['name','issuer','acquiredDate'],languages:['name','level','score'],awards:['name','issuer','date'],activities:['name','organization','startDate'],militaryServices:['branch','role','startDate']};
     for(const key of listKeys){
       const target=Array.isArray(w.profile[key])?w.profile[key]:(w.profile[key]=[]);
       const identity=item=>identityKeys[key].map(field=>cleanText(item?.[field],200).toLowerCase()).join('|');

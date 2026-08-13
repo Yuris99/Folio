@@ -8,6 +8,7 @@ export interface User {
 }
 
 export interface Education {
+  id?: string;
   school: string;
   major: string;
   degree: string;
@@ -15,10 +16,16 @@ export interface Education {
   startDate: string;
   endDate: string;
   gpa: string;
+  majorGpa?: string;
+  gpaScale?: string;
+  courses?: Array<{ name: string; category: string; credits: string; grade: string }>;
+  attachmentIds?: string[];
+  verified?: boolean;
   description: string;
 }
 
 export interface Experience {
+  id?: string;
   company: string;
   department: string;
   position: string;
@@ -27,9 +34,12 @@ export interface Experience {
   endDate: string;
   description: string;
   achievements: string;
+  attachmentIds?: string[];
+  verified?: boolean;
 }
 
 export interface Project {
+  id?: string;
   name: string;
   organization: string;
   role: string;
@@ -39,27 +49,48 @@ export interface Project {
   url: string;
   description: string;
   achievements: string;
+  attachmentIds?: string[];
+  verified?: boolean;
 }
 
 export interface Certification {
+  id?: string;
   name: string;
   issuer: string;
   acquiredDate: string;
   credentialId: string;
+  attachmentIds?: string[];
+  verified?: boolean;
 }
 
 export interface Language {
+  id?: string;
   name: string;
   level: string;
   score: string;
   acquiredDate: string;
+  attachmentIds?: string[];
+  verified?: boolean;
 }
 
 export interface Award {
+  id?: string;
   name: string;
   issuer: string;
   date: string;
   description: string;
+  attachmentIds?: string[];
+  verified?: boolean;
+}
+
+export interface Activity {
+  id?: string; name: string; organization: string; role: string; startDate: string; endDate: string;
+  description: string; achievements: string; skills: string[]; attachmentIds?: string[]; verified?: boolean;
+}
+
+export interface MilitaryService {
+  id?: string; branch: string; rank: string; role: string; startDate: string; endDate: string;
+  dischargeType: string; description: string; attachmentIds?: string[]; verified?: boolean;
 }
 
 export interface Profile {
@@ -91,6 +122,8 @@ export interface Profile {
   certifications: Certification[];
   languages: Language[];
   awards: Award[];
+  activities: Activity[];
+  militaryServices: MilitaryService[];
 }
 
 export interface CareerStory {
