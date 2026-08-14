@@ -1,4 +1,4 @@
-export type View = 'home' | 'applications' | 'documents' | 'calendar' | 'career' | 'jobs' | 'interviews';
+export type View = 'home' | 'applications' | 'documents' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'interviews';
 
 export interface User {
   id: string;
@@ -143,6 +143,12 @@ export interface Job {
   url: string;
   description: string;
   skills: string[];
+  companyAnalysis?: {
+    overview: string; products: string[]; industry: string; culture: string[]; recentTopics: string[];
+    roleResponsibilities: string[]; requirements: string[]; preferred: string[]; fitEvidence: string[];
+    gaps: string[]; interviewTopics: string[]; sources: Array<{ title: string; url: string }>;
+    analyzedAt?: string;
+  };
   createdAt?: string;
 }
 
@@ -194,6 +200,15 @@ export interface Attachment {
   createdAt?: string;
 }
 
+export type ConsultationType = 'career-coaching' | 'company' | 'mentoring' | 'mock-interview' | 'qna' | 'other';
+export interface ConsultationQA { question: string; answer: string; topic: string; }
+export interface ConsultationRecord {
+  id: string; type: ConsultationType; title: string; organization: string; consultant: string; date: string;
+  relatedCompany: string; relatedRole: string; summary: string; transcript: string; qna: ConsultationQA[];
+  insights: string[]; actionItems: string[]; tags: string[]; attachmentIds: string[];
+  createdAt?: string; updatedAt?: string;
+}
+
 export type CareerSourceType = 'resume' | 'portfolio' | 'career-note';
 export type CareerSourceStatus = 'ready' | 'review' | 'complete' | 'needs-text';
 export type CareerFactStatus = 'review' | 'verified' | 'excluded';
@@ -238,6 +253,7 @@ export interface Workspace {
   careerVaultVersion: number;
   careerSources: CareerSource[];
   careerFacts: CareerFact[];
+  consultations: ConsultationRecord[];
 }
 
 export interface ApplicationPayload {

@@ -71,7 +71,7 @@ function defaultWorkspace(name = '사용자', email = '') {
       activities:[],
       militaryServices:[]
     },
-    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [],
+    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [], consultations: [],
     careerVaultVersion:1, careerSources:[], careerFacts:[]
   };
 }
@@ -277,6 +277,7 @@ async function api(req,res,url) {
   if(method==='GET'&&route==='/api/v1/auth/session'){const user=requireUser(req,res);if(user)return ok(res,publicUser(user));return;}
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
+  if(!Array.isArray(w.consultations))w.consultations=[];
   if(ensureCareerVault(w))saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
   if(method==='GET'&&route==='/api/v1/account/export')return send(res,200,{data:exportWorkspace(user)},{'Content-Disposition':`attachment; filename="folio-export-${new Date().toISOString().slice(0,10)}.json"`,'Cache-Control':'no-store'});
@@ -288,7 +289,7 @@ async function api(req,res,url) {
   }
   const payload=await body(req);
   if(method==='POST'&&route==='/api/v1/chat-import'){
-    const kinds=new Set(['applications','interviews','documents','tasks']);
+    const kinds=new Set(['applications','company-analysis','interviews','documents','tasks']);
     if(payload?.format!=='folio-chat-import'||payload?.version!==1||!kinds.has(payload?.kind)||!payload.data||typeof payload.data!=='object'||Array.isArray(payload.data))return fail(res,400,'Folio 채팅 가져오기 형식이 올바르지 않습니다.','INVALID_CHAT_IMPORT');
     for(const value of Object.values(payload.data))if(!Array.isArray(value))return fail(res,400,'가져오기 항목은 배열이어야 합니다.','INVALID_CHAT_IMPORT_LIST');
     const clean=(value,max=10000)=>String(value??'').trim().slice(0,max);
@@ -300,6 +301,7 @@ async function api(req,res,url) {
       const statuses=new Set(['관심','작성 중','지원 완료','서류 통과','면접','합격','탈락']);
       for(const raw of payload.data.applications||[]){if(!raw||typeof raw!=='object')continue;const job=ensureJob(raw.company,raw.role);if(!job)continue;if(w.applications.some(item=>item.jobId===job.id)){skippedDuplicates++;continue;}w.applications.unshift({id:uid(),jobId:job.id,status:statuses.has(raw.status)?raw.status:'관심',next:clean(raw.next,500),memo:clean(raw.memo,5000),createdAt:now(),updatedAt:now()});total++;}
     }
+    if(payload.kind==='company-analysis')for(const raw of payload.data.analyses||[]){if(!raw||typeof raw!=='object'||!clean(raw.company))continue;const job=ensureJob(raw.company,raw.role);if(!job)continue;const list=(value,max=100)=>Array.isArray(value)?value.map(x=>clean(x,1000)).filter(Boolean).slice(0,max):[];job.companyAnalysis={overview:clean(raw.overview,20000),products:list(raw.products),industry:clean(raw.industry,500),culture:list(raw.culture),recentTopics:list(raw.recentTopics),roleResponsibilities:list(raw.roleResponsibilities),requirements:list(raw.requirements),preferred:list(raw.preferred),fitEvidence:list(raw.fitEvidence),gaps:list(raw.gaps),interviewTopics:list(raw.interviewTopics),sources:(Array.isArray(raw.sources)?raw.sources:[]).map(source=>({title:clean(source?.title,500),url:clean(source?.url,2000)})).filter(source=>source.title||source.url).slice(0,100),analyzedAt:now()};job.skills=[...new Set([...(job.skills||[]),...job.companyAnalysis.requirements,...job.companyAnalysis.preferred])].slice(0,100);total++;}
     if(payload.kind==='interviews')for(const raw of payload.data.interviews||[]){if(!raw||typeof raw!=='object'||!clean(raw.company))continue;const key=[raw.company,raw.role,raw.date,raw.type].map(x=>clean(x).toLowerCase()).join('|');if(w.interviews.some(item=>[item.company,item.role,item.date,item.type].map(x=>clean(x).toLowerCase()).join('|')===key)){skippedDuplicates++;continue;}w.interviews.push({id:uid(),company:clean(raw.company,200),role:clean(raw.role,200),date:clean(raw.date,50),type:clean(raw.type,100)||'기타',memo:clean(raw.memo,5000),prepared:Math.max(0,Math.min(100,Number(raw.prepared)||0)),createdAt:now()});total++;}
     if(payload.kind==='interviews')w.interviews.sort((a,b)=>a.date.localeCompare(b.date));
     if(payload.kind==='documents')for(const raw of payload.data.documents||[]){if(!raw||typeof raw!=='object'||!clean(raw.title)||!clean(raw.content))continue;const title=clean(raw.title,300),content=clean(raw.content,50000);if(w.docs.some(item=>clean(item.title).toLowerCase()===title.toLowerCase()&&clean(item.content)===content)){skippedDuplicates++;continue;}const job=clean(raw.company)?ensureJob(raw.company,raw.role):null;w.docs.unshift({id:uid(),title,jobId:job?.id,content,warnings:(Array.isArray(raw.warnings)?raw.warnings:[]).map(x=>clean(x,500)).filter(Boolean),createdAt:now(),updatedAt:now()});total++;}
@@ -385,6 +387,11 @@ async function api(req,res,url) {
     item.updatedAt=now();saveDb();return ok(res,item);
   }
   if(factMatch&&method==='DELETE'){const before=w.careerFacts.length;w.careerFacts=w.careerFacts.filter(x=>x.id!==factMatch[1]);if(before===w.careerFacts.length)return fail(res,404,'커리어 정보를 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
+  const normalizeConsultation=(raw,id)=>({id:id||uid(),type:['career-coaching','company','mentoring','mock-interview','qna','other'].includes(raw?.type)?raw.type:'other',title:String(raw?.title||'').trim().slice(0,300),organization:String(raw?.organization||'').trim().slice(0,300),consultant:String(raw?.consultant||'').trim().slice(0,200),date:String(raw?.date||'').trim().slice(0,50),relatedCompany:String(raw?.relatedCompany||'').trim().slice(0,300),relatedRole:String(raw?.relatedRole||'').trim().slice(0,300),summary:String(raw?.summary||'').slice(0,20000),transcript:String(raw?.transcript||'').slice(0,150000),qna:(Array.isArray(raw?.qna)?raw.qna:[]).map(item=>({question:String(item?.question||'').slice(0,5000),answer:String(item?.answer||'').slice(0,20000),topic:String(item?.topic||'').slice(0,200)})).filter(item=>item.question||item.answer).slice(0,200),insights:(Array.isArray(raw?.insights)?raw.insights:[]).map(String).map(x=>x.trim()).filter(Boolean).slice(0,100),actionItems:(Array.isArray(raw?.actionItems)?raw.actionItems:[]).map(String).map(x=>x.trim()).filter(Boolean).slice(0,100),tags:(Array.isArray(raw?.tags)?raw.tags:[]).map(String).map(x=>x.trim()).filter(Boolean).slice(0,50),attachmentIds:(Array.isArray(raw?.attachmentIds)?raw.attachmentIds:[]).filter(id=>w.attachments.some(file=>file.id===id)),createdAt:raw?.createdAt||now(),updatedAt:now()});
+  if(method==='POST'&&route==='/api/v1/consultations'){if(!payload.title)return fail(res,400,'상담 제목을 입력해 주세요.','INVALID_CONSULTATION');const item=normalizeConsultation(payload);w.consultations.unshift(item);saveDb();return ok(res,item,201);}
+  let consultationMatch=route.match(/^\/api\/v1\/consultations\/([^/]+)$/);
+  if(consultationMatch&&method==='PUT'){const index=w.consultations.findIndex(x=>x.id===consultationMatch[1]);if(index<0)return fail(res,404,'상담 기록을 찾을 수 없습니다.','NOT_FOUND');w.consultations[index]=normalizeConsultation({...w.consultations[index],...payload},consultationMatch[1]);saveDb();return ok(res,w.consultations[index]);}
+  if(consultationMatch&&method==='DELETE'){const before=w.consultations.length;w.consultations=w.consultations.filter(x=>x.id!==consultationMatch[1]);if(before===w.consultations.length)return fail(res,404,'상담 기록을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/applications'){let job=w.jobs.find(j=>j.id===payload.jobId);if(!job){job={id:uid(),company:payload.company,role:payload.role,deadline:payload.deadline||'',url:payload.url||'',description:'',skills:[]};w.jobs.unshift(job)}const item={id:uid(),jobId:job.id,status:payload.status||'관심',next:payload.next||'',memo:payload.memo||'',createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/tasks'){const item={...payload,id:uid(),createdAt:now()};w.tasks.unshift(item);saveDb();return ok(res,item,201);}

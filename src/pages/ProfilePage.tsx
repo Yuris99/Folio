@@ -95,6 +95,7 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   const [profileOpen, setProfileOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [resumeDetail, setResumeDetail] = useState<{ section: SectionKey; index: number } | null>(null);
+  const [resumeCategory, setResumeCategory] = useState('학력');
   const [editingFact, setEditingFact] = useState<CareerFact | null>(null);
   const [filter, setFilter] = useState<'all' | CareerFactStatus>('all');
   const [includeSensitive, setIncludeSensitive] = useState(false);
@@ -119,7 +120,8 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
     { label:'수상',items:workspace.profile.awards.map((x,index)=>({section:'awards' as const,index,title:x.name,meta:[x.issuer,x.date].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
     { label:'활동·교육',items:workspace.profile.activities.map((x,index)=>({section:'activities' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
     { label:'병역',items:workspace.profile.militaryServices.map((x,index)=>({section:'militaryServices' as const,index,title:[x.branch,x.rank].filter(Boolean).join(' · '),meta:[x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) }
-  ].filter((group)=>group.items.length);
+  ];
+  const selectedResumeGroup = resumeGroups.find((group) => group.label === resumeCategory) || resumeGroups[0];
 
   function showNotice(message: string) { setNotice(message); window.setTimeout(() => setNotice(''), 2200); }
 
@@ -223,7 +225,8 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
       <section className="canonical-resume">
         <div className="canonical-resume-head"><div><span>MY RESUME</span><h2>내 기본 이력</h2><p>가져오기에서 정리된 프로필·학력·경력·프로젝트입니다. 아래 검토 항목과 별개로 보관되며 LLM 내보내기에도 함께 포함됩니다.</p></div><button className="button small" onClick={() => setImportOpen(true)}>내용 더 가져오기</button></div>
         <div className="profile-facts"><span><b>이메일</b>{workspace.profile.email || '미입력'}</span><span><b>지역</b>{workspace.profile.location || '미입력'}</span><span><b>핵심 기술</b>{workspace.profile.skills.join(', ') || '미입력'}</span></div>
-        {resumeGroups.length ? <div className="canonical-groups">{resumeGroups.map((group) => <div key={group.label}><h3>{group.label}<small>{group.items.length}</small></h3>{group.items.map((item) => <article className="canonical-item" key={`${item.section}-${item.index}`} onClick={() => setResumeDetail({ section:item.section,index:item.index })}><div><strong>{item.title || '제목 미입력'}</strong><em className={item.verified ? 'verified' : ''}>{item.verified ? '검수 완료' : '검수 필요'}</em></div>{item.meta && <span>{item.meta}</span>}{item.detail && <p>{item.detail}</p>}<small>상세 보기 · 수정 · 자료 관리 →</small></article>)}</div>)}</div> : <div className="canonical-empty">아직 정리된 학력·경력·프로젝트가 없습니다. AI 채팅에서 가져오거나 기본 정보를 입력해 주세요.</div>}
+        <div className="resume-category-row">{resumeGroups.map((group) => <button type="button" key={group.label} className={resumeCategory === group.label ? 'active' : ''} onClick={() => setResumeCategory(group.label)}><span>{group.label}</span><b>{group.items.length}</b></button>)}</div>
+        {selectedResumeGroup.items.length ? <div className="canonical-items">{selectedResumeGroup.items.map((item) => <article className="canonical-item" key={`${item.section}-${item.index}`} onClick={() => setResumeDetail({ section:item.section,index:item.index })}><div><strong>{item.title || '제목 미입력'}</strong><em className={item.verified ? 'verified' : ''}>{item.verified ? '검수 완료' : '검수 필요'}</em></div>{item.meta && <span>{item.meta}</span>}{item.detail && <p>{item.detail}</p>}<small>상세 보기 · 수정 · 자료 관리 →</small></article>)}</div> : <div className="canonical-empty">등록된 {selectedResumeGroup.label} 정보가 없습니다.</div>}
       </section>
       <div className="vault-panel-head fact-head"><div><h2>추출된 내용을 직접 확인하세요</h2><p>확인 완료한 정보만 기본 내보내기에 포함됩니다. 중복 표시는 서로 다른 원본을 비교하라는 뜻입니다.</p></div><button className="button primary" onClick={() => openFact()}>+ 직접 추가</button></div>
       <div className="fact-toolbar"><div className="filters">{([['all', '전체'], ['review', `검토 필요 ${review}`], ['verified', `확인 완료 ${verified}`], ['excluded', '제외됨']] as const).map(([value, label]) => <button key={value} className={`filter ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{label}</button>)}</div><span>{conflictIds.size ? `중복 가능성 ${conflictIds.size}개` : '충돌 없음'}</span></div>

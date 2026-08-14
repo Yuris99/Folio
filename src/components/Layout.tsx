@@ -6,6 +6,8 @@ const navItems: Array<{ view: View; icon: string; label: string; mobile?: boolea
   { view: 'applications', icon: '▦', label: '지원 관리', mobile: true },
   { view: 'calendar', icon: '◫', label: '일정', mobile: true },
   { view: 'career', icon: '◇', label: '커리어', mobile: true },
+  { view: 'imports', icon: '⇩', label: 'AI 가져오기', mobile: true },
+  { view: 'consultations', icon: '≡', label: '상담·Q&A' },
   { view: 'interviews', icon: '◉', label: '면접' },
   { view: 'jobs', icon: '▤', label: '공고 보관함' }
 ];

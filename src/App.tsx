@@ -9,9 +9,11 @@ import { HomePage } from './pages/HomePage';
 import { InterviewsPage } from './pages/InterviewsPage';
 import { JobsPage } from './pages/JobsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ConsultationsPage } from './pages/ConsultationsPage';
+import { ImportsPage } from './pages/ImportsPage';
 import type { View } from './types';
 
-const views: View[] = ['home', 'applications', 'documents', 'calendar', 'career', 'jobs', 'interviews'];
+const views: View[] = ['home', 'applications', 'documents', 'calendar', 'career', 'imports', 'consultations', 'jobs', 'interviews'];
 
 function viewFromUrl(): View {
   const value = new URLSearchParams(window.location.search).get('view');
@@ -44,6 +46,8 @@ export default function App() {
     documents: <DocumentsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
     calendar: <CalendarPage workspace={folio.workspace} mutate={folio.mutate} />,
     career: <ProfilePage workspace={folio.workspace} mutate={folio.mutate} onDeleteAccount={folio.deleteAccount} />,
+    consultations: <ConsultationsPage workspace={folio.workspace} mutate={folio.mutate} />,
+    imports: <ImportsPage mutate={folio.mutate} />,
     jobs: <JobsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
     interviews: <InterviewsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />
   }[view];
