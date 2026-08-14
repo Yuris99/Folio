@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { Modal } from '../components/Modal';
-import { CareerImportModal } from '../components/CareerImportModal';
 import { ResumeDetailModal, type SectionKey } from '../components/ResumeDetailModal';
 import type { Mutation } from '../hooks/useFolio';
 import type { Attachment, CareerFact, CareerFactCategory, CareerFactStatus, CareerSource, Profile, Workspace } from '../types';
@@ -88,14 +87,14 @@ function createJson(workspace: Workspace, includeSensitive: boolean, includeRevi
 }
 
 export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace: Workspace; mutate: Mutation; onDeleteAccount: () => Promise<void> }) {
-  const [tab, setTab] = useState<VaultTab>('sources');
+  const [tab, setTab] = useState<VaultTab>('facts');
   const [guideOpen, setGuideOpen] = useState(false);
   const [textSourceOpen, setTextSourceOpen] = useState(false);
   const [factOpen, setFactOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [resumeDetail, setResumeDetail] = useState<{ section: SectionKey; index: number } | null>(null);
   const [resumeCategory, setResumeCategory] = useState('학력');
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [editingFact, setEditingFact] = useState<CareerFact | null>(null);
   const [filter, setFilter] = useState<'all' | CareerFactStatus>('all');
   const [includeSensitive, setIncludeSensitive] = useState(false);
@@ -203,11 +202,11 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   async function deleteAccount() { if (window.prompt('계정과 모든 데이터를 삭제합니다. 계속하려면 “탈퇴”를 입력하세요.') === '탈퇴') await onDeleteAccount(); }
 
   return <>
-    <div className="page-head vault-page-head"><div><p className="eyebrow">CAREER DATA VAULT</p><h1>커리어 데이터 보관함</h1><p>여러 이력서를 하나의 검증된 데이터로 정리해 어떤 LLM에서도 사용하세요.</p></div><button className="button guide-button" onClick={() => setGuideOpen(true)}>ⓘ 사용 가이드</button></div>
+    <div className="page-head vault-page-head"><div><p className="eyebrow">MY CAREER PORTFOLIO</p><h1>{workspace.profile.name || '나의 커리어'}</h1><p>{workspace.profile.target || workspace.profile.summary || '경험과 역량을 한곳에 정리하는 나의 커리어 포트폴리오'}</p></div><button className="button" onClick={() => setProfileOpen(true)}>프로필 편집</button></div>
     <section className="vault-overview">
-      <button className={tab === 'sources' ? 'active' : ''} onClick={() => setTab('sources')}><i>1</i><span><b>원본 모으기</b><small>{workspace.careerSources.length}개 등록</small></span></button>
-      <button className={tab === 'facts' ? 'active' : ''} onClick={() => setTab('facts')}><i>2</i><span><b>내용 확인하기</b><small>{review ? `${review}개 검토 필요` : `${verified}개 확인 완료`}</small></span></button>
-      <button className={tab === 'export' ? 'active' : ''} onClick={() => setTab('export')}><i>3</i><span><b>LLM에 가져가기</b><small>{verified ? '내보내기 준비됨' : '확인된 정보 없음'}</small></span></button>
+      <button className={tab === 'facts' ? 'active' : ''} onClick={() => setTab('facts')}><i>01</i><span><b>내 커리어</b><small>이력·프로젝트·활동</small></span></button>
+      <button className={tab === 'sources' ? 'active' : ''} onClick={() => setTab('sources')}><i>02</i><span><b>자료 보관함</b><small>PDF·원본 {workspace.careerSources.length}개</small></span></button>
+      <button className={tab === 'export' ? 'active' : ''} onClick={() => setTab('export')}><i>03</i><span><b>AI용 내보내기</b><small>{verified ? `${verified}개 확인 완료` : '확인된 정보 없음'}</small></span></button>
     </section>
 
     {tab === 'sources' && <section className="vault-panel">
@@ -221,16 +220,16 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
     </section>}
 
     {tab === 'facts' && <section className="vault-panel">
-      <div className="identity-card"><div><span>기본 프로필</span><strong>{workspace.profile.name || '이름 미입력'} · {workspace.profile.role || '희망 직무 미입력'}</strong><p>{workspace.profile.target || 'LLM에 함께 전달할 한 줄 소개를 입력할 수 있습니다.'}</p></div><button className="button small" onClick={() => setProfileOpen(true)}>기본 정보 편집</button></div>
+      <div className="career-profile-hero"><div className="career-monogram">{(workspace.profile.name || '나')[0]}</div><div><span>CAREER PROFILE</span><h2>{workspace.profile.role || '희망 직무를 입력하세요'}</h2><p>{workspace.profile.summary || workspace.profile.target || '나를 설명하는 커리어 소개를 입력하세요.'}</p><div className="tag-row">{workspace.profile.skills.slice(0,8).map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></div><aside><b>{resumeGroups.reduce((sum, group) => sum + group.items.length, 0)}</b><small>정리된 이력</small></aside></div>
       <section className="canonical-resume">
-        <div className="canonical-resume-head"><div><span>MY RESUME</span><h2>내 기본 이력</h2><p>가져오기에서 정리된 프로필·학력·경력·프로젝트입니다. 아래 검토 항목과 별개로 보관되며 LLM 내보내기에도 함께 포함됩니다.</p></div><button className="button small" onClick={() => setImportOpen(true)}>내용 더 가져오기</button></div>
-        <div className="profile-facts"><span><b>이메일</b>{workspace.profile.email || '미입력'}</span><span><b>지역</b>{workspace.profile.location || '미입력'}</span><span><b>핵심 기술</b>{workspace.profile.skills.join(', ') || '미입력'}</span></div>
+        <div className="canonical-resume-head"><div><span>EXPERIENCE INDEX</span><h2>커리어 기록</h2><p>분류를 선택해 상세 이력과 연결된 자료를 확인하세요.</p></div></div>
         <div className="resume-category-row">{resumeGroups.map((group) => <button type="button" key={group.label} className={resumeCategory === group.label ? 'active' : ''} onClick={() => setResumeCategory(group.label)}><span>{group.label}</span><b>{group.items.length}</b></button>)}</div>
         {selectedResumeGroup.items.length ? <div className="canonical-items">{selectedResumeGroup.items.map((item) => <article className="canonical-item" key={`${item.section}-${item.index}`} onClick={() => setResumeDetail({ section:item.section,index:item.index })}><div><strong>{item.title || '제목 미입력'}</strong><em className={item.verified ? 'verified' : ''}>{item.verified ? '검수 완료' : '검수 필요'}</em></div>{item.meta && <span>{item.meta}</span>}{item.detail && <p>{item.detail}</p>}<small>상세 보기 · 수정 · 자료 관리 →</small></article>)}</div> : <div className="canonical-empty">등록된 {selectedResumeGroup.label} 정보가 없습니다.</div>}
       </section>
-      <div className="vault-panel-head fact-head"><div><h2>추출된 내용을 직접 확인하세요</h2><p>확인 완료한 정보만 기본 내보내기에 포함됩니다. 중복 표시는 서로 다른 원본을 비교하라는 뜻입니다.</p></div><button className="button primary" onClick={() => openFact()}>+ 직접 추가</button></div>
+      <div className="review-drawer-head"><button onClick={() => setReviewOpen((value) => !value)}><span><b>가져온 정보 검토함</b><small>정식 이력에 반영하기 전 확인하는 임시 보관함</small></span><em>{review}개 검토 필요</em><i>{reviewOpen ? '−' : '+'}</i></button></div>
+      {reviewOpen && <div className="review-drawer"><div className="vault-panel-head fact-head"><div><h2>가져온 내용을 확인하세요</h2><p>확인 후 정식 이력으로 반영하거나 제외할 수 있습니다.</p></div><button className="button" onClick={() => openFact()}>+ 직접 추가</button></div>
       <div className="fact-toolbar"><div className="filters">{([['all', '전체'], ['review', `검토 필요 ${review}`], ['verified', `확인 완료 ${verified}`], ['excluded', '제외됨']] as const).map(([value, label]) => <button key={value} className={`filter ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{label}</button>)}</div><span>{conflictIds.size ? `중복 가능성 ${conflictIds.size}개` : '충돌 없음'}</span></div>
-      {!filteredFacts.length ? <div className="vault-empty compact"><h3>{workspace.careerSources.length ? '이 조건에 해당하는 정보가 없습니다.' : '먼저 원본을 등록하세요.'}</h3><p>{workspace.careerSources.length ? '직접 정보를 추가하거나 다른 필터를 선택할 수 있습니다.' : '원본에서 내용을 추출한 뒤 여기서 사실 여부를 확인합니다.'}</p><button className="button" onClick={() => workspace.careerSources.length ? openFact() : setTab('sources')}>{workspace.careerSources.length ? '정보 직접 추가' : '원본 등록하기'}</button></div> : <div className="fact-list">{filteredFacts.map((fact) => <article className={`fact-card fact-${fact.status}`} key={fact.id}><div className="fact-meta"><span>{categoryLabel[fact.category]}</span>{conflictIds.has(fact.id) && <em>중복 확인</em>}{fact.sensitive && <em>개인정보</em>}</div><div className="fact-content"><div><h3>{fact.title}</h3><p>{[fact.organization, fact.period].filter(Boolean).join(' · ') || '소속과 기간 정보 없음'}</p></div><div className={`fact-status ${fact.status}`}>{fact.status === 'verified' ? '확인 완료' : fact.status === 'excluded' ? '제외됨' : '검토 필요'}</div></div>{fact.description && <p className="fact-description">{fact.description}</p>}{fact.achievements && <div className="fact-achievement"><b>성과</b>{fact.achievements}</div>}{fact.skills.length > 0 && <div className="tag-row">{fact.skills.map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div>}<div className="fact-source">출처: {fact.sourceIds.map((id) => workspace.careerSources.find((source) => source.id === id)?.name).filter(Boolean).join(', ') || '직접 입력'}</div><div className="fact-actions"><button onClick={() => openFact(fact)}>수정</button>{fact.status !== 'verified' && <button className="verify" onClick={() => void setStatus(fact, 'verified')}>내용 확인 완료</button>}{fact.status === 'verified' && <button onClick={() => void setStatus(fact, 'review')}>다시 검토</button>}{fact.status !== 'excluded' && <button onClick={() => void setStatus(fact, 'excluded')}>내보내기 제외</button>}<button className="danger-text" onClick={() => void removeFact(fact)}>삭제</button></div></article>)}</div>}
+      {!filteredFacts.length ? <div className="vault-empty compact"><h3>{workspace.careerSources.length ? '이 조건에 해당하는 정보가 없습니다.' : '먼저 원본을 등록하세요.'}</h3><p>{workspace.careerSources.length ? '직접 정보를 추가하거나 다른 필터를 선택할 수 있습니다.' : '원본에서 내용을 추출한 뒤 여기서 사실 여부를 확인합니다.'}</p><button className="button" onClick={() => workspace.careerSources.length ? openFact() : setTab('sources')}>{workspace.careerSources.length ? '정보 직접 추가' : '원본 등록하기'}</button></div> : <div className="fact-list">{filteredFacts.map((fact) => <article className={`fact-card fact-${fact.status}`} key={fact.id}><div className="fact-meta"><span>{categoryLabel[fact.category]}</span>{conflictIds.has(fact.id) && <em>중복 확인</em>}{fact.sensitive && <em>개인정보</em>}</div><div className="fact-content"><div><h3>{fact.title}</h3><p>{[fact.organization, fact.period].filter(Boolean).join(' · ') || '소속과 기간 정보 없음'}</p></div><div className={`fact-status ${fact.status}`}>{fact.status === 'verified' ? '확인 완료' : fact.status === 'excluded' ? '제외됨' : '검토 필요'}</div></div>{fact.description && <p className="fact-description">{fact.description}</p>}{fact.achievements && <div className="fact-achievement"><b>성과</b>{fact.achievements}</div>}{fact.skills.length > 0 && <div className="tag-row">{fact.skills.map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div>}<div className="fact-source">출처: {fact.sourceIds.map((id) => workspace.careerSources.find((source) => source.id === id)?.name).filter(Boolean).join(', ') || '직접 입력'}</div><div className="fact-actions"><button onClick={() => openFact(fact)}>수정</button>{fact.status !== 'verified' && <button className="verify" onClick={() => void setStatus(fact, 'verified')}>내용 확인 완료</button>}{fact.status === 'verified' && <button onClick={() => void setStatus(fact, 'review')}>다시 검토</button>}{fact.status !== 'excluded' && <button onClick={() => void setStatus(fact, 'excluded')}>내보내기 제외</button>}<button className="danger-text" onClick={() => void removeFact(fact)}>삭제</button></div></article>)}</div>}</div>}
     </section>}
 
     {tab === 'export' && <section className="vault-panel export-panel">
@@ -239,9 +238,8 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
       {!verified && <aside className="vault-warning"><b>아직 확인 완료된 정보가 없습니다.</b><span>검토 단계에서 사실을 확인하면 안전한 기본 데이터에 포함됩니다.</span><button onClick={() => setTab('facts')}>지금 확인하기 →</button></aside>}
     </section>}
 
-    <section className="vault-data-management"><span>데이터 관리</span><div><button onClick={() => setImportOpen(true)}>기존 AI 채팅에서 가져오기</button><button onClick={() => window.location.assign(api.exportUrl())}>백업 JSON 받기</button><button className="danger-text" onClick={() => void deleteAccount()}>계정 탈퇴</button></div></section>
+    <section className="vault-data-management"><span>계정 데이터</span><div><button onClick={() => window.location.assign(api.exportUrl())}>전체 백업 JSON</button><button className="danger-text" onClick={() => void deleteAccount()}>계정 탈퇴</button></div></section>
     {notice && <div className="vault-notice">✓ {notice}</div>}
-    {importOpen && <CareerImportModal mutate={mutate} onClose={() => setImportOpen(false)} onImported={(kind) => { if (kind === 'career') setTab('facts'); }} />}
     {resumeDetail && <ResumeDetailModal section={resumeDetail.section} index={resumeDetail.index} profile={workspace.profile} attachments={workspace.attachments} mutate={mutate} onClose={() => setResumeDetail(null)} />}
 
     {guideOpen && <Modal title="커리어 데이터 보관함 사용법" kicker="QUICK GUIDE" onClose={() => setGuideOpen(false)}><div className="guide-flow"><div><i>1</i><span><b>원본을 모두 등록하세요</b><small>최신 이력서뿐 아니라 직무별 버전과 포트폴리오도 함께 넣습니다.</small></span></div><div><i>2</i><span><b>추출 결과를 확인하세요</b><small>날짜, 회사명, 성과 수치를 원본과 비교한 뒤 ‘내용 확인 완료’를 누릅니다.</small></span></div><div><i>3</i><span><b>중복과 충돌을 정리하세요</b><small>비슷한 항목이 여러 개면 최신 정보만 남기거나 내용을 합칩니다.</small></span></div><div><i>4</i><span><b>LLM용 데이터를 복사하세요</b><small>Markdown을 복사해 ChatGPT 대화 첫 메시지에 붙여넣습니다.</small></span></div></div><div className="guide-example"><b>ChatGPT에서는 이렇게 시작하세요</b><p>“아래는 사실 확인을 마친 내 커리어 데이터야. 이 정보만 사용하고, 부족한 내용은 추측하지 말고 질문해 줘.”</p></div><div className="guide-privacy"><b>개인정보 보호</b><p>기본 내보내기에서는 이메일·전화번호와 민감 표시 항목을 제외합니다. 지원서에 꼭 필요할 때만 개인정보 포함을 켜세요.</p></div><div className="modal-actions"><button className="button primary" onClick={() => setGuideOpen(false)}>시작하기</button></div></Modal>}
