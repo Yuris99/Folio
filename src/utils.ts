@@ -6,15 +6,23 @@ export const nextProcesses = ['서류 제출', '서류 결과', '인적성 검�
 
 export function dateLabel(value?: string): string {
   if (!value) return '미정';
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ko-KR', { month: 'short', day: 'numeric' }).format(date);
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  if (value.includes('T') && !value.endsWith('T00:00')) Object.assign(options, { hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Intl.DateTimeFormat('ko-KR', options).format(date);
+}
+
+export function dateTimeInputValue(value?: string): string {
+  if (!value) return '';
+  return value.includes('T') ? value.slice(0, 16) : `${value.slice(0, 10)}T00:00`;
 }
 
 export function daysUntil(value?: string): number {
   if (!value) return Number.POSITIVE_INFINITY;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(`${value}T00:00:00`).getTime() - today.getTime()) / 86400000);
+  return Math.ceil((new Date(value.includes('T') ? value : `${value}T00:00:00`).getTime() - today.getTime()) / 86400000);
 }
 
 export function getJob(workspace: Workspace, application: Application): Job {

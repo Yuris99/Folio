@@ -4,7 +4,7 @@ import { EmptyState, PageHead, SupportTabs } from '../components/Common';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, View, Workspace } from '../types';
-import { applicationStatuses, dateLabel, getJob, nextProcesses, statusClass } from '../utils';
+import { applicationStatuses, dateLabel, dateTimeInputValue, getJob, nextProcesses, statusClass } from '../utils';
 
 export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,14 +80,14 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <div className="form-grid two"><label>회사명<input required name="company" defaultValue={editingJob?.company || ''} /></label><label>직무명<input required name="role" defaultValue={editingJob?.role || ''} /></label></div>
       <label>현재 상태<select name="status" defaultValue={editing?.status || '관심'}>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
       <div className="form-section-label">지원 일정</div>
-      <div className="form-grid two"><label>서류 접수일<input name="appliedAt" type="date" min="2000-01-01" max="2100-12-31" defaultValue={editing?.appliedAt || ''} /></label><label>서류 마감일<input name="deadline" type="date" min="2000-01-01" max="2100-12-31" defaultValue={editingJob?.deadline || ''} /></label></div>
+      <div className="form-grid two"><label>서류 접수 일시<input name="appliedAt" type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" defaultValue={dateTimeInputValue(editing?.appliedAt)} /></label><label>서류 마감 일시<input name="deadline" type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" defaultValue={dateTimeInputValue(editingJob?.deadline)} /></label></div>
       <div className="form-section-label process-section-head"><span>채용 프로세스</span><button type="button" className="text-button" onClick={addProcessStep}>+ 단계 추가</button></div>
       <p className="form-help">단계명은 직접 입력하거나 추천 항목에서 선택할 수 있습니다.</p>
       <datalist id="process-suggestions">{nextProcesses.map((process) => <option key={process} value={process} />)}</datalist>
       <div className="process-step-list">{processSteps.map((step, index) => <div className="process-step-row" key={step.id}>
         <span className="process-step-index">{index + 1}</span>
         <label>단계명<input aria-label={`${index + 1}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="예: 실무진 커피챗" /></label>
-        <label>예정일<input aria-label={`${index + 1}번째 예정일`} type="date" min="2000-01-01" max="2100-12-31" value={step.date} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /></label>
+        <label>예정 일시<input aria-label={`${index + 1}번째 예정 일시`} type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" value={dateTimeInputValue(step.date)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /></label>
         <label>진행 상태<select aria-label={`${index + 1}번째 진행 상태`} value={step.status} onChange={(event) => updateProcessStep(step.id, { status: event.target.value as ApplicationProcessStep['status'] })}><option>예정</option><option>진행 중</option><option>완료</option><option>취소</option></select></label>
         <button type="button" className="process-remove" aria-label={`${index + 1}번째 단계 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button>
       </div>)}</div>
