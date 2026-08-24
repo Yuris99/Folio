@@ -955,10 +955,16 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .job-editor-actions > label:not(:first-child) { flex: 1; display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); white-space: nowrap; }
 .job-editor-actions input { margin: 0; min-height: 38px; }
 .job-editor-actions .text-button { flex: 0 0 auto; margin: 0; }
+.markdown-toolbar { display: flex; align-items: center; gap: 5px; padding: 10px 42px; overflow-x: auto; border-bottom: 1px solid var(--line); background: #182230; }
+.markdown-toolbar button { flex: 0 0 auto; min-height: 34px; padding: 6px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
+.markdown-toolbar button:hover { border-color: var(--line); background: #263247; color: var(--text); }
+.markdown-toolbar .template-button { margin-left: 5px; border-color: #65444f; background: var(--accent-soft); color: #ffd4d8; }
+.markdown-toolbar > span { margin-left: auto; color: var(--faint); font-size: 10px; white-space: nowrap; }
 .job-markdown-editor { width: calc(100% - 84px); min-height: 520px; margin: 24px 42px; padding: 0; border: 0; resize: vertical; background: transparent; color: var(--text); font: 15px/1.85 ui-monospace,SFMono-Regular,Consolas,monospace; }
 .markdown-preview { max-width: 880px; min-height: 520px; padding: 25px 42px 60px; color: #e6ebf2; font-size: 15px; line-height: 1.8; }
 .markdown-preview h1 { margin: 26px 0 14px; font-size: 32px; }.markdown-preview h2 { margin: 24px 0 12px; font-size: 24px; }.markdown-preview h3 { margin: 20px 0 10px; font-size: 19px; }
 .markdown-preview p { margin: 9px 0; }.markdown-preview ul { padding-left: 24px; }.markdown-preview blockquote { margin: 18px 0; padding: 10px 16px; border-left: 4px solid var(--accent); background: #242e3e; color: var(--muted); }
+.markdown-preview a { color: #91b9ff; }.markdown-preview code { padding: 2px 5px; border-radius: 4px; background: #101824; color: #ffc2c8; font-size: .9em; }
 .markdown-preview figure { margin: 24px 0; }.markdown-preview img { max-width: 100%; max-height: 620px; border-radius: 10px; }.markdown-preview figcaption { margin-top: 6px; color: var(--faint); font-size: 12px; text-align: center; }
 .md-task { color: var(--muted); }.job-root-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 18px 42px 32px; border-top: 1px solid var(--line); }.job-root-actions a { text-decoration: none; }
 
@@ -988,6 +994,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .job-page-toolbar > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
   .job-editor-actions { align-items: stretch; flex-wrap: wrap; padding: 0 18px 14px; }
   .job-editor-actions > label:not(:first-child) { flex: 1 0 100%; }
+  .markdown-toolbar { padding: 9px 18px; }
+  .markdown-toolbar > span { display: none; }
   .job-markdown-editor { width: calc(100% - 36px); min-height: 430px; margin: 20px 18px; }
   .markdown-preview { min-height: 430px; padding: 20px 18px 45px; }
   .job-cover { height: 160px; }
