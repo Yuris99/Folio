@@ -143,6 +143,9 @@ export interface Job {
   url: string;
   description: string;
   skills: string[];
+  pageContent?: string;
+  coverImage?: string;
+  pages?: JobSubpage[];
   companyAnalysis?: {
     overview: string; products: string[]; industry: string; culture: string[]; recentTopics: string[];
     roleResponsibilities: string[]; requirements: string[]; preferred: string[]; fitEvidence: string[];
@@ -150,6 +153,16 @@ export interface Job {
     analyzedAt?: string;
   };
   createdAt?: string;
+}
+
+export interface JobSubpage {
+  id: string;
+  title: string;
+  content: string;
+  coverImage?: string;
+  children: JobSubpage[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ApplicationProcessStep {

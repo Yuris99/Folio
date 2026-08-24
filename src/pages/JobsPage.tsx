@@ -2,14 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { EmptyState, PageHead } from '../components/Common';
 import { Modal } from '../components/Modal';
+import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { Job, View, Workspace } from '../types';
-import { dateLabel, daysUntil } from '../utils';
-
-function CompanyAnalysisPanel({ analysis }: { analysis: NonNullable<Job['companyAnalysis']> }) {
-  const sections: Array<[string,string[]]> = [['사업·제품',analysis.products],['조직문화',analysis.culture],['최근 이슈',analysis.recentTopics],['주요 업무',analysis.roleResponsibilities],['자격 요건',analysis.requirements],['우대 사항',analysis.preferred],['내 적합 근거',analysis.fitEvidence],['보완·확인 사항',analysis.gaps],['면접 예상 주제',analysis.interviewTopics]];
-  return <section className="company-analysis"><div className="section-head"><div><p className="eyebrow">COMPANY & ROLE ANALYSIS</p><h2>기업·직무 분석</h2></div><small>{analysis.analyzedAt?.slice(0,10)} 기준</small></div><article className="analysis-overview"><h3>기업 개요</h3><p>{analysis.overview||'내용 없음'}</p>{analysis.industry&&<b>{analysis.industry}</b>}</article><div className="analysis-grid">{sections.filter(([,items])=>items.length).map(([title,items])=><article key={title}><h3>{title}</h3><ul>{items.map((item,index)=><li key={`${item}-${index}`}>{item}</li>)}</ul></article>)}</div>{analysis.sources.length>0&&<div className="analysis-sources"><h3>출처</h3>{analysis.sources.map((source,index)=><a key={`${source.url}-${index}`} href={source.url} target="_blank" rel="noreferrer">{source.title||source.url}</a>)}</div>}</section>;
-}
+import { daysUntil } from '../utils';
 
 export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [selectedId, setSelectedId] = useState('');
@@ -33,8 +29,7 @@ export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace
   }
 
   if (selected) {
-    const requirements = selected.skills.map((skill) => ({ skill, evidence: workspace.careerFacts.find((fact) => fact.status === 'verified' && fact.skills.some((item) => item.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(item.toLowerCase()))) }));
-    return <><button className="text-button" onClick={() => setSelectedId('')}>← 공고 목록</button><div className="detail-hero" style={{ marginTop: 18 }}><p className="eyebrow">JOB POSTING</p><h2>{selected.company} · {selected.role}</h2><p>{dateLabel(selected.deadline)} 마감 · 저장된 공고 원문</p><div className="detail-meta">{selected.skills.map((skill) => <span key={skill}>{skill}</span>)}</div></div><div className="grid dashboard-grid"><article className="card"><div className="section-head"><h2>주요 요구사항</h2></div><div className="requirements">{requirements.map((item) => <div className="requirement" key={item.skill}><span>•</span><div><b>{item.skill}</b><small style={{ display: 'block', marginTop: 4 }}>{item.evidence ? `확인된 경험: ${item.evidence.title}` : '연결할 커리어 데이터가 없습니다.'}</small></div></div>)}</div></article><article className="card"><div className="section-head"><h2>공고 원문</h2></div><p className="muted job-description">{selected.description}</p><div className="detail-actions"><button className="button primary" onClick={() => void createApplication(selected)}>지원 건 만들기</button><button className="button" onClick={() => navigate('career')}>LLM용 커리어 데이터 열기</button></div></article></div>{selected.companyAnalysis && <CompanyAnalysisPanel analysis={selected.companyAnalysis} />}</>;
+    return <JobWorkspace job={selected} mutate={mutate} onBack={() => setSelectedId('')} onCreateApplication={() => void createApplication(selected)} />;
   }
 
   return <>

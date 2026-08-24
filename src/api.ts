@@ -63,6 +63,7 @@ export const api = {
   updateConsultation: (id: string, payload: Partial<ConsultationRecord>) => request<ConsultationRecord>(`/consultations/${id}`, json('PUT', payload)),
   deleteConsultation: (id: string) => request<void>(`/consultations/${id}`, { method: 'DELETE' }),
   createJob: (payload: Omit<Job, 'id'>) => request<Job>('/jobs', json('POST', payload)),
+  updateJob: (id: string, payload: Partial<Job>) => request<Job>(`/jobs/${id}`, json('PATCH', payload)),
   analyzeJob: (payload: Pick<Job, 'company' | 'role' | 'deadline' | 'url' | 'description'>) => request<{ skills: string[] }>('/ai/jobs/analyze', json('POST', payload)),
   createApplication: (payload: ApplicationPayload) => request<Application>('/applications', json('POST', payload)),
   updateApplication: (id: string, payload: Partial<ApplicationPayload>) => request<Application>(`/applications/${id}`, json('PATCH', payload)),
