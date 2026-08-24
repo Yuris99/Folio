@@ -152,6 +152,13 @@ export interface Job {
   createdAt?: string;
 }
 
+export interface ApplicationProcessStep {
+  id: string;
+  name: string;
+  date: string;
+  status: '예정' | '진행 중' | '완료' | '취소';
+}
+
 export interface Application {
   id: string;
   jobId: string;
@@ -160,6 +167,7 @@ export interface Application {
   appliedAt?: string;
   nextProcess?: string;
   nextDate?: string;
+  processSteps?: ApplicationProcessStep[];
   memo?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -268,6 +276,7 @@ export interface ApplicationPayload {
   appliedAt: string;
   nextProcess: string;
   nextDate: string;
+  processSteps: ApplicationProcessStep[];
   url: string;
   memo: string;
   jobId?: string;

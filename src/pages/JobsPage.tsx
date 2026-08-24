@@ -28,7 +28,7 @@ export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace
 
   async function createApplication(job: Job) {
     if (workspace.applications.some((item) => item.jobId === job.id)) { window.alert('이미 지원 관리에 등록된 공고입니다.'); navigate('applications'); return; }
-    await mutate('지원 추가', () => api.createApplication({ jobId: job.id, company: job.company, role: job.role, status: '관심', appliedAt: '', deadline: job.deadline, nextProcess: '서류 제출', nextDate: '', next: '서류 제출', url: job.url, memo: '' }));
+    await mutate('지원 추가', () => api.createApplication({ jobId: job.id, company: job.company, role: job.role, status: '관심', appliedAt: '', deadline: job.deadline, nextProcess: '서류 제출', nextDate: '', processSteps: [{ id: crypto.randomUUID(), name: '서류 제출', date: '', status: '예정' }], next: '서류 제출', url: job.url, memo: '' }));
     navigate('applications');
   }
 

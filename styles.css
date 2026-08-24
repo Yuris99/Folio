@@ -919,6 +919,15 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .application-row, .interview-row { min-height: 72px; }
 .app-next em { display: block; margin-top: 3px; color: var(--accent-strong); font-size: 11px; font-style: normal; }
 .form-section-label { margin: 24px 0 -5px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--text); font-size: 13px; font-weight: 700; }
+.process-section-head { display: flex; align-items: center; justify-content: space-between; }
+.process-step-list { display: grid; gap: 9px; margin-top: 12px; }
+.process-step-row { display: grid; grid-template-columns: 28px minmax(150px, 1fr) 142px 110px 38px; align-items: end; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #171f2c; }
+.process-step-row label { min-width: 0; margin: 0; font-size: 11px; }
+.process-step-row input, .process-step-row select { min-width: 0; margin-top: 4px; }
+.process-step-index { align-self: center; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--accent-soft); color: #ffd8dc; font-size: 11px; font-weight: 700; }
+.process-remove { width: 38px; height: 44px; border: 0; border-radius: 7px; background: transparent; color: var(--faint); font-size: 20px; cursor: pointer; }
+.process-remove:hover { background: var(--warning-soft); color: var(--warning); }
+.process-empty { width: 100%; min-height: 48px; margin-top: 12px; border: 1px dashed #607089; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
 
 @media (max-width: 680px) {
   .main { width: 100%; margin-left: 0; padding-bottom: 82px; }
@@ -936,6 +945,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .application-summary { display: flex; gap: 6px; margin-right: -18px; padding-right: 18px; overflow-x: auto; scroll-snap-type: x proximity; }
   .application-summary span { flex: 0 0 92px; padding: 10px 8px; border-radius: 8px; scroll-snap-align: start; }
   .application-row .app-next, .application-row .app-date { display: block; grid-column: 1 / -1; padding-top: 10px; border-top: 1px solid var(--line); }
+  .process-step-row { grid-template-columns: 28px minmax(0, 1fr) 38px; }
+  .process-step-row label:first-of-type { grid-column: 2; }
+  .process-step-row label:nth-of-type(2), .process-step-row label:nth-of-type(3) { grid-column: 2 / -1; }
+  .process-step-row .process-remove { grid-column: 3; grid-row: 1; }
 }
 
 @media (max-width: 900px) {
