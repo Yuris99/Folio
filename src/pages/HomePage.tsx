@@ -7,9 +7,9 @@ import { daysUntil } from '../utils';
 
 export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [taskOpen, setTaskOpen] = useState(false);
-  const writing = workspace.applications.filter((item) => ['관심', '작성 중'].includes(item.status)).length;
-  const interviews = workspace.applications.filter((item) => item.status === '면접').length;
-  const results = workspace.applications.filter((item) => ['합격', '탈락'].includes(item.status)).length;
+  const writing = workspace.applications.filter((item) => ['관심', '작성 중', '서류 준비'].includes(item.status)).length;
+  const interviews = workspace.applications.filter((item) => item.status === '면접' || item.status.includes('면접')).length;
+  const results = workspace.applications.filter((item) => ['합격', '탈락', '불합격'].includes(item.status)).length;
   const events = [
     ...workspace.jobs.filter((job) => job.deadline).map((job) => ({ date: job.deadline, title: `${job.company} 지원 마감`, detail: job.role })),
     ...workspace.interviews.filter((item) => item.date).map((item) => ({ date: item.date, title: `${item.company} ${item.type}`, detail: item.role }))

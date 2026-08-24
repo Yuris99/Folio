@@ -157,6 +157,9 @@ export interface Application {
   jobId: string;
   status: string;
   next: string;
+  appliedAt?: string;
+  nextProcess?: string;
+  nextDate?: string;
   memo?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -262,6 +265,9 @@ export interface ApplicationPayload {
   status: string;
   deadline: string;
   next: string;
+  appliedAt: string;
+  nextProcess: string;
+  nextDate: string;
   url: string;
   memo: string;
   jobId?: string;

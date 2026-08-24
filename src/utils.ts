@@ -1,6 +1,8 @@
 import type { Application, Job, Workspace } from './types';
 
-export const applicationStatuses = ['관심', '작성 중', '지원 완료', '서류 통과', '면접', '합격', '탈락'];
+export const applicationStatuses = ['관심', '서류 준비', '지원 완료', '서류 전형', '인적성·코테', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '합격', '불합격'];
+
+export const nextProcesses = ['서류 제출', '서류 결과', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
 
 export function dateLabel(value?: string): string {
   if (!value) return '미정';
@@ -23,9 +25,9 @@ export function getJob(workspace: Workspace, application: Application): Job {
 }
 
 export function statusClass(status: string): string {
-  if (status === '탈락') return 'closed';
+  if (status === '탈락' || status === '불합격') return 'closed';
   if (status === '합격') return 'success';
-  if (status === '면접') return 'interview';
-  if (status.includes('작성')) return 'writing';
+  if (status.includes('면접')) return 'interview';
+  if (status.includes('준비')) return 'writing';
   return 'default';
 }

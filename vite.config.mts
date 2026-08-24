@@ -8,8 +8,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/v1': {
-        target: 'http://127.0.0.1:4173',
-        changeOrigin: true
+        target: 'https://folio.yuris.io',
+        changeOrigin: true,
+        secure: true
       }
     }
   }
