@@ -294,6 +294,33 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
   .mobile-menu-sheet nav i { color: var(--faint); font-style: normal; }
 }
 
+/* Desktop type scale: keep dense mobile layouts unchanged. */
+@media (min-width: 901px) {
+  body { font-size: 16px; line-height: 1.7; }
+  .nav-item { font-size: 15px; }
+  .profile-card strong { font-size: 15px; }
+  .profile-card small, .sync-state, .header-user small { font-size: 12px; }
+  .page-head p:not(.eyebrow) { font-size: 16px; line-height: 1.65; }
+  .eyebrow { font-size: 12px; }
+  .date-chip, .muted { font-size: 14px; }
+  .section-head h2 { font-size: 21px; }
+  .button { font-size: 15px; }
+  .button.small, .text-button, .filter, .section-tabs button { font-size: 14px; }
+  label { font-size: 14px; }
+  input, textarea, select { font-size: 15px; }
+  .application-summary span { font-size: 12px; }
+  .app-company strong { font-size: 15px; }
+  .app-company small, .app-next small, .app-date small { font-size: 12px; }
+  .app-next, .app-date { font-size: 14px; }
+  .status, .tag, .deadline { font-size: 12px; }
+  .career-card p, .posting-card p, .source-main p, .consultation-summary,
+  .fact-description, .empty-state p, .vault-empty p { font-size: 14px; }
+  .job-tree-item button { font-size: 14px; }
+  .markdown-toolbar button { font-size: 13px; }
+  .job-markdown-editor, .markdown-preview { font-size: 16px; }
+  .markdown-preview { line-height: 1.85; }
+}
+
 /* Readability and interaction pass */
 :root {
   --bg: #111827;
@@ -1041,4 +1068,24 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .vault-warning { align-items: flex-start; flex-direction: column; }
   .vault-warning button { margin-left: 0; padding: 0; }
   .vault-notice { right: 17px; bottom: 80px; left: 17px; text-align: center; }
+}
+
+/* Final desktop type overrides */
+@media (min-width: 901px) {
+  body { font-size: 16px; line-height: 1.7; }
+  .nav-item, .profile-card strong { font-size: 15px; }
+  .page-head p:not(.eyebrow) { font-size: 16px; line-height: 1.65; }
+  .date-chip, .muted, .app-next, .app-date { font-size: 14px; }
+  .section-head h2 { font-size: 21px; }
+  .button { font-size: 15px; }
+  .button.small, .text-button, .filter, .section-tabs button, label { font-size: 14px; }
+  input, textarea, select, .job-tree-item button { font-size: 15px; }
+  .application-summary span, .app-company small, .app-next small, .app-date small,
+  .status, .tag, .deadline { font-size: 12px; }
+  .app-company strong { font-size: 15px; }
+  .career-card p, .posting-card p, .source-main p, .consultation-summary,
+  .fact-description, .empty-state p, .vault-empty p { font-size: 14px; }
+  .markdown-toolbar button { font-size: 13px; }
+  .job-markdown-editor { font: 16px/1.9 ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .markdown-preview { font-size: 16px; line-height: 1.85; }
 }
