@@ -8,9 +8,16 @@ import type { Job, View, Workspace } from '../types';
 import { daysUntil } from '../utils';
 
 export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('job') || '');
   const [creating, setCreating] = useState(false);
   const selected = workspace.jobs.find((item) => item.id === selectedId);
+
+  function openJob(id: string) {
+    setSelectedId(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('job', id); else url.searchParams.delete('job');
+    window.history.replaceState(null, '', url);
+  }
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,7 +36,7 @@ export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace
   }
 
   if (selected) {
-    return <JobWorkspace job={selected} mutate={mutate} onBack={() => setSelectedId('')} onCreateApplication={() => void createApplication(selected)} />;
+    return <JobWorkspace job={selected} attachments={workspace.attachments} mutate={mutate} onBack={() => openJob('')} onCreateApplication={() => void createApplication(selected)} />;
   }
 
   return <>

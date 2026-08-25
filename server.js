@@ -394,7 +394,7 @@ async function api(req,res,url) {
   if(consultationMatch&&method==='DELETE'){const before=w.consultations.length;w.consultations=w.consultations.filter(x=>x.id!==consultationMatch[1]);if(before===w.consultations.length)return fail(res,404,'상담 기록을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
   const jobMatch=route.match(/^\/api\/v1\/jobs\/([^/]+)$/);
-  if(jobMatch&&method==='PATCH'){const item=w.jobs.find(x=>x.id===jobMatch[1]);if(!item)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');for(const key of ['company','role','deadline','url','description','skills','companyAnalysis','pageContent','coverImage','pages'])if(payload[key]!==undefined)item[key]=payload[key];item.updatedAt=now();saveDb();return ok(res,item);}
+  if(jobMatch&&method==='PATCH'){const item=w.jobs.find(x=>x.id===jobMatch[1]);if(!item)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');for(const key of ['company','role','deadline','url','description','skills','companyAnalysis','pageContent','coverImage','pages','attachmentIds'])if(payload[key]!==undefined)item[key]=payload[key];item.updatedAt=now();saveDb();return ok(res,item);}
   if(method==='POST'&&route==='/api/v1/applications'){let job=w.jobs.find(j=>j.id===payload.jobId);if(!job){job={id:uid(),company:payload.company,role:payload.role,deadline:payload.deadline||'',url:payload.url||'',description:'',skills:[]};w.jobs.unshift(job)}const item={id:uid(),jobId:job.id,status:payload.status||'관심',appliedAt:payload.appliedAt||'',nextProcess:payload.nextProcess||payload.next||'',nextDate:payload.nextDate||'',processSteps:Array.isArray(payload.processSteps)?payload.processSteps:[],next:payload.nextProcess||payload.next||'',memo:payload.memo||'',createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/tasks'){const item={...payload,id:uid(),createdAt:now()};w.tasks.unshift(item);saveDb();return ok(res,item,201);}
   let taskMatch=route.match(/^\/api\/v1\/tasks\/([^/]+)$/);
@@ -405,9 +405,11 @@ async function api(req,res,url) {
   if(interviewMatch&&method==='DELETE'){const before=w.interviews.length;w.interviews=w.interviews.filter(x=>x.id!==interviewMatch[1]);if(before===w.interviews.length)return fail(res,404,'면접 일정을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/files'){
     if(!payload.name||!payload.data)return fail(res,400,'파일 정보가 필요합니다.','INVALID_FILE');
-    if(payload.type!=='application/pdf'||!String(payload.name).toLowerCase().endsWith('.pdf'))return fail(res,415,'PDF 파일만 업로드할 수 있습니다.','INVALID_FILE_TYPE');
+    const allowedTypes=new Set(['application/pdf','image/png','image/jpeg','image/gif','image/webp']);
+    if(!allowedTypes.has(payload.type))return fail(res,415,'PDF, PNG, JPG, GIF, WebP 파일만 업로드할 수 있습니다.','INVALID_FILE_TYPE');
     const raw=String(payload.data).replace(/^data:[^;]+;base64,/,'');const buffer=Buffer.from(raw,'base64');if(buffer.length>5_000_000)return fail(res,413,'파일은 5MB 이하여야 합니다.','FILE_TOO_LARGE');
-    if(buffer.subarray(0,5).toString()!=='%PDF-')return fail(res,415,'올바른 PDF 파일이 아닙니다.','INVALID_FILE_CONTENT');
+    const valid=payload.type==='application/pdf'?buffer.subarray(0,5).toString()==='%PDF-':payload.type==='image/png'?buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):payload.type==='image/jpeg'?buffer[0]===255&&buffer[1]===216:payload.type==='image/gif'?buffer.subarray(0,3).toString()==='GIF':payload.type==='image/webp'?buffer.subarray(0,4).toString()==='RIFF'&&buffer.subarray(8,12).toString()==='WEBP':false;
+    if(!valid)return fail(res,415,'파일 내용이 올바르지 않습니다.','INVALID_FILE_CONTENT');
     const id=uid(),storageName=`${id}.bin`,dir=path.join(DATA_DIR,'uploads',user.id);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,storageName),buffer);
     const item={id,name:String(payload.name).slice(0,200),type:payload.type||'application/octet-stream',size:buffer.length,storageName,createdAt:now()};w.attachments=w.attachments||[];w.attachments.push(item);saveDb();return ok(res,item,201);
   }

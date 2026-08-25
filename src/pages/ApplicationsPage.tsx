@@ -25,6 +25,13 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setProcessSteps((steps) => [...steps, { id: crypto.randomUUID(), name: '', date: '', status: '예정' }]);
   }
 
+  function openJobPage(jobId: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('job', jobId);
+    window.history.replaceState(null, '', url);
+    navigate('jobs');
+  }
+
   function updateProcessStep(id: string, patch: Partial<ApplicationProcessStep>) {
     setProcessSteps((steps) => steps.map((step) => step.id === id ? { ...step, ...patch } : step));
   }
@@ -67,11 +74,11 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       {workspace.applications.map((application) => {
         const job = getJob(workspace, application);
         return <article className="application-row" key={application.id}>
-          <button className="app-company app-open" onClick={() => open(application.id)}><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}</small></div></button>
+          <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}</small><button className="app-page-link" onClick={() => openJobPage(job.id)}>정리 페이지 열기 →</button></div></div>
           <span className={`status status-${statusClass(application.status)}`}>{application.status}</span>
           <span className="app-next"><small>다음 프로세스</small>{application.processSteps?.find((step) => step.status === '진행 중')?.name || application.processSteps?.find((step) => step.status === '예정')?.name || application.nextProcess || application.next || '미정'}{(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate) && <em>{dateLabel(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate)}</em>}</span>
           <span className="app-date"><small>접수 / 마감</small>{dateLabel(application.appliedAt)} · {dateLabel(job.deadline)}</span>
-          <div className="app-controls"><select value={application.status} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => void remove(application.id)}>×</button></div>
+          <div className="app-controls"><select value={application.status} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button><button className="row-menu" onClick={() => void remove(application.id)} aria-label="지원 삭제">×</button></div>
         </article>;
       })}
       {!workspace.applications.length && <EmptyState title="아직 등록한 지원이 없습니다." description="회사와 직무, 현재 상태를 입력하면 지원 과정을 한곳에서 추적할 수 있습니다." action={<button className="button primary" onClick={() => open()}>첫 지원 추가</button>} />}

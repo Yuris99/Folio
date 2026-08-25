@@ -3,17 +3,22 @@ import { api } from '../api';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
-import { daysUntil } from '../utils';
+import { dateLabel, daysUntil } from '../utils';
 
 export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [taskOpen, setTaskOpen] = useState(false);
   const writing = workspace.applications.filter((item) => ['관심', '작성 중', '서류 준비'].includes(item.status)).length;
   const interviews = workspace.applications.filter((item) => item.status === '면접' || item.status.includes('면접')).length;
   const results = workspace.applications.filter((item) => ['합격', '탈락', '불합격'].includes(item.status)).length;
-  const events = [
+  const allEvents = [
     ...workspace.jobs.filter((job) => job.deadline).map((job) => ({ date: job.deadline, title: `${job.company} 지원 마감`, detail: job.role })),
-    ...workspace.interviews.filter((item) => item.date).map((item) => ({ date: item.date, title: `${item.company} ${item.type}`, detail: item.role }))
-  ].filter((item) => daysUntil(item.date) >= 0).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
+    ...workspace.interviews.filter((item) => item.date).map((item) => ({ date: item.date, title: `${item.company} ${item.type}`, detail: item.role })),
+    ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '' })); })
+  ].sort((a, b) => a.date.localeCompare(b.date));
+  const events = allEvents.filter((item) => daysUntil(item.date) >= 0).slice(0, 3);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const weekDays = Array.from({ length: 7 }, (_, index) => { const date = new Date(today); date.setDate(today.getDate() + index); return date; });
+  const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const completed = Math.round(workspace.tasks.filter((item) => item.done).length / (workspace.tasks.length || 1) * 100);
   const hasProfile = workspace.careerFacts.some((fact) => fact.status === 'verified');
 
@@ -34,7 +39,7 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
       <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">결과 확인</div><div className="value">{results}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
     </div>
     <div className="grid dashboard-grid home-panels">
-      <article className="card"><div className="section-head"><h2>다가오는 일정</h2><button className="text-button" onClick={() => navigate('calendar')}>달력 보기 →</button></div>{events.map((event) => <button key={`${event.date}-${event.title}`} className="schedule-row" onClick={() => navigate('calendar')}><time><b>{new Date(`${event.date}T00:00:00`).getDate()}</b>{new Intl.DateTimeFormat('ko-KR', { month: 'short' }).format(new Date(`${event.date}T00:00:00`))}</time><span><strong>{event.title}</strong><small>{event.detail}</small></span><i>D-{daysUntil(event.date)}</i></button>)}{!events.length && <p className="empty-note">등록된 일정이 없습니다.</p>}</article>
+      <article className="card home-calendar-card"><div className="section-head"><div><h2>오늘과 다가오는 일정</h2><small>{dateLabel(dateKey(today))}</small></div><button className="text-button" onClick={() => navigate('calendar')}>전체 달력 →</button></div><div className="home-week-calendar">{weekDays.map((date, index) => { const key = dateKey(date); const count = allEvents.filter((event) => event.date.slice(0, 10) === key).length; return <button className={index === 0 ? 'today' : ''} key={key} onClick={() => navigate('calendar')}><small>{new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date)}</small><b>{date.getDate()}</b>{count > 0 && <i>{count}</i>}</button>; })}</div>{events.map((event) => <button key={`${event.date}-${event.title}`} className="schedule-row" onClick={() => navigate('calendar')}><time><b>{new Date(event.date.includes('T') ? event.date : `${event.date}T00:00:00`).getDate()}</b>{new Intl.DateTimeFormat('ko-KR', { month: 'short' }).format(new Date(event.date.includes('T') ? event.date : `${event.date}T00:00:00`))}</time><span><strong>{event.title}</strong><small>{event.detail} · {dateLabel(event.date)}</small></span><i>{daysUntil(event.date) === 0 ? '오늘' : `D-${daysUntil(event.date)}`}</i></button>)}{!events.length && <p className="empty-note">등록된 일정이 없습니다.</p>}</article>
       <article className="card"><div className="section-head"><h2>할 일</h2><button className="text-button" onClick={() => setTaskOpen(true)}>+ 추가</button></div><div className="task-list">{workspace.tasks.slice(0, 4).map((task) => <label className={`task ${task.done ? 'done' : ''}`} key={task.id}><input type="checkbox" checked={task.done} onChange={() => void mutate('할 일 변경', () => api.updateTask(task.id, { done: !task.done })).catch(() => undefined)} /><span>{task.text}</span><time>{task.date}</time></label>)}{!workspace.tasks.length && <p className="empty-note">오늘 할 일을 추가해 보세요.</p>}</div><div className="progress-wrap"><div className="progress-label"><span>완료</span><b>{completed}%</b></div><div className="progress"><i style={{ width: `${completed}%` }} /></div></div></article>
     </div>
     {taskOpen && <Modal title="할 일 추가" kicker="TASK" compact onClose={() => setTaskOpen(false)}><form onSubmit={addTask}><label>할 일<input required name="text" autoFocus placeholder="예: 자기소개서 2번 문항 작성" /></label><label>기한<input name="date" placeholder="오늘, 내일 또는 날짜" defaultValue="오늘" /></label><div className="modal-actions"><button type="button" className="button ghost" onClick={() => setTaskOpen(false)}>취소</button><button className="button primary">저장</button></div></form></Modal>}
