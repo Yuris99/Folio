@@ -144,6 +144,7 @@ export interface Job {
   description: string;
   skills: string[];
   pageContent?: string;
+  pageHtml?: string;
   coverImage?: string;
   pages?: JobSubpage[];
   attachmentIds?: string[];
@@ -160,6 +161,7 @@ export interface JobSubpage {
   id: string;
   title: string;
   content: string;
+  html?: string;
   coverImage?: string;
   attachmentIds?: string[];
   children: JobSubpage[];
