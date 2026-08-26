@@ -59,6 +59,41 @@ function sanitizeHtml(source: string): string {
   return documentNode.body.innerHTML;
 }
 
+function htmlToMarkdown(source: string): string {
+  const documentNode = new DOMParser().parseFromString(sanitizeHtml(source), 'text/html');
+
+  function inline(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+    if (!(node instanceof HTMLElement)) return '';
+    const value = Array.from(node.childNodes).map(inline).join('');
+    if (node.tagName === 'BR') return '\n';
+    if (node.tagName === 'STRONG' || node.tagName === 'B') return `**${value}**`;
+    if (node.tagName === 'CODE') return `\`${value}\``;
+    if (node.tagName === 'A') return `[${value}](${node.getAttribute('href') || ''})`;
+    return value;
+  }
+
+  function block(node: Element): string {
+    const value = inline(node).trim();
+    if (node.tagName === 'H1') return `# ${value}`;
+    if (node.tagName === 'H2') return `## ${value}`;
+    if (node.tagName === 'H3') return `### ${value}`;
+    if (node.tagName === 'BLOCKQUOTE') return value.split('\n').map((line) => `> ${line}`).join('\n');
+    if (node.tagName === 'UL') return Array.from(node.children).map((item) => `- ${inline(item).trim()}`).join('\n');
+    if (node.tagName === 'OL') return Array.from(node.children).map((item, index) => `${index + 1}. ${inline(item).trim()}`).join('\n');
+    if (node.tagName === 'FIGURE') {
+      const image = node.querySelector('img');
+      if (!image) return value;
+      return `![${image.getAttribute('alt') || ''}](${image.getAttribute('src') || ''})`;
+    }
+    if (node.classList.contains('rich-task')) return `- [${node.classList.contains('done') ? 'x' : ' '}] ${value.replace(/^[☐☑]\s*/, '')}`;
+    if (node.classList.contains('rich-list')) return `- ${value.replace(/^•\s*/, '')}`;
+    return value;
+  }
+
+  return Array.from(documentNode.body.children).map(block).filter(Boolean).join('\n\n').trim();
+}
+
 function Markdown({ source }: { source: string }) {
   const nodes: ReactNode[] = [];
   let list: string[] = [];
@@ -186,6 +221,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
 
   function toggleMarkdownMode() {
     if (markdownMode) changeHtml(markdownToHtml(content));
+    else changeContent(htmlToMarkdown(richEditorRef.current?.innerHTML || html));
     setMarkdownMode((value) => !value);
   }
 
