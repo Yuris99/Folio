@@ -630,6 +630,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .button.danger:hover { background: #392c30; }
 
 .calendar-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 15px; }
+.calendar-sync-actions { display: flex; gap: 8px; }
+.calendar-sync-state { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 16px; padding: 10px 13px; border: 1px solid #3f5f4a; border-radius: 7px; background: #223128; color: #a9d5b5; font-size: 12px; }
+.calendar-sync-state small { color: #7fa58a; }
 .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .calendar-head h2 { margin: 0; font-size: 17px; }
 .calendar-head button { border: 0; background: transparent; color: var(--muted); font-size: 20px; }
@@ -1365,7 +1368,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 }
 
 /* Give the calendar usable width on an 8:9 half-monitor viewport. */
-@media (min-width: 681px) and (max-width: 1200px) and (max-aspect-ratio: 1/1) {
+@media (min-width: 681px) and (max-width: 1200px) and (max-aspect-ratio: 6/5) {
   .view-calendar .sidebar {
     width: 82px;
     padding-right: 10px;
@@ -1550,5 +1553,16 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   }
   .agenda-row {
     grid-template-columns: 82px minmax(0, 1fr);
+  }
+  .calendar-sync-actions {
+    width: 100%;
+  }
+  .calendar-sync-actions .button {
+    flex: 1;
+  }
+  .calendar-sync-state {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-top: -4px;
   }
 }

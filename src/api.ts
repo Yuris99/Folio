@@ -46,6 +46,13 @@ export const api = {
   session: () => request<User>('/auth/session'),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   bootstrap: () => request<Workspace>('/bootstrap'),
+  calendarStatus: () => request<{ connected: boolean; lastSyncedAt: string }>('/calendar/status'),
+  connectGoogleCalendar() {
+    const returnTo = encodeURIComponent(window.location.href.split('#')[0]);
+    window.location.assign(`${apiBaseUrl}/calendar/connect?returnTo=${returnTo}`);
+  },
+  syncGoogleCalendar: () => request<{ created: number; updated: number; removed: number; total: number; lastSyncedAt: string }>('/calendar/sync', { method: 'POST' }),
+  disconnectGoogleCalendar: () => request<void>('/calendar/disconnect', { method: 'POST' }),
   exportUrl: () => `${apiBaseUrl}/account/export`,
   importCareerData: (payload: unknown) => request<{ workspace: Workspace; imported: { profileFields: number; profileItems: number; facts: number; skippedDuplicates: number } }>('/career-import', json('POST', payload)),
   importChatData: (payload: unknown) => request<{ workspace: Workspace; imported: { total: number; skippedDuplicates: number } }>('/chat-import', json('POST', payload)),

@@ -161,6 +161,13 @@ http://localhost:4173/api/v1/auth/google/callback
 4. 배포 시 `APP_ORIGIN`과 `GOOGLE_REDIRECT_URI`를 실제 HTTPS 주소로 변경합니다.
 5. 운영 환경에서는 `NODE_ENV=production`을 사용해 세션 쿠키에 Secure 속성이 적용되도록 합니다.
 
+### Google Calendar 단방향 동기화
+
+1. 같은 Google Cloud 프로젝트에서 **Google Calendar API**를 활성화합니다.
+2. OAuth 동의 화면에 `https://www.googleapis.com/auth/calendar.events` 범위를 추가합니다.
+3. 일정 화면에서 `Google Calendar 연결`을 누르고 추가 권한에 동의합니다.
+4. `Google Calendar 동기화`를 누르면 Folio의 공고 마감, 면접, 진행 예정 전형이 기본 캘린더에 생성·갱신됩니다. Google Calendar의 기존 일정은 Folio로 가져오지 않습니다.
+
 ## 실제 AI 연결
 
 서버의 `.env`에서 Gemini 또는 OpenAI 중 하나를 선택합니다. API 키는 브라우저 코드나 `VITE_` 환경 변수에 넣지 않습니다.

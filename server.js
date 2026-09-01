@@ -198,12 +198,58 @@ async function googleCallback(req,res,url) {
   const tokenRes=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,code,code_verifier:pending.verifier,grant_type:'authorization_code',redirect_uri:googleRedirectUri(req)})});
   if(!tokenRes.ok) return fail(res,502,'Google 토큰 교환에 실패했습니다.','GOOGLE_TOKEN_FAILED');
   const tokens=await tokenRes.json();
+  if(pending.kind==='calendar'){
+    const user=db.users[pending.userId];
+    if(!user)return fail(res,401,'로그인 세션을 찾을 수 없습니다.','UNAUTHENTICATED');
+    user.googleCalendar={...(user.googleCalendar||{}),refreshToken:tokens.refresh_token||user.googleCalendar?.refreshToken||'',connectedAt:now(),eventIds:user.googleCalendar?.eventIds||{}};
+    if(!user.googleCalendar.refreshToken)return fail(res,400,'Google Calendar 장기 연결 권한을 받지 못했습니다. 다시 연결해 주세요.','CALENDAR_REFRESH_TOKEN_MISSING');
+    saveDb();res.writeHead(302,{Location:pending.returnTo});return res.end();
+  }
   const infoRes=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${tokens.access_token}`}});
   if(!infoRes.ok) return fail(res,502,'Google 사용자 정보를 가져오지 못했습니다.','GOOGLE_PROFILE_FAILED');
   const info=await infoRes.json();
   const user=upsertUser({providerId:info.sub,name:info.name||info.email,email:info.email,avatarUrl:info.picture});
   const session=createSession(user.id);
   res.writeHead(302,{Location:pending.returnTo,'Set-Cookie':sessionCookie(session)}); res.end();
+}
+
+async function googleCalendarStart(req,res,url,user){
+  if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET)return fail(res,503,'Google OAuth 환경 변수가 설정되지 않았습니다.','GOOGLE_AUTH_NOT_CONFIGURED');
+  const state=crypto.randomBytes(24).toString('base64url'),verifier=crypto.randomBytes(48).toString('base64url');
+  const challenge=crypto.createHash('sha256').update(verifier).digest('base64url');
+  oauthStates.set(state,{kind:'calendar',userId:user.id,returnTo:safeReturnTo(url.searchParams.get('returnTo'),req),verifier,expiresAt:Date.now()+10*60_000});
+  const params=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:googleRedirectUri(req),response_type:'code',scope:'https://www.googleapis.com/auth/calendar.events',state,code_challenge:challenge,code_challenge_method:'S256',access_type:'offline',prompt:'consent',include_granted_scopes:'true'});
+  res.writeHead(302,{Location:`https://accounts.google.com/o/oauth2/v2/auth?${params}`});res.end();
+}
+
+async function calendarAccessToken(user){
+  const refreshToken=user.googleCalendar?.refreshToken;if(!refreshToken)throw new Error('CALENDAR_NOT_CONNECTED');
+  const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,refresh_token:refreshToken,grant_type:'refresh_token'})});
+  if(!response.ok)throw new Error('CALENDAR_TOKEN_FAILED');return (await response.json()).access_token;
+}
+
+function calendarTime(value){
+  if(/^\d{4}-\d{2}-\d{2}$/.test(value)){const end=new Date(`${value}T00:00:00Z`);end.setUTCDate(end.getUTCDate()+1);return {start:{date:value},end:{date:end.toISOString().slice(0,10)}};}
+  const dateTime=value.length===16?`${value}:00+09:00`:value;const end=new Date(dateTime);end.setHours(end.getHours()+1);return {start:{dateTime,timeZone:'Asia/Seoul'},end:{dateTime:end.toISOString(),timeZone:'Asia/Seoul'}};
+}
+
+function folioCalendarEvents(workspace){
+  const result=[];
+  for(const job of workspace.jobs||[])if(job.deadline)result.push({key:`job:${job.id}`,summary:`[Folio] ${job.company} 지원 마감`,description:[job.role,job.url].filter(Boolean).join('\n'),...calendarTime(job.deadline)});
+  for(const item of workspace.interviews||[])if(item.date)result.push({key:`interview:${item.id}`,summary:`[Folio] ${item.company} ${item.type}`,description:[item.role,item.memo].filter(Boolean).join('\n'),...calendarTime(item.date)});
+  for(const application of workspace.applications||[]){const job=(workspace.jobs||[]).find(item=>item.id===application.jobId);for(const step of application.processSteps||[])if(step.date&&!['완료','취소'].includes(step.status))result.push({key:`process:${application.id}:${step.id}`,summary:`[Folio] ${job?.company||'지원'} ${step.name}`,description:job?.role||'',...calendarTime(step.date)});}
+  return result;
+}
+
+async function syncGoogleCalendar(user){
+  const token=await calendarAccessToken(user),connection=user.googleCalendar,eventIds=connection.eventIds||{},events=folioCalendarEvents(user.workspace),active=new Set(events.map(item=>item.key));let created=0,updated=0,removed=0;
+  for(const [key,eventId] of Object.entries(eventIds))if(!active.has(key)){const response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});if(response.ok||response.status===404){delete eventIds[key];removed++;}}
+  for(const {key,...event} of events){let eventId=eventIds[key],response;if(eventId)response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'PUT',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(event)});
+    if(!eventId||response.status===404){response=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(event)});if(response.ok){eventIds[key]=(await response.json()).id;created++;}}
+    else if(response.ok)updated++;
+    if(!response.ok)throw new Error(`CALENDAR_EVENT_${response.status}`);
+  }
+  connection.eventIds=eventIds;connection.lastSyncedAt=now();saveDb();return {created,updated,removed,total:events.length,lastSyncedAt:connection.lastSyncedAt};
 }
 
 function extractResponseText(result) {
@@ -280,6 +326,10 @@ async function api(req,res,url) {
   if(!Array.isArray(w.consultations))w.consultations=[];
   if(ensureCareerVault(w))saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
+  if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||''});
+  if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
+  if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return fail(res,502,'Google Calendar 동기화에 실패했습니다. 연결 상태를 확인해 주세요.','CALENDAR_SYNC_FAILED');}}
+  if(method==='POST'&&route==='/api/v1/calendar/disconnect'){delete user.googleCalendar;saveDb();res.writeHead(204);return res.end();}
   if(method==='GET'&&route==='/api/v1/account/export')return send(res,200,{data:exportWorkspace(user)},{'Content-Disposition':`attachment; filename="folio-export-${new Date().toISOString().slice(0,10)}.json"`,'Cache-Control':'no-store'});
   let fileMatch=route.match(/^\/api\/v1\/files\/([^/]+)$/);
   if(fileMatch&&method==='GET'){
