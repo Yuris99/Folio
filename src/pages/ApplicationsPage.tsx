@@ -64,6 +64,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   async function remove(id: string) {
     if (!window.confirm('이 지원 기록을 삭제할까요?')) return;
     await mutate('지원 삭제', () => api.deleteApplication(id));
+    setModalOpen(false);
   }
 
   return <>
@@ -78,7 +79,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
           <span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>
           <span className="app-next"><small>다음 프로세스</small>{application.processSteps?.find((step) => step.status === '진행 중')?.name || application.processSteps?.find((step) => step.status === '예정')?.name || application.nextProcess || application.next || '미정'}{(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate) && <em>{dateLabel(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate)}</em>}</span>
           <span className="app-date"><small>접수 / 마감</small>{dateLabel(application.appliedAt)} · {dateLabel(job.deadline)}</span>
-          <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button><button className="row-menu" onClick={() => void remove(application.id)} aria-label="지원 삭제">×</button></div>
+          <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
         </article>;
       })}
       {!workspace.applications.length && <EmptyState title="아직 등록한 지원이 없습니다." description="회사와 직무, 현재 상태를 입력하면 지원 과정을 한곳에서 추적할 수 있습니다." action={<button className="button primary" onClick={() => open()}>첫 지원 추가</button>} />}
@@ -101,7 +102,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       {!processSteps.length && <button type="button" className="process-empty" onClick={addProcessStep}>+ 첫 프로세스 단계 추가</button>}
       <label>공고 URL<input name="url" type="url" defaultValue={editingJob?.url || ''} placeholder="https://..." /></label>
       <label>메모<textarea name="memo" rows={4} defaultValue={editing?.memo || ''} placeholder="지원 과정에서 기억할 내용을 입력하세요." /></label>
-      <div className="modal-actions"><button type="button" className="button ghost" onClick={() => setModalOpen(false)}>취소</button><button className="button primary">저장</button></div>
+      <div className="modal-actions application-modal-actions">{editing && <button type="button" className="button danger" onClick={() => void remove(editing.id)}>지원 삭제</button>}<span /><button type="button" className="button ghost" onClick={() => setModalOpen(false)}>취소</button><button className="button primary">저장</button></div>
     </form></Modal>}
   </>;
 }
