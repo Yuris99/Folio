@@ -26,7 +26,7 @@ export function Layout({ view, navigate, user, workspace, syncState, error, onLo
   const profileName = workspace.profile.name || user.name;
   const move = (next: View) => { navigate(next); setMenuOpen(false); };
   return (
-    <div className="app-shell">
+    <div className={`app-shell view-${view}`}>
       <aside className="sidebar">
         <button className="brand brand-button" onClick={() => move('home')}><span className="brand-mark">F</span><span>folio</span></button>
         <nav className="nav" aria-label="주요 메뉴">

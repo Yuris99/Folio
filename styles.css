@@ -1364,6 +1364,55 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   }
 }
 
+/* Give the calendar usable width on an 8:9 half-monitor viewport. */
+@media (min-width: 681px) and (max-width: 1200px) and (max-aspect-ratio: 1/1) {
+  .view-calendar .sidebar {
+    width: 82px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .view-calendar .brand {
+    justify-content: center;
+    padding: 0;
+  }
+  .view-calendar .brand > span:last-child,
+  .view-calendar .nav-item:not(.active)::after,
+  .view-calendar .profile-card > div:last-child {
+    display: none;
+  }
+  .view-calendar .nav {
+    margin-top: 30px;
+  }
+  .view-calendar .nav-item {
+    justify-content: center;
+    gap: 0;
+    min-height: 46px;
+    padding: 9px 4px;
+    overflow: hidden;
+    font-size: 0;
+  }
+  .view-calendar .nav-item span {
+    width: auto;
+    font-size: 19px;
+  }
+  .view-calendar .profile-card {
+    justify-content: center;
+    padding-right: 0;
+    padding-left: 0;
+  }
+  .view-calendar .main {
+    width: calc(100% - 82px);
+    margin-left: 82px;
+  }
+  .view-calendar .content {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+  .view-calendar .calendar-day {
+    min-height: 84px;
+  }
+}
+
 @media (min-width: 1201px) {
   .application-row {
     grid-template-columns: minmax(210px, 1.4fr) 90px minmax(150px, 1fr) 120px 160px;
