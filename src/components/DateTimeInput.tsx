@@ -29,7 +29,7 @@ export function DateTimeInput({ name, value, defaultValue, required, ariaLabel, 
   return <div className="datetime-24" aria-label={ariaLabel}>
     {name && <input type="hidden" name={name} value={current} />}
     <input aria-label={`${ariaLabel || '일시'} 날짜`} type="date" required={required} min="2000-01-01" max="2100-12-31" value={date} onChange={(event) => update(event.target.value, hour, minute)} />
-    <select aria-label={`${ariaLabel || '일시'} 시`} value={hour} onChange={(event) => update(date, event.target.value, minute)}>{hours.map((item) => <option key={item} value={item}>{item}시</option>)}</select>
-    <select aria-label={`${ariaLabel || '일시'} 분`} value={minute} onChange={(event) => update(date, hour, event.target.value)}>{minutes.map((item) => <option key={item} value={item}>{item}분</option>)}</select>
+    <select aria-label={`${ariaLabel || '일시'} 시`} value={hour} onChange={(event) => update(date, event.target.value, minute)}>{hours.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+    <select aria-label={`${ariaLabel || '일시'} 분`} value={minute} onChange={(event) => update(date, hour, event.target.value)}>{minutes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
   </div>;
 }
