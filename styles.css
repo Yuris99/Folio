@@ -1270,3 +1270,39 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 @media (min-width: 681px) {
   .process-step-row { grid-template-columns: 28px minmax(130px, 1fr) 250px 100px 38px; }
 }
+
+/* Keep the home schedule inside its card at every viewport width. */
+.home-calendar-card {
+  container-type: inline-size;
+  overflow-x: clip;
+}
+.home-calendar-overview,
+.home-mini-month,
+.home-upcoming-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@container (max-width: 680px) {
+  .home-calendar-overview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
+@media (max-width: 680px) {
+  .home-calendar-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+  .home-calendar-card .section-head {
+    gap: 12px;
+  }
+  .home-calendar-card .section-head > div {
+    min-width: 0;
+  }
+  .home-calendar-card .text-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
