@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { EmptyState, PageHead, SupportTabs } from '../components/Common';
 import { Modal } from '../components/Modal';
@@ -11,8 +11,24 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [processSteps, setProcessSteps] = useState<ApplicationProcessStep[]>([]);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('전체');
+  const [sortBy, setSortBy] = useState<'recent' | 'deadline' | 'company'>('recent');
+  const [pinnedOnly, setPinnedOnly] = useState(false);
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   const editingJob = editing ? getJob(workspace, editing) : undefined;
+  const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
+    const job = getJob(workspace, application);
+    const matchesQuery = `${job.company} ${job.role}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    const matchesStatus = statusFilter === '전체' || normalizedApplicationStatus(application.status) === statusFilter;
+    return matchesQuery && matchesStatus && (!pinnedOnly || application.pinned);
+  }).sort((a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+    const aJob = getJob(workspace, a); const bJob = getJob(workspace, b);
+    if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
+    if (sortBy === 'deadline') return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999');
+    return (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || '');
+  }), [workspace, query, statusFilter, sortBy, pinnedOnly]);
 
   function open(id?: string) {
     const application = id ? workspace.applications.find((item) => item.id === id) : undefined;
@@ -72,18 +88,25 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
     <div className="application-summary">{applicationStatuses.map((status) => <span key={status}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</span>)}</div>
+    <div className="application-toolbar">
+      <label className="application-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>
+      <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="지원 상태 필터"><option>전체</option>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select>
+      <select value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="recent">최근 수정순</option><option value="deadline">마감 임박순</option><option value="company">회사명순</option></select>
+      <button className={`pin-filter ${pinnedOnly ? 'active' : ''}`} onClick={() => setPinnedOnly((value) => !value)}>★ 상단 고정만</button>
+    </div>
     <div className="application-list">
-      {workspace.applications.map((application) => {
+      {visibleApplications.map((application) => {
         const job = getJob(workspace, application);
         return <article className="application-row" key={application.id}>
           <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}</small><button className="app-page-link" onClick={() => openJobPage(job.id)}>정리 페이지 열기 →</button></div></div>
           <span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>
           <span className="app-next"><small>다음 프로세스</small>{application.processSteps?.find((step) => step.status === '진행 중')?.name || application.processSteps?.find((step) => step.status === '예정')?.name || application.nextProcess || application.next || '미정'}{(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate) && <em>{dateLabel(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate)}</em>}</span>
           <span className="app-date"><small>접수 / 마감</small>{dateLabel(application.appliedAt)} · {dateLabel(job.deadline)}</span>
-          <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
+          <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`pin-button ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}>★</button><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
         </article>;
       })}
       {!workspace.applications.length && <EmptyState title="아직 등록한 지원이 없습니다." description="회사와 직무, 현재 상태를 입력하면 지원 과정을 한곳에서 추적할 수 있습니다." action={<button className="button primary" onClick={() => open()}>첫 지원 추가</button>} />}
+      {!!workspace.applications.length && !visibleApplications.length && <EmptyState title="조건에 맞는 지원이 없습니다." description="검색어나 필터를 바꿔 보세요." />}
     </div>
     {modalOpen && <Modal title={editing ? '지원 수정' : '지원 추가'} kicker="APPLICATION" onClose={() => setModalOpen(false)}><form key={editingId || 'new'} onSubmit={submit}>
       <div className="form-grid two"><label>회사명<input required name="company" defaultValue={editingJob?.company || ''} /></label><label>직무명<input required name="role" defaultValue={editingJob?.role || ''} /></label></div>

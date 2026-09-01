@@ -25,6 +25,10 @@ function removePage(pages: JobSubpage[], id: string): JobSubpage[] {
   return pages.filter((page) => page.id !== id).map((page) => ({ ...page, children: removePage(page.children, id) }));
 }
 
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function inlineMarkdown(text: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+]\(https?:\/\/[^)]+\))/g).filter(Boolean).map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
@@ -132,6 +136,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   const [markdownMode, setMarkdownMode] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const richEditorRef = useRef<HTMLDivElement>(null);
+  const pasteRangeRef = useRef<Range | null>(null);
   useEffect(() => { const markdown = job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`; setPages(job.pages || []); setRootContent(markdown); setRootHtml(job.pageHtml || markdownToHtml(markdown)); setCoverImage(job.coverImage || ''); setRootAttachmentIds(job.attachmentIds || []); setLocalAttachments(attachments); }, [job.id, attachments]);
   const activePage = useMemo(() => activeId === 'root' ? undefined : findPage(pages, activeId), [pages, activeId]);
   const content = activePage?.content ?? rootContent;
@@ -174,8 +179,15 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     connectAttachment(attachment.id);
     if (file.type.startsWith('image/')) {
       const url = api.fileUrl(attachment.id);
+      const safeName = escapeAttribute(file.name);
       if (markdownMode) changeContent(`${content}${content.endsWith('\n') ? '' : '\n'}\n![${file.name}](${url})\n`);
-      else changeHtml(`${html}<figure><img src="${url}" alt="${file.name}"><figcaption>${file.name}</figcaption></figure><p><br></p>`);
+      else if (activeId !== 'root' && richEditorRef.current && pasteRangeRef.current) {
+        const selection = window.getSelection();
+        selection?.removeAllRanges(); selection?.addRange(pasteRangeRef.current);
+        document.execCommand('insertHTML', false, `<figure><img src="${url}" alt="${safeName}"><figcaption>${safeName}</figcaption></figure><p><br></p>`);
+        changeHtml(richEditorRef.current.innerHTML);
+        pasteRangeRef.current = null;
+      } else if (activeId !== 'root') changeHtml(`${html}<figure><img src="${url}" alt="${safeName}"><figcaption>${safeName}</figcaption></figure><p><br></p>`);
     }
   }
 
@@ -185,9 +197,14 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   }
 
   async function pasteImage(event: ClipboardEvent<HTMLElement>) {
-    const image = Array.from(event.clipboardData.files).find((file) => file.type.startsWith('image/'));
+    const image = Array.from(event.clipboardData.items).find((item) => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile()
+      || Array.from(event.clipboardData.files).find((file) => file.type.startsWith('image/'));
     if (!image) return;
     event.preventDefault();
+    if (!markdownMode && activeId !== 'root') {
+      const selection = window.getSelection();
+      pasteRangeRef.current = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    }
     const extension = image.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
     await uploadFile(new File([image], `붙여넣은-이미지-${Date.now()}.${extension}`, { type: image.type }));
   }
@@ -229,10 +246,16 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     <aside className="job-page-tree"><button className="text-button" onClick={onBack}>← 공고 목록</button><div className={`job-tree-item root ${activeId === 'root' ? 'active' : ''}`}><button onClick={() => setActiveId('root')}><span>{job.company[0]}</span>{job.company}</button><button onClick={() => createSubpage('root')}>+</button></div><PageTree pages={pages} activeId={activeId} onSelect={setActiveId} onAdd={createSubpage} /><button className="job-add-page" onClick={() => createSubpage()}>+ 새 페이지</button></aside>
     <main className="job-page-editor">
       {pageCover && <div className="job-cover" style={{ backgroundImage: `url(${pageCover})` }}><button onClick={() => setCurrentCover('')}>커버 제거</button></div>}
-      <div className="job-page-toolbar"><div><span className="eyebrow">{activeId === 'root' ? 'JOB WORKSPACE' : 'SUBPAGE'}</span>{activeId === 'root' ? <><h1>{job.company} · {job.role}</h1><p>{dateLabel(job.deadline)} 마감</p></> : <input className="job-page-title" value={activePage?.title || ''} onChange={(event) => setPages((items) => updatePage(items, activeId, { title: event.target.value }))} />}</div><div><button className="button small" onClick={toggleMarkdownMode}>{markdownMode ? '시각적 편집' : 'Markdown'}</button><button className="button primary small" onClick={() => void save()}>저장</button></div></div>
+      <div className="job-page-toolbar"><div><span className="eyebrow">{activeId === 'root' ? 'JOB OVERVIEW' : 'NOTE PAGE'}</span>{activeId === 'root' ? <><h1>{job.company} · {job.role}</h1><p>{dateLabel(job.deadline)} 마감</p></> : <input className="job-page-title" value={activePage?.title || ''} onChange={(event) => setPages((items) => updatePage(items, activeId, { title: event.target.value }))} />}</div><div>{activeId === 'root' ? <><button className="button small" onClick={() => void save()}>저장</button><button className="button primary small" onClick={() => createSubpage('root')}>+ 메모 페이지</button></> : <><button className="button small" onClick={toggleMarkdownMode}>{markdownMode ? '시각적 편집' : 'Markdown'}</button><button className="button primary small" onClick={() => void save()}>저장</button></>}</div></div>
       <div className="job-editor-actions"><label className="button small file-button">파일 업로드<input hidden type="file" accept="application/pdf,image/*" onChange={(event) => void chooseFile(event)} /></label><label>커버 URL<input value={pageCover} onChange={(event) => setCurrentCover(event.target.value)} placeholder="https://..." /></label>{activeId !== 'root' && <button className="text-button danger-text" onClick={() => { if (window.confirm('이 페이지와 하위 페이지를 삭제할까요?')) { setPages((items) => removePage(items, activeId)); setActiveId('root'); } }}>페이지 삭제</button>}<button className="text-button" onClick={() => createSubpage(activeId)}>+ 하위 페이지</button></div>
-      <div className="markdown-toolbar" aria-label="문서 서식 도구">{markdownMode ? <><button onClick={() => insertMarkdown('## ', '', '제목')}>H2</button><button onClick={() => insertMarkdown('**', '**')}>B</button><button onClick={() => insertMarkdown('- ', '', '목록 항목')}>• 목록</button><button onClick={() => insertMarkdown('- [ ] ', '', '할 일')}>☐ 할 일</button><button onClick={() => insertMarkdown('> ', '', '인용문')}>❯ 인용</button><button onClick={() => insertMarkdown('[', '](https://)', '링크 이름')}>↗ 링크</button></> : <><button onClick={() => richCommand('formatBlock', 'h2')}>제목</button><button onClick={() => richCommand('bold')}>굵게</button><button onClick={() => richCommand('insertUnorderedList')}>• 목록</button><button onClick={() => richCommand('insertHTML', '<div class="rich-task">☐ 할 일</div>')}>☐ 할 일</button><button onClick={() => richCommand('formatBlock', 'blockquote')}>❯ 인용</button><button onClick={() => { const url = window.prompt('링크 주소를 입력하세요.'); if (url) richCommand('createLink', url); }}>↗ 링크</button></>}<button className="template-button" onClick={insertTemplate}>▤ 공고 정리 양식</button><span>{markdownMode ? 'Markdown 직접 편집' : '서식이 적용된 상태로 바로 편집'}</span></div>
-      {markdownMode ? <div className="markdown-source-layout"><textarea ref={editorRef} className="job-markdown-editor" value={content} onChange={(event) => changeContent(event.target.value)} onPaste={(event) => void pasteImage(event)} /><Markdown source={content} /></div> : <div key={`${job.id}-${activeId}`} ref={richEditorRef} className="rich-page-editor" contentEditable suppressContentEditableWarning onInput={(event) => changeHtml(event.currentTarget.innerHTML)} onPaste={(event) => void pasteImage(event)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />}
+      {activeId === 'root' ? <section className="job-overview" tabIndex={0} onPaste={(event) => void pasteImage(event)}>
+        <div className="job-overview-grid"><article><small>마감</small><strong>{dateLabel(job.deadline)}</strong></article><article><small>기술 키워드</small><strong>{job.skills.length}개</strong></article><article><small>메모 페이지</small><strong>{pages.length}개</strong></article></div>
+        <article className="job-overview-section"><div className="section-head"><h2>공고 내용</h2>{job.url && <a href={job.url} target="_blank" rel="noreferrer">원문 열기 ↗</a>}</div><p>{job.description || '저장된 공고 내용이 없습니다.'}</p></article>
+        {!!job.skills.length && <article className="job-overview-section"><h2>핵심 키워드</h2><div className="tag-row">{job.skills.map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></article>}
+        {!!attachmentIds.length && <div className="job-overview-images">{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id && item.type.startsWith('image/')); return file ? <img key={id} src={api.fileUrl(id)} alt={file.name} /> : null; })}</div>}
+        <div className="paste-image-hint">이미지를 복사한 뒤 이 영역을 클릭하고 Ctrl+V 하면 바로 첨부됩니다.</div>
+      </section> : <><div className="markdown-toolbar" aria-label="문서 서식 도구">{markdownMode ? <><button onClick={() => insertMarkdown('## ', '', '제목')}>H2</button><button onClick={() => insertMarkdown('**', '**')}>B</button><button onClick={() => insertMarkdown('- ', '', '목록 항목')}>• 목록</button><button onClick={() => insertMarkdown('- [ ] ', '', '할 일')}>☐ 할 일</button><button onClick={() => insertMarkdown('> ', '', '인용문')}>❯ 인용</button><button onClick={() => insertMarkdown('[', '](https://)', '링크 이름')}>↗ 링크</button></> : <><button onClick={() => richCommand('formatBlock', 'h2')}>제목</button><button onClick={() => richCommand('bold')}>굵게</button><button onClick={() => richCommand('insertUnorderedList')}>• 목록</button><button onClick={() => richCommand('insertHTML', '<div class="rich-task">☐ 할 일</div>')}>☐ 할 일</button><button onClick={() => richCommand('formatBlock', 'blockquote')}>❯ 인용</button><button onClick={() => { const url = window.prompt('링크 주소를 입력하세요.'); if (url) richCommand('createLink', url); }}>↗ 링크</button></>}<button className="template-button" onClick={insertTemplate}>▤ 공고 정리 양식</button><span>{markdownMode ? 'Markdown 직접 편집' : '이미지는 Ctrl+V로 바로 삽입'}</span></div>
+      {markdownMode ? <div className="markdown-source-layout"><textarea ref={editorRef} className="job-markdown-editor" value={content} onChange={(event) => changeContent(event.target.value)} onPaste={(event) => void pasteImage(event)} /><Markdown source={content} /></div> : <div key={`${job.id}-${activeId}`} ref={richEditorRef} className="rich-page-editor" contentEditable suppressContentEditableWarning onInput={(event) => changeHtml(event.currentTarget.innerHTML)} onPaste={(event) => void pasteImage(event)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />}</>}
       <section className="job-attachments"><div><strong>첨부 파일</strong><small>PDF와 이미지를 페이지별로 보관합니다.</small></div><div>{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id); return file ? <article key={id}><span>{file.type === 'application/pdf' ? 'PDF' : 'IMG'}</span><div><b>{file.name}</b><small>{Math.ceil(file.size / 1024)}KB</small></div><a href={api.fileUrl(file.id)} target="_blank" rel="noreferrer">열기</a><button onClick={() => activeId === 'root' ? setRootAttachmentIds((ids) => ids.filter((item) => item !== id)) : setPages((items) => updatePage(items, activeId, { attachmentIds: attachmentIds.filter((item) => item !== id) }))}>연결 해제</button></article> : null; })}{!attachmentIds.length && <p>첨부된 파일이 없습니다.</p>}</div></section>
       {activeId === 'root' && <div className="job-root-actions"><a className="button" href={job.url} target="_blank" rel="noreferrer">원본 공고 열기</a><button className="button primary" onClick={onCreateApplication}>지원 건 만들기</button></div>}
     </main>

@@ -186,6 +186,7 @@ export interface Application {
   nextDate?: string;
   processSteps?: ApplicationProcessStep[];
   memo?: string;
+  pinned?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -294,6 +295,7 @@ export interface ApplicationPayload {
   nextProcess: string;
   nextDate: string;
   processSteps: ApplicationProcessStep[];
+  pinned?: boolean;
   url: string;
   memo: string;
   jobId?: string;
