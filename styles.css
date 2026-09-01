@@ -1024,6 +1024,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .job-page-toolbar > div:last-child { display: flex; gap: 8px; flex: 0 0 auto; }
 .job-page-title { margin: 0; padding: 0; border: 0; background: transparent; font-size: clamp(27px,3vw,40px); font-weight: 700; }
 .job-overview { padding: 6px 42px 30px; outline: 0; }
+.job-overview-edit { padding: 6px 42px 32px; }
+.job-overview-edit textarea { resize: vertical; }
+.job-overview-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .job-overview:focus .paste-image-hint { border-color: var(--accent-strong); color: var(--text); }
 .job-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 20px; }
 .job-overview-grid article { padding: 15px; border: 1px solid var(--line); border-radius: 8px; background: #192230; }
@@ -1342,6 +1345,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
     width: 100%;
   }
   .job-overview {
+    padding: 4px 18px 24px;
+  }
+  .job-overview-edit {
     padding: 4px 18px 24px;
   }
   .job-overview-grid {
