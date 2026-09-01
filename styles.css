@@ -1368,7 +1368,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 }
 
 /* Give the calendar usable width on an 8:9 half-monitor viewport. */
-@media (min-width: 681px) and (max-width: 1200px) and (max-aspect-ratio: 6/5) {
+@media (min-width: 681px) and (max-aspect-ratio: 5/4) {
   .view-calendar .sidebar {
     width: 82px;
     padding-right: 10px;
@@ -1564,5 +1564,21 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
     align-items: flex-start;
     flex-direction: column;
     margin-top: -4px;
+  }
+}
+
+/* Aspect ratio wins over pixel width: high-DPI half-screen windows can exceed 1200 CSS px. */
+@media (min-width: 681px) and (max-aspect-ratio: 5/4) {
+  .view-calendar .calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .view-calendar .agenda {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 18px;
+  }
+  .view-calendar .agenda .section-head,
+  .view-calendar .agenda .empty-note {
+    grid-column: 1 / -1;
   }
 }
