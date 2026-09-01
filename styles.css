@@ -1197,3 +1197,67 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .calendar-layout { margin-right: -16px; margin-left: -16px; }
   input[type="datetime-local"] { min-width: 0; width: 100%; color-scheme: dark; }
 }
+
+/* Unified schedule, job modal and compact application status refinements. */
+.modal.wide { width: min(1280px, calc(100vw - 32px)); }
+.modal.wide .modal-body { padding: 20px; }
+.modal.wide .job-workspace { min-height: min(760px, calc(100dvh - 130px)); margin-top: 16px; }
+.home-view { height: auto; min-height: calc(100vh - 70px); overflow: visible; }
+.home-view .home-panels { max-height: none; align-items: stretch; }
+.home-calendar-card { min-width: 0; }
+.home-calendar-overview { grid-template-columns: minmax(330px, 1.15fr) minmax(280px, .85fr); gap: 22px; }
+.home-mini-weekdays span { font-size: 12px; }
+.home-mini-days button { min-height: 38px; aspect-ratio: auto; }
+.home-mini-days button b { font-size: 13px; }
+.home-upcoming-list button { min-height: 58px; grid-template-columns: 94px minmax(0, 1fr); padding: 10px 12px; border-left: 4px solid transparent; }
+.home-upcoming-list time { font-size: 12px; }
+.home-upcoming-list strong { font-size: 14px; }
+.home-upcoming-list small { font-size: 12px; }
+.home-upcoming-list .home-event-deadline { border-left-color: #df7883; background: #30242a; }
+.home-upcoming-list .home-event-interview { border-left-color: #e1ad6e; background: #302b22; }
+.home-upcoming-list .home-event-process { border-left-color: #72a8df; background: #202d3d; }
+.home-job-list { display: grid; gap: 6px; }
+.home-job-list > button { width: 100%; min-width: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px; border: 1px solid var(--line); border-radius: 7px; background: #1d1d20; color: var(--text); text-align: left; cursor: pointer; }
+.home-job-list .company-logo { width: 36px; height: 36px; }
+.home-job-list strong, .home-job-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-job-list small, .home-job-list time { color: var(--muted); font-size: 11px; }
+.home-jobs-all { width: 100%; margin-top: 10px; padding: 8px; border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; }
+.event { width: 100%; border: 0; border-left: 3px solid var(--accent); text-align: left; cursor: pointer; }
+.event.deadline { border-left-color: #df7883; background: #3a252b; color: #f1a7ae; }
+.event.interview { border-left-color: #e1ad6e; background: #3a3021; color: #efc58d; }
+.event.process { border-left-color: #72a8df; background: #23364a; color: #9fc9f2; }
+.agenda-row { width: 100%; border-right: 0; border-bottom: 0; border-left: 4px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.agenda-deadline { border-left-color: #df7883; }
+.agenda-interview { border-left-color: #e1ad6e; }
+.agenda-process { border-left-color: #72a8df; }
+.application-summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; overflow: visible; }
+.application-summary span { min-width: 0; border-radius: 7px; }
+.application-row { min-width: 0; }
+.app-company, .app-next, .app-date, .app-controls { min-width: 0; }
+.app-next, .app-date { overflow-wrap: anywhere; }
+
+@media (min-width: 681px) and (max-width: 1200px) {
+  .home-calendar-card { grid-column: 1 / -1; }
+  .home-calendar-overview { grid-template-columns: minmax(300px, 1fr) minmax(250px, .9fr); }
+  .application-row { grid-template-columns: minmax(190px, 1fr) auto minmax(150px, .8fr); }
+}
+
+@media (max-width: 680px) {
+  .modal.wide { width: 100%; }
+  .modal.wide .modal-body { padding: 14px 0 0; }
+  .modal.wide .modal-head { padding: 0 17px; }
+  .modal.wide .job-workspace { min-height: 0; margin-top: 12px; }
+  .home-view { height: auto; min-height: calc(100dvh - 128px); overflow: visible; }
+  .home-view .home-panels { display: grid; grid-template-rows: none; overflow: visible; }
+  .home-calendar-overview { grid-template-columns: 1fr; }
+  .home-mini-days button { min-height: 34px; }
+  .home-upcoming-list { display: grid; }
+  .home-upcoming-list button { min-height: 54px; grid-template-columns: 82px minmax(0, 1fr); }
+  .home-upcoming-list button:nth-child(n+4) { display: none; }
+  .application-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-right: 0; padding-right: 0; overflow: visible; }
+  .application-summary span { flex: initial; min-width: 0; }
+  .view-actions { min-width: 0; align-items: stretch; flex-direction: column; }
+  .view-actions .section-tabs { max-width: 100%; margin: 0; overflow-x: auto; }
+  .view-actions > .button { width: 100%; }
+  .calendar-day .event { width: 8px; height: 8px; border: 0; }
+}

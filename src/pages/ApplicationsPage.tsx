@@ -4,7 +4,7 @@ import { EmptyState, PageHead, SupportTabs } from '../components/Common';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, View, Workspace } from '../types';
-import { applicationStatuses, dateLabel, dateTimeInputValue, getJob, nextProcesses, statusClass, todayDateTimeInputValue } from '../utils';
+import { applicationStatuses, dateLabel, dateTimeInputValue, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,23 +69,23 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   return <>
     <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
-    <div className="application-summary">{applicationStatuses.map((status) => <span key={status}><b>{workspace.applications.filter((item) => item.status === status).length}</b>{status}</span>)}</div>
+    <div className="application-summary">{applicationStatuses.map((status) => <span key={status}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</span>)}</div>
     <div className="application-list">
       {workspace.applications.map((application) => {
         const job = getJob(workspace, application);
         return <article className="application-row" key={application.id}>
           <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}</small><button className="app-page-link" onClick={() => openJobPage(job.id)}>정리 페이지 열기 →</button></div></div>
-          <span className={`status status-${statusClass(application.status)}`}>{application.status}</span>
+          <span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>
           <span className="app-next"><small>다음 프로세스</small>{application.processSteps?.find((step) => step.status === '진행 중')?.name || application.processSteps?.find((step) => step.status === '예정')?.name || application.nextProcess || application.next || '미정'}{(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate) && <em>{dateLabel(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate)}</em>}</span>
           <span className="app-date"><small>접수 / 마감</small>{dateLabel(application.appliedAt)} · {dateLabel(job.deadline)}</span>
-          <div className="app-controls"><select value={application.status} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button><button className="row-menu" onClick={() => void remove(application.id)} aria-label="지원 삭제">×</button></div>
+          <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button><button className="row-menu" onClick={() => void remove(application.id)} aria-label="지원 삭제">×</button></div>
         </article>;
       })}
       {!workspace.applications.length && <EmptyState title="아직 등록한 지원이 없습니다." description="회사와 직무, 현재 상태를 입력하면 지원 과정을 한곳에서 추적할 수 있습니다." action={<button className="button primary" onClick={() => open()}>첫 지원 추가</button>} />}
     </div>
     {modalOpen && <Modal title={editing ? '지원 수정' : '지원 추가'} kicker="APPLICATION" onClose={() => setModalOpen(false)}><form key={editingId || 'new'} onSubmit={submit}>
       <div className="form-grid two"><label>회사명<input required name="company" defaultValue={editingJob?.company || ''} /></label><label>직무명<input required name="role" defaultValue={editingJob?.role || ''} /></label></div>
-      <label>현재 상태<select name="status" defaultValue={editing?.status || '관심'}>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+      <label>현재 상태<select name="status" defaultValue={normalizedApplicationStatus(editing?.status || '관심')}>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
       <div className="form-section-label">지원 일정</div>
       <div className="form-grid two"><label>서류 접수 일시 (24시간)<input name="appliedAt" type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" defaultValue={dateTimeInputValue(editing?.appliedAt) || todayDateTimeInputValue()} /></label><label>서류 마감 일시 (24시간)<input name="deadline" type="datetime-local" min="2000-01-01T00:00" max="2100-12-31T23:59" defaultValue={dateTimeInputValue(editingJob?.deadline) || todayDateTimeInputValue()} /></label></div>
       <div className="form-section-label process-section-head"><span>채용 프로세스</span><button type="button" className="text-button" onClick={addProcessStep}>+ 단계 추가</button></div>

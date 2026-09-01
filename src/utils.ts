@@ -1,6 +1,15 @@
 import type { Application, Job, Workspace } from './types';
 
-export const applicationStatuses = ['관심', '서류 준비', '지원 완료', '서류 전형', '인적성·코테', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '합격', '불합격'];
+export const applicationStatuses = ['관심', '지원 준비', '전형 진행', '결과 대기', '합격', '불합격'];
+
+export function normalizedApplicationStatus(status: string): string {
+  if (['합격'].includes(status)) return '합격';
+  if (['탈락', '불합격'].includes(status)) return '불합격';
+  if (['관심'].includes(status)) return '관심';
+  if (['작성 중', '서류 준비', '지원 준비'].includes(status)) return '지원 준비';
+  if (['처우 협의', '결과 대기'].includes(status)) return '결과 대기';
+  return '전형 진행';
+}
 
 export const nextProcesses = ['서류 제출', '서류 결과', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
 
@@ -38,9 +47,10 @@ export function getJob(workspace: Workspace, application: Application): Job {
 }
 
 export function statusClass(status: string): string {
+  status = normalizedApplicationStatus(status);
   if (status === '탈락' || status === '불합격') return 'closed';
   if (status === '합격') return 'success';
-  if (status.includes('면접')) return 'interview';
+  if (status === '전형 진행' || status === '결과 대기') return 'interview';
   if (status.includes('준비')) return 'writing';
   return 'default';
 }

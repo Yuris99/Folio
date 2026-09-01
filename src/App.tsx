@@ -44,7 +44,7 @@ export default function App() {
     home: <HomePage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
     applications: <ApplicationsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
     documents: <DocumentsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
-    calendar: <CalendarPage workspace={folio.workspace} mutate={folio.mutate} />,
+    calendar: <CalendarPage workspace={folio.workspace} navigate={navigate} />,
     career: <ProfilePage workspace={folio.workspace} mutate={folio.mutate} onDeleteAccount={folio.deleteAccount} />,
     consultations: <ConsultationsPage workspace={folio.workspace} mutate={folio.mutate} />,
     imports: <ImportsPage mutate={folio.mutate} />,
