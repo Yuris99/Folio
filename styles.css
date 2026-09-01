@@ -294,6 +294,7 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
   .mobile-menu-sheet nav i { color: var(--faint); font-style: normal; }
 }
 
+
 /* Desktop type scale: keep dense mobile layouts unchanged. */
 @media (min-width: 901px) {
   body { font-size: 16px; line-height: 1.7; }
@@ -1159,4 +1160,40 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .markdown-source-layout { grid-template-columns: 1fr; }
   .markdown-source-layout .job-markdown-editor { width: calc(100% - 36px); margin: 20px 18px; }
   .markdown-source-layout .markdown-preview { display: none; }
+}
+
+/* Primary viewport targets: 16:9 full monitor, 8:9 half monitor, 9:18 mobile. */
+@media (min-width: 1201px) and (min-aspect-ratio: 4/3) {
+  .sidebar { width: 232px; }
+  .main { width: calc(100% - 232px); margin-left: 232px; }
+  .content { max-width: 1500px; padding-right: clamp(32px, 4vw, 72px); padding-left: clamp(32px, 4vw, 72px); }
+}
+
+@media (min-width: 681px) and (max-width: 1200px) {
+  .sidebar { width: 184px; padding: 24px 12px; }
+  .brand { padding: 0 8px; }
+  .nav { margin-top: 32px; }
+  .nav-item { gap: 9px; padding: 10px 9px; font-size: 13px; }
+  .main { width: calc(100% - 184px); margin-left: 184px; }
+  .topbar { padding-right: 28px; padding-left: 28px; }
+  .content { max-width: none; padding: 30px 28px 56px; }
+  .page-head { margin-bottom: 26px; }
+  .page-head h1 { font-size: 32px; }
+  .card { padding: 20px; }
+  .list-grid, .grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calendar-layout { grid-template-columns: 1fr; }
+  .agenda { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+  .agenda .section-head, .agenda .empty-note { grid-column: 1 / -1; }
+  .job-workspace { grid-template-columns: 190px minmax(0, 1fr); }
+  .job-page-toolbar, .job-editor-actions { padding-right: 28px; padding-left: 28px; }
+}
+
+@media (max-width: 680px) and (max-aspect-ratio: 3/4) {
+  .content { width: 100%; padding-right: 16px; padding-left: 16px; }
+  .page-head { align-items: flex-start; gap: 10px; }
+  .page-head h1 { font-size: 27px; }
+  .page-head .button { flex: 0 0 auto; }
+  .grid, .list-grid, .grid.three { grid-template-columns: 1fr; }
+  .calendar-layout { margin-right: -16px; margin-left: -16px; }
+  input[type="datetime-local"] { min-width: 0; width: 100%; color-scheme: dark; }
 }

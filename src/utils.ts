@@ -9,13 +9,18 @@ export function dateLabel(value?: string): string {
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  if (value.includes('T') && !value.endsWith('T00:00')) Object.assign(options, { hour: '2-digit', minute: '2-digit', hour12: false });
+  if (value.includes('T') && !value.endsWith('T00:00')) Object.assign(options, { hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23' });
   return new Intl.DateTimeFormat('ko-KR', options).format(date);
 }
 
 export function dateTimeInputValue(value?: string): string {
   if (!value) return '';
   return value.includes('T') ? value.slice(0, 16) : `${value.slice(0, 10)}T00:00`;
+}
+
+export function todayDateTimeInputValue(): string {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00`;
 }
 
 export function daysUntil(value?: string): number {
