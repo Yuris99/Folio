@@ -325,6 +325,8 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 .app-page-link { display: block; min-height: 28px; margin-top: 3px; padding: 2px 0; border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font-size: 11px; text-align: left; }
 .app-controls { grid-template-columns: minmax(88px,1fr) 34px; }
 .application-modal-actions > span { flex: 1; }
+.datetime-24 { width: 100%; display: grid; grid-template-columns: minmax(132px, 1fr) 78px 78px; gap: 6px; }
+.datetime-24 input, .datetime-24 select { min-width: 0; width: 100%; }
 .job-attachments { margin: 0 42px 24px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #17202d; }
 .job-attachments > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .job-attachments > div:first-child small, .job-attachments > div:last-child > p { color: var(--faint); font-size: 12px; }
@@ -1261,4 +1263,5 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .view-actions .section-tabs { max-width: 100%; margin: 0; overflow-x: auto; }
   .view-actions > .button { width: 100%; }
   .calendar-day .event { width: 8px; height: 8px; border: 0; }
+  .datetime-24 { grid-template-columns: minmax(124px, 1fr) 70px 70px; }
 }
