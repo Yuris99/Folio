@@ -177,6 +177,8 @@ export interface ApplicationProcessStep {
   status: '예정' | '진행 중' | '완료' | '취소';
 }
 
+export type CareerGrade = 'S' | 'A' | 'B' | 'C' | 'D';
+
 export interface Application {
   id: string;
   jobId: string;
@@ -189,6 +191,12 @@ export interface Application {
   memo?: string;
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
+  careerGrade?: CareerGrade;
+  applicationFitScore?: number;
+  companyScore?: number;
+  locationScore?: number;
+  processScore?: number;
+  priorityAdjustment?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -300,6 +308,12 @@ export interface ApplicationPayload {
   processSteps: ApplicationProcessStep[];
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
+  careerGrade?: CareerGrade;
+  applicationFitScore?: number;
+  companyScore?: number;
+  locationScore?: number;
+  processScore?: number;
+  priorityAdjustment?: number;
   url: string;
   memo: string;
   jobId?: string;

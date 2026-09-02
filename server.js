@@ -93,6 +93,13 @@ function ensureCareerVault(workspace) {
   workspace.careerVaultVersion=1;
   return true;
 }
+function dedupeJobs(workspace){
+  const jobs=Array.isArray(workspace.jobs)?workspace.jobs:[],seen=new Map(),remap=new Map(),unique=[];let changed=false;
+  const keyOf=job=>`${String(job.company||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()}|${String(job.role||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()}`;
+  for(const job of jobs){const key=keyOf(job),existing=seen.get(key);if(!key.replace('|','')||!existing){seen.set(key,job);unique.push(job);continue;}changed=true;remap.set(job.id,existing.id);for(const field of ['location','deadline','url','description','coverImage'])if(!existing[field]&&job[field])existing[field]=job[field];existing.skills=[...new Set([...(existing.skills||[]),...(job.skills||[])])];existing.pages=[...(existing.pages||[]),...(job.pages||[])];existing.attachmentIds=[...new Set([...(existing.attachmentIds||[]),...(job.attachmentIds||[])])];}
+  if(changed){workspace.jobs=unique;for(const application of workspace.applications||[])if(remap.has(application.jobId))application.jobId=remap.get(application.jobId);}
+  return changed;
+}
 function assertDataDirectoryWritable() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const probe = path.join(DATA_DIR, `.folio-write-check-${process.pid}-${crypto.randomBytes(4).toString('hex')}`);
@@ -324,7 +331,7 @@ async function api(req,res,url) {
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
   if(!Array.isArray(w.consultations))w.consultations=[];
-  if(ensureCareerVault(w))saveDb();
+  const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
   if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||''});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
@@ -445,7 +452,7 @@ async function api(req,res,url) {
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
   const jobMatch=route.match(/^\/api\/v1\/jobs\/([^/]+)$/);
   if(jobMatch&&method==='PATCH'){const item=w.jobs.find(x=>x.id===jobMatch[1]);if(!item)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');for(const key of ['company','role','location','deadline','url','description','skills','companyAnalysis','pageContent','pageHtml','coverImage','pages','attachmentIds'])if(payload[key]!==undefined)item[key]=payload[key];item.updatedAt=now();saveDb();return ok(res,item);}
-  if(method==='POST'&&route==='/api/v1/applications'){let job=w.jobs.find(j=>j.id===payload.jobId);if(!job){job={id:uid(),company:payload.company,role:payload.role,location:payload.location||'',deadline:payload.deadline||'',url:payload.url||'',description:'',skills:[]};w.jobs.unshift(job)}const item={id:uid(),jobId:job.id,status:payload.status||'관심',priority:['높음','보통','낮음'].includes(payload.priority)?payload.priority:'보통',appliedAt:payload.appliedAt||'',nextProcess:payload.nextProcess||payload.next||'',nextDate:payload.nextDate||'',processSteps:Array.isArray(payload.processSteps)?payload.processSteps:[],next:payload.nextProcess||payload.next||'',memo:payload.memo||'',createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
+  if(method==='POST'&&route==='/api/v1/applications'){const same=(a,b)=>String(a||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()===String(b||'').trim().replace(/\s+/g,' ').toLocaleLowerCase(),score=(value,min,max)=>Math.min(max,Math.max(min,Number(value)||0));let job=w.jobs.find(j=>j.id===payload.jobId)||w.jobs.find(j=>same(j.company,payload.company)&&same(j.role,payload.role));if(!job){job={id:uid(),company:String(payload.company||'').trim(),role:String(payload.role||'').trim(),location:payload.location||'',deadline:payload.deadline||'',url:payload.url||'',description:'',skills:[]};w.jobs.unshift(job)}else for(const key of ['location','deadline','url'])if(payload[key])job[key]=payload[key];const item={id:uid(),jobId:job.id,status:payload.status||'관심',careerGrade:['S','A','B','C','D'].includes(payload.careerGrade)?payload.careerGrade:undefined,applicationFitScore:score(payload.applicationFitScore,0,20),companyScore:score(payload.companyScore,0,15),locationScore:score(payload.locationScore,0,10),processScore:score(payload.processScore,0,10),priorityAdjustment:score(payload.priorityAdjustment,-10,10),appliedAt:payload.appliedAt||'',nextProcess:payload.nextProcess||payload.next||'',nextDate:payload.nextDate||'',processSteps:Array.isArray(payload.processSteps)?payload.processSteps:[],next:payload.nextProcess||payload.next||'',memo:payload.memo||'',createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/tasks'){const item={...payload,id:uid(),createdAt:now()};w.tasks.unshift(item);saveDb();return ok(res,item,201);}
   let taskMatch=route.match(/^\/api\/v1\/tasks\/([^/]+)$/);
   if(taskMatch&&method==='PATCH'){const item=w.tasks.find(x=>x.id===taskMatch[1]);if(!item)return fail(res,404,'할 일을 찾을 수 없습니다.','NOT_FOUND');Object.assign(item,payload,{updatedAt:now()});saveDb();return ok(res,item);}
@@ -465,7 +472,7 @@ async function api(req,res,url) {
   }
   if(fileMatch&&method==='DELETE'){const index=(w.attachments||[]).findIndex(x=>x.id===fileMatch[1]);if(index<0)return fail(res,404,'파일을 찾을 수 없습니다.','NOT_FOUND');const [item]=w.attachments.splice(index,1);const filePath=path.join(DATA_DIR,'uploads',user.id,item.storageName);if(fs.existsSync(filePath))fs.unlinkSync(filePath);saveDb();res.writeHead(204);return res.end();}
   let match=route.match(/^\/api\/v1\/applications\/([^/]+)$/);
-  if(match&&method==='PATCH'){const item=w.applications.find(x=>x.id===match[1]);if(!item)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');Object.assign(item,payload,{updatedAt:now()});const job=w.jobs.find(j=>j.id===item.jobId);if(job)for(const key of ['company','role','location','deadline','url'])if(payload[key]!==undefined)job[key]=payload[key];saveDb();return ok(res,item);}
+  if(match&&method==='PATCH'){const item=w.applications.find(x=>x.id===match[1]);if(!item)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');for(const [key,min,max] of [['applicationFitScore',0,20],['companyScore',0,15],['locationScore',0,10],['processScore',0,10],['priorityAdjustment',-10,10]])if(payload[key]!==undefined)payload[key]=Math.min(max,Math.max(min,Number(payload[key])||0));if(payload.careerGrade!==undefined&&!['S','A','B','C','D'].includes(payload.careerGrade))payload.careerGrade=undefined;Object.assign(item,payload,{updatedAt:now()});const job=w.jobs.find(j=>j.id===item.jobId);if(job)for(const key of ['company','role','location','deadline','url'])if(payload[key]!==undefined)job[key]=payload[key];saveDb();return ok(res,item);}
   if(match&&method==='DELETE'){const before=w.applications.length;w.applications=w.applications.filter(x=>x.id!==match[1]);if(before===w.applications.length)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/documents'){const item={...payload,id:uid(),createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
   match=route.match(/^\/api\/v1\/documents\/([^/]+)$/);
