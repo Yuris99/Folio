@@ -573,8 +573,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   white-space: nowrap;
 }
 .application-row .app-controls select::-ms-expand { display: none; }
-.application-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px; }
-.application-toolbar select, .application-toolbar input { min-height: 42px; margin: 0; }
+.application-toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr)); gap: 8px; max-width: 100%; margin-bottom: 12px; overflow-x: clip; }
+.application-toolbar > * { min-width: 0; max-width: 100%; }
+.application-toolbar select, .application-toolbar input { width: 100%; min-width: 0; max-width: 100%; min-height: 42px; margin: 0; }
 .application-search { position: relative; grid-column: span 2; margin: 0; }
 .application-search span { position: absolute; top: 50%; left: 13px; z-index: 1; color: var(--faint); transform: translateY(-50%); }
 .application-search input { width: 100%; padding-left: 34px; }
@@ -1372,13 +1373,15 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
     white-space: nowrap;
   }
   .application-toolbar {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .application-search {
     grid-column: 1 / -1;
   }
   .pin-filter {
     width: 100%;
+    min-width: 0;
+    white-space: normal;
   }
   .job-overview {
     padding: 4px 18px 24px;
@@ -1397,6 +1400,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   }
   .page-head-actions .button {
     flex: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .application-toolbar {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
