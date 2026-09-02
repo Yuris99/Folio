@@ -1467,6 +1467,20 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .react-modal form {
   overflow-x: visible;
 }
+.react-modal:has(.application-form),
+.react-modal:has(.application-form) .modal-body,
+.application-form {
+  max-width: 100%;
+  overflow-x: clip;
+}
+.application-form > *,
+.application-form label,
+.application-form .form-grid,
+.application-form .priority-input-grid,
+.application-form .process-step-list {
+  min-width: 0;
+  max-width: 100%;
+}
 .datetime-24 {
   min-width: 0;
   max-width: 100%;

@@ -124,7 +124,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       {!workspace.applications.length && <EmptyState title="아직 등록한 지원이 없습니다." description="회사와 직무, 현재 상태를 입력하면 지원 과정을 한곳에서 추적할 수 있습니다." action={<button className="button primary" onClick={() => open()}>첫 지원 추가</button>} />}
       {!!workspace.applications.length && !visibleApplications.length && <EmptyState title="조건에 맞는 지원이 없습니다." description="검색어나 필터를 바꿔 보세요." />}
     </div>
-    {modalOpen && <Modal title={editing ? '지원 수정' : '지원 추가'} kicker="APPLICATION" onClose={() => setModalOpen(false)}><form key={editingId || 'new'} onSubmit={submit}>
+    {modalOpen && <Modal title={editing ? '지원 수정' : '지원 추가'} kicker="APPLICATION" onClose={() => setModalOpen(false)}><form className="application-form" key={editingId || 'new'} onSubmit={submit}>
       <datalist id="company-suggestions">{[...new Set(workspace.jobs.map((job) => job.company))].map((company) => <option key={company} value={company} />)}</datalist>
       <div className="form-grid two"><label>회사명<input required name="company" list="company-suggestions" defaultValue={editingJob?.company || ''} /></label><label>직무명<input required name="role" defaultValue={editingJob?.role || ''} /></label></div>
       <label>근무지역<input name="location" defaultValue={editingJob?.location || ''} placeholder="예: 서울 강남구 · 주 2회 재택" /></label>
