@@ -328,7 +328,16 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 .application-modal-actions > span { flex: 1; }
 .datetime-24 { width: 100%; display: grid; grid-template-columns: minmax(160px, 1fr) 54px 54px; gap: 4px; }
 .datetime-24 input, .datetime-24 select { min-width: 0; width: 100%; }
-.datetime-24 select { padding-right: 5px; padding-left: 8px; text-align: center; }
+.datetime-24 select { padding-right: 5px; padding-left: 5px; appearance: none; background-image: none; text-align: center; }
+.datetime-24 input[type="date"] {
+  appearance: none;
+  background-image: none;
+}
+.datetime-24 input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+  opacity: 0;
+  pointer-events: none;
+}
 .job-attachments { margin: 0 42px 24px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #17202d; }
 .job-attachments > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .job-attachments > div:first-child small, .job-attachments > div:last-child > p { color: var(--faint); font-size: 12px; }
@@ -1423,6 +1432,23 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 }
 
 /* Stable application rows and calendar layout across common viewport ratios. */
+.react-modal,
+.react-modal .modal-body,
+.react-modal form,
+.process-step-list,
+.process-step-row {
+  max-width: 100%;
+}
+.react-modal .modal-body,
+.react-modal form {
+  overflow-x: hidden;
+}
+.datetime-24 {
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) 48px 48px;
+  overflow: hidden;
+}
 .application-row > *,
 .app-company > div,
 .app-next,
@@ -1431,9 +1457,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   min-width: 0;
 }
 .application-row .status {
+  width: 88px;
   max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
   text-align: center;
 }
 .app-next strong,
@@ -1505,8 +1533,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 
 @media (max-width: 680px) {
   .application-row .status {
-    width: auto;
-    max-width: 92px;
+    width: 82px;
+    max-width: 82px;
+    padding-right: 6px;
+    padding-left: 6px;
+    font-size: 11px;
   }
   .application-row .app-next,
   .application-row .app-date {
