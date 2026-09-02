@@ -139,6 +139,7 @@ export interface Job {
   id: string;
   company: string;
   role: string;
+  location?: string;
   deadline: string;
   url: string;
   description: string;
@@ -187,6 +188,7 @@ export interface Application {
   processSteps?: ApplicationProcessStep[];
   memo?: string;
   pinned?: boolean;
+  priority?: '높음' | '보통' | '낮음';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -288,6 +290,7 @@ export interface Workspace {
 export interface ApplicationPayload {
   company: string;
   role: string;
+  location?: string;
   status: string;
   deadline: string;
   next: string;
@@ -296,6 +299,7 @@ export interface ApplicationPayload {
   nextDate: string;
   processSteps: ApplicationProcessStep[];
   pinned?: boolean;
+  priority?: '높음' | '보통' | '낮음';
   url: string;
   memo: string;
   jobId?: string;
