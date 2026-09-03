@@ -20,6 +20,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [sortBy, setSortBy] = useState<'recent' | 'priority' | 'grade' | 'deadline' | 'company'>('priority');
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
+  const [alwaysOpen, setAlwaysOpen] = useState(false);
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   const editingJob = editing ? getJob(workspace, editing) : undefined;
   const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
@@ -46,6 +47,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const application = id ? workspace.applications.find((item) => item.id === id) : undefined;
     const legacyStep = application?.nextProcess || application?.next;
     setProcessSteps(application?.processSteps?.length ? application.processSteps : legacyStep ? [{ id: crypto.randomUUID(), name: legacyStep, date: application?.nextDate || todayDateTimeInputValue(), status: '예정' }] : []);
+    setAlwaysOpen(Boolean(application && getJob(workspace, application).alwaysOpen));
     setEditingId(id || null);
     setModalOpen(true);
   }
@@ -67,7 +69,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       company: String(data.get('company')), role: String(data.get('role')), location: String(data.get('location')), status: String(data.get('status')),
       careerGrade: String(data.get('careerGrade')) as CareerGrade,
       applicationFitScore: Number(data.get('applicationFitScore') || 0), companyScore: Number(data.get('companyScore') || 0), locationScore: Number(data.get('locationScore') || 0), processScore: Number(data.get('processScore') || 0), priorityAdjustment: Number(data.get('priorityAdjustment') || 0),
-      appliedAt: String(data.get('appliedAt')), deadline: String(data.get('deadline')),
+      appliedAt: String(data.get('appliedAt')), deadline: alwaysOpen ? '' : String(data.get('deadline')), alwaysOpen,
       nextProcess: nextStep?.name || '', nextDate: nextStep?.date || '', processSteps: savedSteps,
       next: nextStep?.name || '', url: String(data.get('url')), memo: String(data.get('memo'))
     };
@@ -112,7 +114,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
           <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}{job.location ? ` · ${job.location}` : ''}</small><button className="app-page-link" onClick={() => setWorkspaceJobId(job.id)}>정리 페이지 열기 →</button></div></div>
           <div className="app-status-stack"><span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span><span className={`career-grade grade-${application.careerGrade || 'none'}`}>{application.careerGrade || '–'}</span><span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b> · {priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span></div>
           <span className="app-next"><small>다음 프로세스</small><strong>{application.processSteps?.find((step) => step.status === '진행 중')?.name || application.processSteps?.find((step) => step.status === '예정')?.name || application.nextProcess || application.next || '미정'}</strong>{(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate) && <em>{dateLabel(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate)}</em>}</span>
-          <span className="app-date"><small>접수 / 마감</small><span><i>접수</i>{dateLabel(application.appliedAt)}</span><span><i>마감</i>{dateLabel(job.deadline)}</span></span>
+          <span className="app-date"><small>접수 / 마감</small><span><i>접수</i>{dateLabel(application.appliedAt)}</span><span><i>마감</i>{job.alwaysOpen ? '상시' : dateLabel(job.deadline)}</span></span>
           <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`pin-button ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}>★</button><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
         </article>;
       })}
@@ -129,7 +131,8 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <p className="form-help">각 항목을 직접 평가하면 직무등급과 마감일을 포함해 100점 만점으로 자동 계산합니다.</p>
       <div className="priority-input-grid"><label>지원 적합성 <small>0~20 · 20 매우 높음</small><input type="number" name="applicationFitScore" min="0" max="20" defaultValue={editing?.applicationFitScore ?? 0} /></label><label>회사 매력도 <small>0~15 · 15 매우 높음</small><input type="number" name="companyScore" min="0" max="15" defaultValue={editing?.companyScore ?? 0} /></label><label>지역 선호도 <small>0~10 · 10 매우 선호</small><input type="number" name="locationScore" min="0" max="10" defaultValue={editing?.locationScore ?? 0} /></label><label>전형 적합도 <small>0~10 · 10 매우 유리</small><input type="number" name="processScore" min="0" max="10" defaultValue={editing?.processScore ?? 0} /></label><label>수동 보정 <small>-10~10 · 기본 0</small><input type="number" name="priorityAdjustment" min="-10" max="10" defaultValue={editing?.priorityAdjustment ?? 0} /></label></div>
       <div className="form-section-label">지원 일정</div>
-      <div className="form-grid two"><label>서류 접수 일시 (24시간)<DateTimeInput name="appliedAt" ariaLabel="서류 접수 일시" defaultValue={editing?.appliedAt || todayDateTimeInputValue()} /></label><label>서류 마감 일시 (24시간)<DateTimeInput name="deadline" ariaLabel="서류 마감 일시" defaultValue={editingJob?.deadline || todayDateTimeInputValue()} /></label></div>
+      <label className="inline-check"><input type="checkbox" checked={alwaysOpen} onChange={(event) => setAlwaysOpen(event.target.checked)} /> 상시 채용 <small>마감일 없음 · 마감 우선순위 0점</small></label>
+      <div className="form-grid two"><label>서류 접수 일시 (24시간)<DateTimeInput name="appliedAt" ariaLabel="서류 접수 일시" defaultValue={editing?.appliedAt || todayDateTimeInputValue()} /></label><label>서류 마감 일시 (24시간)<DateTimeInput name="deadline" ariaLabel="서류 마감 일시" defaultValue={editingJob?.deadline || todayDateTimeInputValue()} disabled={alwaysOpen} /></label></div>
       <div className="form-section-label process-section-head"><span>채용 프로세스</span><button type="button" className="text-button" onClick={addProcessStep}>+ 단계 추가</button></div>
       <p className="form-help">단계명은 직접 입력하거나 추천 항목에서 선택할 수 있습니다.</p>
       <datalist id="process-suggestions">{nextProcesses.map((process) => <option key={process} value={process} />)}</datalist>

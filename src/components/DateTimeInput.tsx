@@ -8,12 +8,13 @@ type Props = {
   required?: boolean;
   ariaLabel?: string;
   onChange?: (value: string) => void;
+  disabled?: boolean;
 };
 
 const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0'));
 const minutes = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'));
 
-export function DateTimeInput({ name, value, defaultValue, required, ariaLabel, onChange }: Props) {
+export function DateTimeInput({ name, value, defaultValue, required, ariaLabel, onChange, disabled }: Props) {
   const initial = dateTimeInputValue(value ?? defaultValue) || todayDateTimeInputValue();
   const [localValue, setLocalValue] = useState(initial);
   const current = dateTimeInputValue(value) || localValue;
@@ -27,9 +28,9 @@ export function DateTimeInput({ name, value, defaultValue, required, ariaLabel, 
   }
 
   return <div className="datetime-24" aria-label={ariaLabel}>
-    {name && <input type="hidden" name={name} value={current} />}
-    <input aria-label={`${ariaLabel || '일시'} 날짜`} type="date" required={required} min="2000-01-01" max="2100-12-31" value={date} onChange={(event) => update(event.target.value, hour, minute)} />
-    <select aria-label={`${ariaLabel || '일시'} 시`} value={hour} onChange={(event) => update(date, event.target.value, minute)}>{hours.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-    <select aria-label={`${ariaLabel || '일시'} 분`} value={minute} onChange={(event) => update(date, hour, event.target.value)}>{minutes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+    {name && <input type="hidden" name={name} value={disabled ? '' : current} />}
+    <input aria-label={`${ariaLabel || '일시'} 날짜`} type="date" required={required && !disabled} disabled={disabled} min="2000-01-01" max="2100-12-31" value={date} onChange={(event) => update(event.target.value, hour, minute)} />
+    <select aria-label={`${ariaLabel || '일시'} 시`} disabled={disabled} value={hour} onChange={(event) => update(date, event.target.value, minute)}>{hours.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+    <select aria-label={`${ariaLabel || '일시'} 분`} disabled={disabled} value={minute} onChange={(event) => update(date, hour, event.target.value)}>{minutes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
   </div>;
 }

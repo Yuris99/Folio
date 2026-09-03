@@ -30,7 +30,7 @@ export function getPriorityBreakdown(application: Application, job: Job) {
   const company = clampScore(application.companyScore, 0, 15);
   const location = clampScore(application.locationScore, 0, 10);
   const process = clampScore(application.processScore, 0, 10);
-  const deadline = calculateDeadlineScore(job.deadline);
+  const deadline = job.alwaysOpen ? 0 : calculateDeadlineScore(job.deadline);
   const adjustment = clampScore(application.priorityAdjustment, -10, 10);
   const base = career + fit + company + location + process + deadline;
   return { career, fit, company, location, process, deadline, adjustment, base, final: clampScore(base + adjustment, 0, 100) };

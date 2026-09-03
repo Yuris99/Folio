@@ -17,6 +17,9 @@
 }
 
 * { box-sizing: border-box; }
+.inline-check { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.inline-check input { width: 16px; min-width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.inline-check small { min-width: 0; color: var(--faint); font-weight: 400; }
 html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
 body { background: var(--bg); color: var(--text); font: 14px/1.55 'DM Sans', 'Noto Sans KR', sans-serif; -webkit-font-smoothing: antialiased; }
 .hidden { display: none !important; }

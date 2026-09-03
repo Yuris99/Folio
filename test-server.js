@@ -97,7 +97,9 @@ async function json(path, options={}, cookie='') {
     const interviewUpdated=await json(`/api/v1/interviews/${interview.data.data.id}`,{method:'PATCH',body:JSON.stringify({memo:'본사 방문'})},cookie);
     assert.equal(interviewUpdated.data.data.memo,'본사 방문');
 
-    const job=await json('/api/v1/jobs',{method:'POST',body:JSON.stringify({company:'AI 회사',role:'Frontend',description:'React와 TypeScript 협업 경험',deadline:'2026-09-02',skills:[]})},cookie);
+    const job=await json('/api/v1/jobs',{method:'POST',body:JSON.stringify({company:'AI 회사',role:'Frontend',description:'React와 TypeScript 협업 경험',deadline:'2026-09-02',alwaysOpen:true,skills:[]})},cookie);
+    assert.equal(job.data.data.alwaysOpen,true);
+    assert.equal(job.data.data.deadline,'');
     const analysis=await json('/api/v1/ai/jobs/analyze',{method:'POST',body:JSON.stringify({description:'React와 TypeScript 협업 경험'})},cookie);
     assert.deepEqual(analysis.data.data.skills,['React','TypeScript','협업']);
 

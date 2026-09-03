@@ -141,6 +141,7 @@ export interface Job {
   role: string;
   location?: string;
   deadline: string;
+  alwaysOpen?: boolean;
   url: string;
   description: string;
   skills: string[];
@@ -310,6 +311,7 @@ export interface ApplicationPayload {
   location?: string;
   status: string;
   deadline: string;
+  alwaysOpen?: boolean;
   next: string;
   appliedAt: string;
   nextProcess: string;
