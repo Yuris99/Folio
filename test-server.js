@@ -137,6 +137,9 @@ async function json(path, options={}, cookie='') {
     const mismatchedImage=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'clipboard-image.jpg',type:'image/jpeg',data:`data:image/jpeg;base64,${pngBytes.toString('base64')}`})},cookie);
     assert.equal(mismatchedImage.response.status,201);
     assert.equal(mismatchedImage.data.data.type,'image/png');
+    const renamedImage=await json(`/api/v1/files/${mismatchedImage.data.data.id}`,{method:'PATCH',body:JSON.stringify({name:'캡처 이미지.png'})},cookie);
+    assert.equal(renamedImage.response.status,200);
+    assert.equal(renamedImage.data.data.name,'캡처 이미지.png');
     const dibBytes=Buffer.alloc(44);dibBytes.writeUInt32LE(40,0);dibBytes.writeInt32LE(1,4);dibBytes.writeInt32LE(1,8);dibBytes.writeUInt16LE(1,12);dibBytes.writeUInt16LE(32,14);dibBytes.writeUInt32LE(4,20);
     const clipboardDib=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'clipboard-capture.png',type:'image/png',data:`data:image/png;base64,${dibBytes.toString('base64')}`})},cookie);
     assert.equal(clipboardDib.response.status,201);

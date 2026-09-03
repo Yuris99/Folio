@@ -87,6 +87,7 @@ export const api = {
   saveDocument: (id: string, payload: Partial<SupportDocument>) => request<SupportDocument>(`/documents/${id}`, json('PUT', payload)),
   generateDocument: (payload: { jobId: string; documentType: string; careerStoryIds: string[] }) => request<SupportDocument>('/ai/documents/generate', json('POST', payload)),
   uploadFile: (payload: { name: string; type: string; data: string }) => request<Attachment>('/files', json('POST', payload)),
+  renameFile: (id: string, name: string) => request<Attachment>(`/files/${id}`, json('PATCH', { name })),
   deleteFile: (id: string) => request<void>(`/files/${id}`, { method: 'DELETE' }),
   fileUrl: (id: string) => `${apiBaseUrl}/files/${id}`
 };

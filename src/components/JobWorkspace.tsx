@@ -184,9 +184,16 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     setOverviewEditing(false);
   }
 
-  function connectAttachment(id: string) {
-    if (activeId === 'root') setRootAttachmentIds((ids) => [...new Set([...ids, id])]);
-    else setPages((items) => updatePage(items, activeId, { attachmentIds: [...new Set([...(activePage?.attachmentIds || []), id])] }));
+  async function persistAttachmentIds(ids: string[]) {
+    const uniqueIds = [...new Set(ids)];
+    if (activeId === 'root') {
+      setRootAttachmentIds(uniqueIds);
+      await mutate('첨부 연결 저장', () => api.updateJob(job.id, { attachmentIds: uniqueIds }), false);
+    } else {
+      const nextPages = updatePage(pages, activeId, { attachmentIds: uniqueIds });
+      setPages(nextPages);
+      await mutate('첨부 연결 저장', () => api.updateJob(job.id, { pages: nextPages }), false);
+    }
   }
 
   async function uploadFile(file?: File) {
@@ -195,7 +202,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
     const attachment = await mutate(file.type === 'application/pdf' ? 'PDF 업로드' : '이미지 업로드', () => api.uploadFile({ name: file.name, type: file.type, data }), false) as Attachment;
     setLocalAttachments((items) => [...items, attachment]);
-    connectAttachment(attachment.id);
+    await persistAttachmentIds([...attachmentIds, attachment.id]);
     if (file.type.startsWith('image/')) {
       const url = api.fileUrl(attachment.id);
       const safeName = escapeAttribute(file.name);
@@ -213,6 +220,13 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     await uploadFile(event.target.files?.[0]);
     event.target.value = '';
+  }
+
+  async function renameAttachment(file: Attachment) {
+    const name = window.prompt('새 파일 이름을 입력하세요.', file.name)?.trim();
+    if (!name || name === file.name) return;
+    const renamed = await mutate('파일 이름 변경', () => api.renameFile(file.id, name), false) as Attachment;
+    setLocalAttachments((items) => items.map((item) => item.id === renamed.id ? renamed : item));
   }
 
   async function pasteImage(event: ClipboardEvent<HTMLElement>) {
@@ -296,7 +310,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
         <div className="paste-image-hint">이미지를 복사한 뒤 이 영역을 클릭하고 Ctrl+V 하면 바로 첨부됩니다.</div>
       </section> : <><div className="markdown-toolbar" aria-label="문서 서식 도구">{markdownMode ? <><button onClick={() => insertMarkdown('## ', '', '제목')}>H2</button><button onClick={() => insertMarkdown('**', '**')}>B</button><button onClick={() => insertMarkdown('- ', '', '목록 항목')}>• 목록</button><button onClick={() => insertMarkdown('- [ ] ', '', '할 일')}>☐ 할 일</button><button onClick={() => insertMarkdown('> ', '', '인용문')}>❯ 인용</button><button onClick={() => insertMarkdown('[', '](https://)', '링크 이름')}>↗ 링크</button></> : <><button onClick={() => richCommand('formatBlock', 'h2')}>제목</button><button onClick={() => richCommand('bold')}>굵게</button><button onClick={() => richCommand('insertUnorderedList')}>• 목록</button><button onClick={() => richCommand('insertHTML', '<div class="rich-task">☐ 할 일</div>')}>☐ 할 일</button><button onClick={() => richCommand('formatBlock', 'blockquote')}>❯ 인용</button><button onClick={() => { const url = window.prompt('링크 주소를 입력하세요.'); if (url) richCommand('createLink', url); }}>↗ 링크</button></>}<button className="template-button" onClick={insertTemplate}>▤ 공고 정리 양식</button><span>{markdownMode ? 'Markdown 직접 편집' : '이미지는 Ctrl+V로 바로 삽입'}</span></div>
       {markdownMode ? <div className="markdown-source-layout"><textarea ref={editorRef} className="job-markdown-editor" value={content} onChange={(event) => changeContent(event.target.value)} onPaste={(event) => void pasteImage(event)} /><Markdown source={content} /></div> : <div key={`${job.id}-${activeId}`} ref={richEditorRef} className="rich-page-editor" contentEditable suppressContentEditableWarning onInput={(event) => changeHtml(event.currentTarget.innerHTML)} onPaste={(event) => void pasteImage(event)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />}</>}
-      <section className="job-attachments"><div><strong>첨부 파일</strong><small>PDF와 이미지를 페이지별로 보관합니다.</small></div><div>{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id); return file ? <article key={id}><span>{file.type === 'application/pdf' ? 'PDF' : 'IMG'}</span><div><b>{file.name}</b><small>{Math.ceil(file.size / 1024)}KB</small></div><a href={api.fileUrl(file.id)} target="_blank" rel="noreferrer">열기</a><button onClick={() => activeId === 'root' ? setRootAttachmentIds((ids) => ids.filter((item) => item !== id)) : setPages((items) => updatePage(items, activeId, { attachmentIds: attachmentIds.filter((item) => item !== id) }))}>연결 해제</button></article> : null; })}{!attachmentIds.length && <p>첨부된 파일이 없습니다.</p>}</div></section>
+      <section className="job-attachments"><div><strong>첨부 파일</strong><small>PDF와 이미지를 페이지별로 보관합니다.</small></div><div>{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id); return file ? <article key={id}><span>{file.type === 'application/pdf' ? 'PDF' : 'IMG'}</span><div><b>{file.name}</b><small>{Math.ceil(file.size / 1024)}KB</small></div><a href={api.fileUrl(file.id)} target="_blank" rel="noreferrer">열기</a><button onClick={() => void renameAttachment(file)}>이름 변경</button><button onClick={() => void persistAttachmentIds(attachmentIds.filter((item) => item !== id))}>연결 해제</button></article> : null; })}{!attachmentIds.length && <p>첨부된 파일이 없습니다.</p>}</div></section>
       {activeId === 'root' && <div className="job-root-actions"><a className="button" href={job.url} target="_blank" rel="noreferrer">원본 공고 열기</a>{onCreateApplication && <button className="button primary" onClick={onCreateApplication}>지원 건 만들기</button>}</div>}
     </main>
   </div>;

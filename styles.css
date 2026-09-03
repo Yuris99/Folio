@@ -370,7 +370,7 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 .job-attachments { margin: 0 42px 24px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #17202d; }
 .job-attachments > div:first-child { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .job-attachments > div:first-child small, .job-attachments > div:last-child > p { color: var(--faint); font-size: 12px; }
-.job-attachments article { display: grid; grid-template-columns: 40px minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.job-attachments article { display: grid; grid-template-columns: 40px minmax(0,1fr) auto auto auto; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
 .job-attachments article > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 6px; background: var(--accent-soft); color: #ffd3d7; font-size: 9px; font-weight: 700; }
 .job-attachments article b, .job-attachments article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .job-attachments article small { color: var(--faint); font-size: 11px; }
@@ -388,8 +388,10 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 
 @media (max-width: 680px) {
   .job-attachments { margin: 0 18px 20px; padding: 14px; }
-  .job-attachments article { grid-template-columns: 36px minmax(0,1fr) auto; }
-  .job-attachments article button { grid-column: 2 / -1; justify-self: end; }
+  .job-attachments article { grid-template-columns: 36px minmax(0,1fr) auto auto; }
+  .job-attachments article a { grid-column: 3 / 5; justify-self: end; }
+  .job-attachments article button:first-of-type { grid-column: 3; justify-self: end; }
+  .job-attachments article button:last-of-type { grid-column: 4; justify-self: end; }
   .home-week-calendar button { min-height: 48px; }.home-week-calendar small { font-size: 8px; }.home-week-calendar b { font-size: 14px; }
   .home-calendar-card .schedule-row:nth-of-type(n+3) { display: none; }
   .calendar-day.outside-month { display: block; }
