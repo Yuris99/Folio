@@ -97,7 +97,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   return <>
     <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
-    <div className="application-summary">{applicationStatuses.map((status) => <span key={status}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</span>)}</div>
+    <div className="application-summary">{applicationStatuses.map((status) => <button type="button" className={statusFilter === status ? 'active' : ''} aria-pressed={statusFilter === status} key={status} onClick={() => setStatusFilter((current) => current === status ? '전체' : status)}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</button>)}</div>
     <button type="button" className={`mobile-application-filter-toggle ${mobileFiltersOpen ? 'active' : ''}`} onClick={() => setMobileFiltersOpen((open) => !open)}><span>검색·필터</span><small>{mobileFiltersOpen ? '접기' : '열기'}</small></button>
     <div className={`application-toolbar ${mobileFiltersOpen ? 'mobile-expanded' : ''}`}>
       <label className="application-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>

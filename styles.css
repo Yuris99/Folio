@@ -337,7 +337,7 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
   .button.small, .text-button, .filter, .section-tabs button { font-size: 14px; }
   label { font-size: 14px; }
   input, textarea, select { font-size: 15px; }
-  .application-summary span { font-size: 12px; }
+  .application-summary span, .application-summary button { font-size: 12px; }
   .app-company strong { font-size: 15px; }
   .app-company small, .app-next small, .app-date small { font-size: 12px; }
   .app-next, .app-date { font-size: 14px; }
@@ -582,6 +582,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .application-summary { display: flex; gap: 1px; margin-bottom: 18px; overflow-x: auto; }
 .application-summary span { min-width: 88px; padding: 10px 12px; background: var(--panel); color: var(--muted); font-size: 10px; text-align: center; }
 .application-summary b { display: block; margin-bottom: 1px; color: var(--text); font-size: 19px; }
+.application-summary button { min-width: 0; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; background: var(--panel); color: var(--muted); cursor: pointer; font: inherit; font-size: 10px; text-align: center; }
+.application-summary button:hover { border-color: #62565b; color: var(--text); }
+.application-summary button.active { border-color: var(--accent); background: var(--accent-soft); color: #f2b4ba; }
 .application-list { display: grid; gap: 8px; }
 .view-actions { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .view-actions .section-tabs { margin-top: -8px; }
@@ -1816,7 +1819,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .view-applications .page-head > div > p:not(.eyebrow) { display: none; }
   .view-applications .view-actions { gap: 8px; margin-bottom: 12px; }
   .view-applications .application-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 10px; }
-  .view-applications .application-summary span { padding: 7px 3px; font-size: 10px; }
+  .view-applications .application-summary span,
+  .view-applications .application-summary button { padding: 7px 3px; font-size: 10px; }
   .mobile-application-filter-toggle { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 0 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--text); font-weight: 700; }
   .mobile-application-filter-toggle small { color: var(--accent-strong); font-size: 11px; }
   .mobile-application-filter-toggle.active { border-color: #80545a; }
