@@ -1897,3 +1897,48 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .job-page-toolbar > div:last-child:has(> :nth-child(3)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .job-page-toolbar > div:last-child:has(> :nth-child(3)) .button { font-size: 11px; white-space: nowrap; }
 }
+
+/* Recruitment-board style calendar with a full upcoming-event rail. */
+.calendar-filters { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.calendar-filters > label { min-width: min(320px, 100%); display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--faint); }
+.calendar-filters input { min-height: 42px; margin: 0; padding: 0; border: 0; background: transparent; }
+.calendar-filters > div { display: flex; gap: 6px; }
+.calendar-filters button { min-height: 38px; padding: 0 13px; border: 1px solid var(--line); border-radius: 20px; background: var(--panel); color: var(--muted); cursor: pointer; }
+.calendar-filters button.active { border-color: var(--accent-strong); background: var(--accent-soft); color: #ffd5d9; }
+.view-calendar .calendar-layout { grid-template-columns: minmax(0, 1fr) minmax(330px, 390px); gap: 16px; align-items: start; }
+.view-calendar .calendar-day { min-height: 112px; cursor: pointer; transition: background .12s ease, box-shadow .12s ease; }
+.view-calendar .calendar-day:hover { background: #222d3d; }
+.view-calendar .calendar-day.selected { background: #2d2935; box-shadow: inset 0 0 0 2px var(--accent-strong); }
+.calendar-head > div { display: flex; align-items: center; gap: 10px; }
+.calendar-today { width: auto !important; height: 28px !important; padding: 0 10px !important; border: 1px solid var(--line) !important; border-radius: 14px !important; font-size: 11px !important; }
+.calendar-list-panel { padding: 18px; }
+.calendar-list-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding-bottom: 12px; }
+.calendar-list-head small { color: var(--accent-strong); font-size: 9px; letter-spacing: .12em; }
+.calendar-list-head h2 { margin: 3px 0 0; font-size: 18px; }
+.calendar-list-head > button { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font-size: 11px; }
+.calendar-list-scroll { max-height: 680px; overflow-y: auto; }
+.calendar-list-panel .agenda-row { grid-template-columns: 78px minmax(0, 1fr) 14px; align-items: center; padding: 13px 8px 13px 11px; }
+.calendar-list-panel .agenda-row time b, .calendar-list-panel .agenda-row time em { display: block; }
+.calendar-list-panel .agenda-row time em { margin-top: 4px; color: var(--faint); font-size: 9px; font-style: normal; }
+.calendar-list-panel .agenda-row span > i { display: inline-block; margin-bottom: 4px; padding: 2px 6px; border-radius: 8px; background: #263247; color: var(--muted); font-size: 9px; font-style: normal; }
+.calendar-list-panel .agenda-row strong { font-size: 12px; }
+.calendar-list-panel .agenda-arrow { color: var(--faint); font-size: 20px; }
+
+@media (min-width: 681px) and (max-aspect-ratio: 5/4) {
+  .view-calendar .calendar-layout { grid-template-columns: minmax(0, 1fr); }
+  .view-calendar .calendar-list-panel { display: block; }
+  .calendar-list-scroll { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; max-height: none; }
+  .calendar-list-scroll .empty-note { grid-column: 1 / -1; }
+}
+
+@media (max-width: 680px) {
+  .calendar-filters { align-items: stretch; flex-direction: column; }
+  .calendar-filters > label { width: 100%; }
+  .calendar-filters > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .calendar-filters button { min-width: 0; padding: 0 4px; font-size: 10px; }
+  .view-calendar .calendar-layout { grid-template-columns: minmax(0, 1fr); margin-right: 0; margin-left: 0; }
+  .view-calendar .calendar { border: 1px solid var(--line); border-radius: 9px; }
+  .view-calendar .calendar-day { min-height: 64px; }
+  .view-calendar .calendar-list-panel { margin: 0; }
+  .calendar-list-scroll { max-height: none; }
+}
