@@ -1923,6 +1923,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .calendar-list-panel .agenda-row span > i { display: inline-block; margin-bottom: 4px; padding: 2px 6px; border-radius: 8px; background: #263247; color: var(--muted); font-size: 9px; font-style: normal; }
 .calendar-list-panel .agenda-row strong { font-size: 12px; }
 .calendar-list-panel .agenda-arrow { color: var(--faint); font-size: 20px; }
+.mobile-date-events { display: none; }
 
 @media (min-width: 681px) and (max-aspect-ratio: 5/4) {
   .view-calendar .calendar-layout { grid-template-columns: minmax(0, 1fr); }
@@ -1941,4 +1942,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .view-calendar .calendar-day { min-height: 64px; }
   .view-calendar .calendar-list-panel { margin: 0; }
   .calendar-list-scroll { max-height: none; }
+  .mobile-date-events { display: block; margin: 10px -8px -14px; padding: 14px; border-top: 1px solid var(--line); background: #182230; }
+  .mobile-date-events .calendar-list-head { padding-bottom: 7px; }
+  .mobile-date-events .agenda-row { width: 100%; grid-template-columns: 72px minmax(0, 1fr) 12px; padding: 11px 7px; border-right: 0; border-bottom: 0; background: transparent; color: var(--text); text-align: left; }
+  .mobile-date-events .agenda-row span { min-width: 0; }
+  .mobile-date-events .agenda-row span > i { display: inline-block; margin-bottom: 3px; color: var(--accent-strong); font-size: 9px; font-style: normal; }
+  .mobile-date-events .agenda-row strong, .mobile-date-events .agenda-row small { display: block; overflow-wrap: anywhere; }
+  .mobile-date-events .agenda-row small { color: var(--muted); }
+  .calendar-list-panel.date-selected { display: none; }
 }
