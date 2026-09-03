@@ -137,6 +137,10 @@ async function json(path, options={}, cookie='') {
     const mismatchedImage=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'clipboard-image.jpg',type:'image/jpeg',data:`data:image/jpeg;base64,${pngBytes.toString('base64')}`})},cookie);
     assert.equal(mismatchedImage.response.status,201);
     assert.equal(mismatchedImage.data.data.type,'image/png');
+    const dibBytes=Buffer.alloc(44);dibBytes.writeUInt32LE(40,0);dibBytes.writeInt32LE(1,4);dibBytes.writeInt32LE(1,8);dibBytes.writeUInt16LE(1,12);dibBytes.writeUInt16LE(32,14);dibBytes.writeUInt32LE(4,20);
+    const clipboardDib=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'clipboard-capture.png',type:'image/png',data:`data:image/png;base64,${dibBytes.toString('base64')}`})},cookie);
+    assert.equal(clipboardDib.response.status,201);
+    assert.equal(clipboardDib.data.data.type,'image/bmp');
 
     const removed=await json(`/api/v1/applications/${applicationId}`,{method:'DELETE'},cookie);
     assert.equal(removed.response.status,204);

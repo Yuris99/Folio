@@ -32,7 +32,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_DEFAULT_MODEL = process.env.GEMINI_DEFAULT_MODEL || 'gemini-2.5-flash';
 const GEMINI_EXTRACTION_MODEL = process.env.GEMINI_EXTRACTION_MODEL || GEMINI_DEFAULT_MODEL;
 const AI_PROVIDER = (process.env.AI_PROVIDER || (GEMINI_API_KEY ? 'gemini' : 'openai')).toLowerCase();
-const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json; charset=utf-8', '.md':'text/markdown; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.ico':'image/x-icon', '.woff':'font/woff', '.woff2':'font/woff2' };
+const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json; charset=utf-8', '.md':'text/markdown; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.bmp':'image/bmp', '.ico':'image/x-icon', '.woff':'font/woff', '.woff2':'font/woff2' };
 const oauthStates = new Map();
 
 function uid() { return crypto.randomUUID(); }
@@ -469,10 +469,14 @@ async function api(req,res,url) {
   if(interviewMatch&&method==='DELETE'){const before=w.interviews.length;w.interviews=w.interviews.filter(x=>x.id!==interviewMatch[1]);if(before===w.interviews.length)return fail(res,404,'면접 일정을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/files'){
     if(!payload.name||!payload.data)return fail(res,400,'파일 정보가 필요합니다.','INVALID_FILE');
-    const allowedTypes=new Set(['application/pdf','image/png','image/jpeg','image/gif','image/webp']);
-    if(!allowedTypes.has(payload.type))return fail(res,415,'PDF, PNG, JPG, GIF, WebP 파일만 업로드할 수 있습니다.','INVALID_FILE_TYPE');
-    const raw=String(payload.data).replace(/^data:[^;]+;base64,/,'');const buffer=Buffer.from(raw,'base64');if(buffer.length>5_000_000)return fail(res,413,'파일은 5MB 이하여야 합니다.','FILE_TOO_LARGE');
-    const detectedType=buffer.subarray(0,5).toString()==='%PDF-'?'application/pdf':buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?'image/png':buffer[0]===255&&buffer[1]===216?'image/jpeg':buffer.subarray(0,3).toString()==='GIF'?'image/gif':buffer.subarray(0,4).toString()==='RIFF'&&buffer.subarray(8,12).toString()==='WEBP'?'image/webp':'';
+    const allowedTypes=new Set(['application/pdf','image/png','image/jpeg','image/gif','image/webp','image/bmp','image/x-ms-bmp','image/x-bmp','image/dib']);
+    if(!allowedTypes.has(payload.type))return fail(res,415,'PDF, PNG, JPG, GIF, WebP, BMP 파일만 업로드할 수 있습니다.','INVALID_FILE_TYPE');
+    const raw=String(payload.data).replace(/^data:[^;]+;base64,/,'');let buffer=Buffer.from(raw,'base64');if(buffer.length>5_000_000)return fail(res,413,'파일은 5MB 이하여야 합니다.','FILE_TOO_LARGE');
+    const dibHeaderSize=buffer.length>=4?buffer.readUInt32LE(0):0;
+    if([12,40,52,56,108,124].includes(dibHeaderSize)&&buffer.subarray(0,2).toString()!=='BM'){
+      const pixelOffset=14+dibHeaderSize,header=Buffer.alloc(14);header.write('BM');header.writeUInt32LE(buffer.length+14,2);header.writeUInt32LE(pixelOffset,10);buffer=Buffer.concat([header,buffer]);
+    }
+    const detectedType=buffer.subarray(0,5).toString()==='%PDF-'?'application/pdf':buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?'image/png':buffer[0]===255&&buffer[1]===216?'image/jpeg':buffer.subarray(0,3).toString()==='GIF'?'image/gif':buffer.subarray(0,4).toString()==='RIFF'&&buffer.subarray(8,12).toString()==='WEBP'?'image/webp':buffer.subarray(0,2).toString()==='BM'?'image/bmp':'';
     if(!detectedType)return fail(res,415,'파일 내용이 올바르지 않습니다.','INVALID_FILE_CONTENT');
     const id=uid(),storageName=`${id}.bin`,dir=path.join(DATA_DIR,'uploads',user.id);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,storageName),buffer);
     const item={id,name:String(payload.name).slice(0,200),type:detectedType,size:buffer.length,storageName,createdAt:now()};w.attachments=w.attachments||[];w.attachments.push(item);saveDb();return ok(res,item,201);
