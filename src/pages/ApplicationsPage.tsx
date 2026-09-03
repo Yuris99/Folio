@@ -91,6 +91,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   async function remove(id: string) {
     if (!window.confirm('이 지원 기록을 삭제할까요?')) return;
     await mutate('지원 삭제', () => api.deleteApplication(id));
+    await api.syncGoogleCalendar().catch(() => undefined);
     setModalOpen(false);
   }
 

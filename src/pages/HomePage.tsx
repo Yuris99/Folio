@@ -9,11 +9,12 @@ import { dateLabel, daysUntil, normalizedApplicationStatus } from '../utils';
 export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [taskOpen, setTaskOpen] = useState(false);
   const [jobOpen, setJobOpen] = useState(false);
+  const trackedJobIds = new Set(workspace.applications.map((item) => item.jobId));
   const writing = workspace.applications.filter((item) => ['관심', '지원 준비'].includes(normalizedApplicationStatus(item.status))).length;
   const interviews = workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === '전형 진행').length;
-  const results = workspace.applications.filter((item) => ['합격', '탈락', '불합격'].includes(item.status)).length;
+  const results = workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === '결과 대기').length;
   const allEvents = [
-    ...workspace.jobs.filter((job) => job.deadline).map((job) => ({ date: job.deadline, title: `${job.company} 지원 마감`, detail: job.role, type: 'deadline', jobId: job.id })),
+    ...workspace.jobs.filter((job) => job.deadline && trackedJobIds.has(job.id)).map((job) => ({ date: job.deadline, title: `${job.company} 지원 마감`, detail: job.role, type: 'deadline', jobId: job.id })),
     ...workspace.interviews.filter((item) => item.date).map((item) => { const job = workspace.jobs.find((jobItem) => jobItem.company === item.company && jobItem.role === item.role); return { date: item.date, title: `${item.company} ${item.type}`, detail: item.role, type: 'interview', jobId: job?.id || '' }; }),
     ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '', type: 'process', jobId: job?.id || '' })); })
   ].sort((a, b) => a.date.localeCompare(b.date));
