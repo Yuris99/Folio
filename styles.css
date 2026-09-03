@@ -1467,34 +1467,16 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   }
 }
 
-/* Half-monitor windows: keep application actions inside each card. */
-@media (min-width: 681px) and (max-aspect-ratio: 5/4) {
+/* High-DPI half-monitor windows: preserve the original single-row card. */
+@media (min-width: 1201px) and (max-aspect-ratio: 5/4) {
   .view-applications .application-row {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, 145px) minmax(150px, 175px);
-    gap: 10px 14px;
-  }
-  .view-applications .application-row .app-company {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .view-applications .application-row .app-status-stack {
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .view-applications .application-row .app-next {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .view-applications .application-row .app-date {
-    grid-column: 3;
-    grid-row: 1;
+    grid-template-columns: minmax(180px, 1.35fr) 112px minmax(110px, .8fr) 175px minmax(120px, 135px);
+    gap: 8px;
   }
   .view-applications .application-row .app-controls {
     width: 100%;
     min-width: 0;
-    grid-column: 2 / -1;
-    grid-row: 2;
-    grid-template-columns: minmax(0, 1fr) 34px 34px;
+    grid-template-columns: minmax(0, 1fr) 28px 28px;
   }
   .view-applications .application-row .app-controls select {
     width: 100%;
