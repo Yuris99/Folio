@@ -133,6 +133,11 @@ async function json(path, options={}, cookie='') {
     assert.equal('storageName' in exported.data.data.workspace.attachments[0],false);
     assert.match(exported.response.headers.get('content-disposition'),/attachment/);
 
+    const pngBytes=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+Xw2jWQAAAABJRU5ErkJggg==','base64');
+    const mismatchedImage=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'clipboard-image.jpg',type:'image/jpeg',data:`data:image/jpeg;base64,${pngBytes.toString('base64')}`})},cookie);
+    assert.equal(mismatchedImage.response.status,201);
+    assert.equal(mismatchedImage.data.data.type,'image/png');
+
     const removed=await json(`/api/v1/applications/${applicationId}`,{method:'DELETE'},cookie);
     assert.equal(removed.response.status,204);
     const interviewRemoved=await json(`/api/v1/interviews/${interview.data.data.id}`,{method:'DELETE'},cookie);

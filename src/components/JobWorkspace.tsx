@@ -224,8 +224,22 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
       const selection = window.getSelection();
       pasteRangeRef.current = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
     }
-    const extension = image.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
-    await uploadFile(new File([image], `붙여넣은-이미지-${Date.now()}.${extension}`, { type: image.type }));
+    let normalizedImage = image;
+    try {
+      const bitmap = await createImageBitmap(image);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext('2d')?.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (blob) normalizedImage = new File([blob], `붙여넣은-이미지-${Date.now()}.png`, { type: 'image/png' });
+    } catch {
+      // The server validates the actual signature if clipboard normalization is unavailable.
+    }
+    const extension = normalizedImage.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+    const namedImage = normalizedImage instanceof File && normalizedImage.name ? normalizedImage : new File([normalizedImage], `붙여넣은-이미지-${Date.now()}.${extension}`, { type: normalizedImage.type });
+    await uploadFile(namedImage);
   }
 
   function setCurrentCover(value: string) {
