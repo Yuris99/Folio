@@ -1403,6 +1403,32 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .datetime-24 { grid-template-columns: minmax(150px, 1fr) 52px 52px; }
 }
 
+/* Compact job detail navigation and editing controls on phones. */
+@media (max-width: 680px) {
+  .job-page-tree { max-height: none; display: flex; align-items: center; gap: 6px; padding: 9px 12px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+  .job-page-tree > .text-button { flex: 0 0 auto; margin: 0 6px 0 0; }
+  .job-page-tree > div { flex: 0 0 auto; }
+  .job-page-tree .job-tree-item { width: min(52vw, 190px); }
+  .job-page-tree .job-tree-item.root { margin: 0; }
+  .job-page-tree .job-tree-item.active { box-shadow: inset 0 -3px var(--accent-strong); }
+  .job-page-tree .job-add-page { flex: 0 0 auto; width: auto; min-height: 38px; margin: 0; white-space: nowrap; }
+  .job-page-toolbar { align-items: stretch; flex-direction: column; gap: 12px; padding: 20px 16px 12px; }
+  .job-page-toolbar h1, .job-page-title { font-size: 24px; overflow-wrap: anywhere; }
+  .job-page-toolbar > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .job-page-toolbar .button { min-width: 0; padding-right: 8px; padding-left: 8px; }
+  .job-editor-actions { align-items: stretch; flex-wrap: wrap; gap: 7px; padding: 0 16px 10px; }
+  .job-editor-actions > label:not(:first-child) { flex: 1 0 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .markdown-toolbar { padding: 7px 16px; }
+  .job-cover { height: 130px; }
+  .job-overview, .job-overview-edit { padding-right: 16px; padding-left: 16px; }
+  .rich-page-editor { min-height: 320px; padding: 14px 16px 34px; font-size: 15px; line-height: 1.7; }
+  .rich-page-editor h1 { font-size: 25px; }
+  .rich-page-editor h2 { font-size: 20px; }
+  .rich-page-editor h3 { font-size: 17px; }
+  .job-attachments { margin-right: 16px; margin-left: 16px; }
+  .job-root-actions { padding: 14px 16px 20px; }
+}
+
 @media (min-width: 681px) {
   .process-step-row { grid-template-columns: 28px minmax(130px, 1fr) 250px 100px 38px; }
 }
