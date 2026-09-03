@@ -32,6 +32,8 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_DEFAULT_MODEL = process.env.GEMINI_DEFAULT_MODEL || 'gemini-2.5-flash';
 const GEMINI_EXTRACTION_MODEL = process.env.GEMINI_EXTRACTION_MODEL || GEMINI_DEFAULT_MODEL;
 const AI_PROVIDER = (process.env.AI_PROVIDER || (GEMINI_API_KEY ? 'gemini' : 'openai')).toLowerCase();
+const MAX_UPLOAD_BYTES = 100_000_000;
+const MAX_REQUEST_BYTES = 140_000_000;
 const types = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.json':'application/json; charset=utf-8', '.md':'text/markdown; charset=utf-8', '.svg':'image/svg+xml', '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.bmp':'image/bmp', '.ico':'image/x-icon', '.woff':'font/woff', '.woff2':'font/woff2' };
 const oauthStates = new Map();
 
@@ -149,7 +151,7 @@ function getUser(req) {
 function requireUser(req, res) { const user=getUser(req); if(!user) fail(res,401,'로그인이 필요합니다.','UNAUTHENTICATED'); return user; }
 async function body(req) {
   const chunks=[]; let size=0;
-  for await (const chunk of req) { size+=chunk.length; if(size>8_000_000) throw new Error('PAYLOAD_TOO_LARGE'); chunks.push(chunk); }
+  for await (const chunk of req) { size+=chunk.length; if(size>MAX_REQUEST_BYTES) throw new Error('PAYLOAD_TOO_LARGE'); chunks.push(chunk); }
   if (!chunks.length) return {};
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('INVALID_JSON'); }
 }
@@ -471,7 +473,7 @@ async function api(req,res,url) {
     if(!payload.name||!payload.data)return fail(res,400,'파일 정보가 필요합니다.','INVALID_FILE');
     const allowedTypes=new Set(['application/pdf','image/png','image/jpeg','image/gif','image/webp','image/bmp','image/x-ms-bmp','image/x-bmp','image/dib']);
     if(!allowedTypes.has(payload.type))return fail(res,415,'PDF, PNG, JPG, GIF, WebP, BMP 파일만 업로드할 수 있습니다.','INVALID_FILE_TYPE');
-    const raw=String(payload.data).replace(/^data:[^;]+;base64,/,'');let buffer=Buffer.from(raw,'base64');if(buffer.length>5_000_000)return fail(res,413,'파일은 5MB 이하여야 합니다.','FILE_TOO_LARGE');
+    const raw=String(payload.data).replace(/^data:[^;]+;base64,/,'');let buffer=Buffer.from(raw,'base64');if(buffer.length>MAX_UPLOAD_BYTES)return fail(res,413,'파일은 100MB 이하여야 합니다.','FILE_TOO_LARGE');
     const dibHeaderSize=buffer.length>=4?buffer.readUInt32LE(0):0;
     if([12,40,52,56,108,124].includes(dibHeaderSize)&&buffer.subarray(0,2).toString()!=='BM'){
       const pixelOffset=14+dibHeaderSize,header=Buffer.alloc(14);header.write('BM');header.writeUInt32LE(buffer.length+14,2);header.writeUInt32LE(pixelOffset,10);buffer=Buffer.concat([header,buffer]);
@@ -517,7 +519,7 @@ const server=http.createServer(async(req,res)=>{
   if(req.url.startsWith('/api/v1/'))res.setHeader('Cache-Control','no-store');
   const url=new URL(req.url,origin(req));
   try { if(url.pathname.startsWith('/api/v1/'))await api(req,res,url); else staticFile(req,res,url); }
-  catch(error){console.error(error);if(!res.headersSent)fail(res,error.message==='PAYLOAD_TOO_LARGE'?413:400,error.message==='INVALID_JSON'?'JSON 형식이 올바르지 않습니다.':'요청 처리 중 오류가 발생했습니다.','SERVER_ERROR');}
+  catch(error){console.error(error);if(!res.headersSent)fail(res,error.message==='PAYLOAD_TOO_LARGE'?413:400,error.message==='INVALID_JSON'?'JSON 형식이 올바르지 않습니다.':error.message==='PAYLOAD_TOO_LARGE'?'요청 용량이 너무 큽니다. 파일은 100MB 이하여야 합니다.':'요청 처리 중 오류가 발생했습니다.','SERVER_ERROR');}
 });
 pruneExpiredSessions();
 const sessionCleanup=setInterval(pruneExpiredSessions,60*60_000);sessionCleanup.unref();

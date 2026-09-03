@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type FormEvent, type ReactNode } from 'react';
 import { api } from '../api';
 import { DateTimeInput } from './DateTimeInput';
 import type { Mutation } from '../hooks/useFolio';
@@ -137,6 +137,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   const [markdownMode, setMarkdownMode] = useState(false);
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [alwaysOpen, setAlwaysOpen] = useState(Boolean(job.alwaysOpen));
+  const [draggingFiles, setDraggingFiles] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const markdownSelectionRef = useRef({ start: 0, end: 0 });
   const richEditorRef = useRef<HTMLDivElement>(null);
@@ -214,7 +215,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
 
   async function uploadFile(file?: File) {
     if (!file) return;
-    if (!(file.type === 'application/pdf' || file.type.startsWith('image/')) || file.size > 5_000_000) return window.alert('5MB 이하 PDF 또는 이미지 파일만 올릴 수 있습니다.');
+    if (!(file.type === 'application/pdf' || file.type.startsWith('image/')) || file.size > 100_000_000) return window.alert('100MB 이하 PDF 또는 이미지 파일만 올릴 수 있습니다.');
     const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
     const attachment = await mutate(file.type === 'application/pdf' ? 'PDF 업로드' : '이미지 업로드', () => api.uploadFile({ name: file.name, type: file.type, data }), false) as Attachment;
     setLocalAttachments((items) => [...items, attachment]);
@@ -241,8 +242,14 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   }
 
   async function chooseFile(event: ChangeEvent<HTMLInputElement>) {
-    await uploadFile(event.target.files?.[0]);
+    for (const file of Array.from(event.target.files || [])) await uploadFile(file);
     event.target.value = '';
+  }
+
+  async function dropFiles(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setDraggingFiles(false);
+    for (const file of Array.from(event.dataTransfer.files)) await uploadFile(file);
   }
 
   async function renameAttachment(file: Attachment) {
@@ -317,7 +324,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     <main className="job-page-editor">
       {pageCover && <div className="job-cover" style={{ backgroundImage: `url(${pageCover})` }}><button onClick={() => setCurrentCover('')}>커버 제거</button></div>}
       <div className="job-page-toolbar"><div><span className="eyebrow">{activeId === 'root' ? 'JOB OVERVIEW' : 'NOTE PAGE'}</span>{activeId === 'root' ? <><h1>{job.company} · {job.role}</h1><p>{job.alwaysOpen ? '상시 채용' : `${dateLabel(job.deadline)} 마감`}</p></> : <input className="job-page-title" value={activePage?.title || ''} onChange={(event) => setPages((items) => updatePage(items, activeId, { title: event.target.value }))} />}</div><div>{activeId === 'root' ? <><button className="button small" onClick={() => void save()}>페이지 저장</button><button className="button small" onClick={() => setOverviewEditing((value) => !value)}>{overviewEditing ? '편집 닫기' : '공고 편집'}</button><button className="button primary small" onClick={() => createSubpage('root')}>+ 메모 페이지</button></> : <><button className="button small" onClick={toggleMarkdownMode}>{markdownMode ? '시각적 편집' : 'Markdown'}</button><button className="button primary small" onClick={() => void save()}>저장</button></>}</div></div>
-      <div className="job-editor-actions"><label className="button small file-button">파일 업로드<input hidden type="file" accept="application/pdf,image/*" onChange={(event) => void chooseFile(event)} /></label><label>커버 URL<input value={pageCover} onChange={(event) => setCurrentCover(event.target.value)} placeholder="https://..." /></label>{activeId !== 'root' && <button className="text-button danger-text" onClick={() => { if (window.confirm('이 페이지와 하위 페이지를 삭제할까요?')) { setPages((items) => removePage(items, activeId)); setActiveId('root'); } }}>페이지 삭제</button>}<button className="text-button" onClick={() => createSubpage(activeId)}>+ 하위 페이지</button></div>
+      <div className="job-editor-actions"><label className="button small file-button">파일 업로드<input hidden multiple type="file" accept="application/pdf,image/*" onChange={(event) => void chooseFile(event)} /></label><label>커버 URL<input value={pageCover} onChange={(event) => setCurrentCover(event.target.value)} placeholder="https://..." /></label>{activeId !== 'root' && <button className="text-button danger-text" onClick={() => { if (window.confirm('이 페이지와 하위 페이지를 삭제할까요?')) { setPages((items) => removePage(items, activeId)); setActiveId('root'); } }}>페이지 삭제</button>}<button className="text-button" onClick={() => createSubpage(activeId)}>+ 하위 페이지</button></div>
       {activeId === 'root' ? overviewEditing ? <form className="job-overview-edit" onSubmit={saveOverview}>
         <div className="form-grid two"><label>회사명<input required name="company" defaultValue={job.company} /></label><label>직무명<input required name="role" defaultValue={job.role} /></label></div>
         <label>근무지역<input name="location" defaultValue={job.location || ''} placeholder="예: 서울 강남구 · 주 2회 재택" /></label>
@@ -333,7 +340,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
         <div className="paste-image-hint">이미지를 복사한 뒤 이 영역을 클릭하고 Ctrl+V 하면 바로 첨부됩니다.</div>
       </section> : <><div className="markdown-toolbar" aria-label="문서 서식 도구">{markdownMode ? <><button onClick={() => insertMarkdown('## ', '', '제목')}>H2</button><button onClick={() => insertMarkdown('**', '**')}>B</button><button onClick={() => insertMarkdown('- ', '', '목록 항목')}>• 목록</button><button onClick={() => insertMarkdown('- [ ] ', '', '할 일')}>☐ 할 일</button><button onClick={() => insertMarkdown('> ', '', '인용문')}>❯ 인용</button><button onClick={() => insertMarkdown('[', '](https://)', '링크 이름')}>↗ 링크</button></> : <><button onClick={() => richCommand('formatBlock', 'h2')}>제목</button><button onClick={() => richCommand('bold')}>굵게</button><button onClick={() => richCommand('insertUnorderedList')}>• 목록</button><button onClick={() => richCommand('insertHTML', '<div class="rich-task">☐ 할 일</div>')}>☐ 할 일</button><button onClick={() => richCommand('formatBlock', 'blockquote')}>❯ 인용</button><button onClick={() => { const url = window.prompt('링크 주소를 입력하세요.'); if (url) richCommand('createLink', url); }}>↗ 링크</button></>}<button className="template-button" onClick={insertTemplate}>▤ 공고 정리 양식</button><span>{markdownMode ? 'Markdown 직접 편집' : '이미지는 Ctrl+V로 바로 삽입'}</span></div>
       {markdownMode ? <div className="markdown-source-layout"><textarea ref={editorRef} className="job-markdown-editor" value={content} onSelect={(event) => { markdownSelectionRef.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd }; }} onChange={(event) => { markdownSelectionRef.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd }; changeContent(event.target.value); }} onPaste={(event) => void pasteImage(event)} /><Markdown source={content} /></div> : <div key={`${job.id}-${activeId}`} ref={richEditorRef} className="rich-page-editor" contentEditable suppressContentEditableWarning onInput={(event) => changeHtml(event.currentTarget.innerHTML)} onPaste={(event) => void pasteImage(event)} />}</>}
-      <section className="job-attachments"><div><strong>첨부 파일</strong><small>PDF와 이미지를 페이지별로 보관합니다.</small></div><div>{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id); return file ? <article key={id}><span>{file.type === 'application/pdf' ? 'PDF' : 'IMG'}</span><div><b>{file.name}</b><small>{Math.ceil(file.size / 1024)}KB</small></div><a href={api.fileUrl(file.id)} target="_blank" rel="noreferrer">열기</a><button onClick={() => void renameAttachment(file)}>이름 변경</button><button onClick={() => void persistAttachmentIds(attachmentIds.filter((item) => item !== id))}>연결 해제</button></article> : null; })}{!attachmentIds.length && <p>첨부된 파일이 없습니다.</p>}</div></section>
+      <section className={`job-attachments job-file-dropzone ${draggingFiles ? 'dragging' : ''}`} onDragEnter={(event) => { event.preventDefault(); setDraggingFiles(true); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDraggingFiles(false); }} onDrop={(event) => void dropFiles(event)}><div><strong>첨부 파일</strong><small>PDF·이미지를 여기에 드래그하거나 파일 업로드를 누르세요. 파일당 최대 100MB</small></div><div>{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id); return file ? <article key={id}><span>{file.type === 'application/pdf' ? 'PDF' : 'IMG'}</span><div><b>{file.name}</b><small>{Math.ceil(file.size / 1024)}KB</small></div><a href={api.fileUrl(file.id)} target="_blank" rel="noreferrer">열기</a><button onClick={() => void renameAttachment(file)}>이름 변경</button><button onClick={() => void persistAttachmentIds(attachmentIds.filter((item) => item !== id))}>연결 해제</button></article> : null; })}{!attachmentIds.length && <p>PDF 또는 이미지를 이곳에 놓으세요.</p>}</div></section>
       {activeId === 'root' && <div className="job-root-actions"><a className="button" href={job.url} target="_blank" rel="noreferrer">원본 공고 열기</a>{onCreateApplication && <button className="button primary" onClick={onCreateApplication}>지원 건 만들기</button>}</div>}
     </main>
   </div>;

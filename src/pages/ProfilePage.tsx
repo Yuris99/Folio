@@ -127,7 +127,7 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   async function uploadPdf(file?: File) {
     if (!file) return;
     if (file.type !== 'application/pdf') return window.alert('PDF 파일만 업로드할 수 있습니다.');
-    if (file.size > 5_000_000) return window.alert('파일은 5MB 이하여야 합니다.');
+    if (file.size > 100_000_000) return window.alert('파일은 100MB 이하여야 합니다.');
     const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
     const attachment = await mutate('PDF 업로드', () => api.uploadFile({ name: file.name, type: file.type, data }), false) as Attachment;
     const source = await mutate('원본 등록', () => api.createCareerSource({ name: file.name, type: 'resume', attachmentId: attachment.id }), false) as CareerSource;

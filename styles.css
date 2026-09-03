@@ -375,6 +375,9 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
 .job-attachments article b, .job-attachments article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .job-attachments article small { color: var(--faint); font-size: 11px; }
 .job-attachments article a, .job-attachments article button { padding: 7px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; text-decoration: none; }
+.job-file-dropzone { transition: border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.job-file-dropzone.dragging { border-color: var(--accent-strong); background: #242b3a; box-shadow: inset 0 0 0 2px var(--accent-soft); }
+.job-file-dropzone.dragging::after { content: '여기에 놓아 첨부'; display: grid; min-height: 64px; place-items: center; margin-top: 10px; border: 1px dashed var(--accent-strong); border-radius: 8px; color: var(--accent-strong); font-weight: 700; }
 .home-calendar-card .section-head small { display: block; margin-top: 3px; color: var(--faint); font-size: 11px; }
 .home-week-calendar { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 5px; margin-bottom: 12px; }
 .home-week-calendar button { position: relative; min-height: 62px; display: grid; place-content: center; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: #1a2230; color: var(--muted); cursor: pointer; }

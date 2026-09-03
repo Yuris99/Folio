@@ -27,7 +27,7 @@ export function ResumeDetailModal({ section, index, profile, attachments, mutate
   function change(key: string, value: unknown) { setDraft((current) => ({ ...current, [key]: value })); }
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; if (!file) return;
-    if (file.type !== 'application/pdf' || file.size > 5_000_000) return window.alert('5MB 이하 PDF만 업로드할 수 있습니다.');
+    if (file.type !== 'application/pdf' || file.size > 100_000_000) return window.alert('100MB 이하 PDF만 업로드할 수 있습니다.');
     const data = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
     const item = await mutate('증빙 PDF 업로드', () => api.uploadFile({ name: file.name, type: file.type, data }), false) as Attachment;
     change('attachmentIds', [...attachmentIds, item.id]);
