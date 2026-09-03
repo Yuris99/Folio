@@ -10,7 +10,7 @@ export const emptyWorkspace: Workspace = {
   profile: emptyProfile,
   stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [],
   careerVaultVersion: 1, careerSources: [], careerFacts: []
-  ,consultations: []
+  ,consultations: [], vaultNotes: []
 };
 
 function array<T>(value: unknown): T[] {
@@ -56,6 +56,6 @@ export function normalizeWorkspace(value: Partial<Workspace> | undefined): Works
     careerVaultVersion: Number(value?.careerVaultVersion || 1),
     careerSources: array(value?.careerSources),
     careerFacts: array(value?.careerFacts)
-    ,consultations: array(value?.consultations)
+    ,consultations: array(value?.consultations), vaultNotes: array(value?.vaultNotes)
   };
 }

@@ -71,7 +71,7 @@ function defaultWorkspace(name = '사용자', email = '') {
       activities:[],
       militaryServices:[]
     },
-    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [], consultations: [],
+    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [], consultations: [], vaultNotes: [],
     careerVaultVersion:1, careerSources:[], careerFacts:[]
   };
 }
@@ -161,6 +161,7 @@ function removeUserUploads(userId) {
 }
 function exportWorkspace(user) {
   const workspace=structuredClone(user.workspace);
+  workspace.vaultNotes=Array.isArray(workspace.vaultNotes)?workspace.vaultNotes:[];
   workspace.attachments=(workspace.attachments||[]).map(({storageName,...item})=>item);
   return {format:'folio-export',version:1,exportedAt:now(),user:publicUser(user),workspace};
 }
@@ -330,6 +331,7 @@ async function api(req,res,url) {
   if(method==='GET'&&route==='/api/v1/auth/session'){const user=requireUser(req,res);if(user)return ok(res,publicUser(user));return;}
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
+  w.vaultNotes=Array.isArray(w.vaultNotes)?w.vaultNotes:[];
   if(!Array.isArray(w.consultations))w.consultations=[];
   const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
@@ -449,6 +451,11 @@ async function api(req,res,url) {
   let consultationMatch=route.match(/^\/api\/v1\/consultations\/([^/]+)$/);
   if(consultationMatch&&method==='PUT'){const index=w.consultations.findIndex(x=>x.id===consultationMatch[1]);if(index<0)return fail(res,404,'상담 기록을 찾을 수 없습니다.','NOT_FOUND');w.consultations[index]=normalizeConsultation({...w.consultations[index],...payload},consultationMatch[1]);saveDb();return ok(res,w.consultations[index]);}
   if(consultationMatch&&method==='DELETE'){const before=w.consultations.length;w.consultations=w.consultations.filter(x=>x.id!==consultationMatch[1]);if(before===w.consultations.length)return fail(res,404,'상담 기록을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
+  const normalizeVaultNote=(raw,id)=>({id:id||uid(),title:String(raw?.title||'제목 없음').trim().slice(0,300)||'제목 없음',content:String(raw?.content||'').slice(0,200000),createdAt:raw?.createdAt||now(),updatedAt:now()});
+  if(method==='POST'&&route==='/api/v1/vault-notes'){const item=normalizeVaultNote(payload);w.vaultNotes.unshift(item);saveDb();return ok(res,item,201);}
+  const vaultNoteMatch=route.match(/^\/api\/v1\/vault-notes\/([^/]+)$/);
+  if(vaultNoteMatch&&method==='PUT'){const index=w.vaultNotes.findIndex(x=>x.id===vaultNoteMatch[1]);if(index<0)return fail(res,404,'보관함 메모를 찾을 수 없습니다.','NOT_FOUND');w.vaultNotes[index]=normalizeVaultNote({...w.vaultNotes[index],...payload},vaultNoteMatch[1]);saveDb();return ok(res,w.vaultNotes[index]);}
+  if(vaultNoteMatch&&method==='DELETE'){const before=w.vaultNotes.length;w.vaultNotes=w.vaultNotes.filter(x=>x.id!==vaultNoteMatch[1]);if(before===w.vaultNotes.length)return fail(res,404,'보관함 메모를 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
   const jobMatch=route.match(/^\/api\/v1\/jobs\/([^/]+)$/);
   if(jobMatch&&method==='PATCH'){const item=w.jobs.find(x=>x.id===jobMatch[1]);if(!item)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');for(const key of ['company','role','location','deadline','url','description','skills','companyAnalysis','pageContent','pageHtml','coverImage','pages','attachmentIds'])if(payload[key]!==undefined)item[key]=payload[key];item.updatedAt=now();saveDb();return ok(res,item);}

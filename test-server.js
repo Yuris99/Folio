@@ -105,6 +105,11 @@ async function json(path, options={}, cookie='') {
     assert.equal(document.response.status,201);
     assert.ok(document.data.data.content.length>20);
 
+    const vaultNote=await json('/api/v1/vault-notes',{method:'POST',body:JSON.stringify({title:'범용 프롬프트',content:'초안'})},cookie);
+    assert.equal(vaultNote.response.status,201);
+    const vaultNoteUpdated=await json(`/api/v1/vault-notes/${vaultNote.data.data.id}`,{method:'PUT',body:JSON.stringify({title:'범용 프롬프트',content:'수정한 프롬프트'})},cookie);
+    assert.equal(vaultNoteUpdated.data.data.content,'수정한 프롬프트');
+
     const invalidFile=await json('/api/v1/files',{method:'POST',body:JSON.stringify({name:'fake.pdf',type:'application/pdf',data:`data:application/pdf;base64,${Buffer.from('not-a-pdf').toString('base64')}`})},cookie);
     assert.equal(invalidFile.response.status,415);
 
@@ -119,6 +124,7 @@ async function json(path, options={}, cookie='') {
     assert.equal(exported.data.data.format,'folio-export');
     assert.equal(exported.data.data.version,1);
     assert.equal(exported.data.data.workspace.attachments[0].name,'resume.pdf');
+    assert.equal(exported.data.data.workspace.vaultNotes[0].title,'범용 프롬프트');
     assert.equal('storageName' in exported.data.data.workspace.attachments[0],false);
     assert.match(exported.response.headers.get('content-disposition'),/attachment/);
 
@@ -126,6 +132,8 @@ async function json(path, options={}, cookie='') {
     assert.equal(removed.response.status,204);
     const interviewRemoved=await json(`/api/v1/interviews/${interview.data.data.id}`,{method:'DELETE'},cookie);
     assert.equal(interviewRemoved.response.status,204);
+    const vaultNoteRemoved=await json(`/api/v1/vault-notes/${vaultNote.data.data.id}`,{method:'DELETE'},cookie);
+    assert.equal(vaultNoteRemoved.response.status,204);
 
     const reset=await json('/api/v1/workspace/reset',{method:'POST'},cookie);
     assert.equal(reset.response.status,200);
@@ -148,7 +156,7 @@ async function json(path, options={}, cookie='') {
     assert.equal(fs.existsSync(secondUploadDir),false);
     const deletedSession=await json('/api/v1/auth/session',{},secondCookie);
     assert.equal(deletedSession.response.status,401);
-    console.log('PASS health security auth privacy bootstrap profile career-vault applications tasks interviews AI documents files export reset logout account-delete');
+    console.log('PASS health security auth privacy bootstrap profile career-vault universal-vault applications tasks interviews AI documents files export reset logout account-delete');
   } finally {
     await stopServer();
     fs.rmSync(testDataDir,{recursive:true,force:true});

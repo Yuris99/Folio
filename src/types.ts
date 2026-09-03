@@ -1,4 +1,4 @@
-export type View = 'home' | 'applications' | 'documents' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'interviews';
+export type View = 'home' | 'applications' | 'documents' | 'vault' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'interviews';
 
 export interface User {
   id: string;
@@ -293,6 +293,15 @@ export interface Workspace {
   careerSources: CareerSource[];
   careerFacts: CareerFact[];
   consultations: ConsultationRecord[];
+  vaultNotes: VaultNote[];
+}
+
+export interface VaultNote {
+  id: string;
+  title: string;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ApplicationPayload {

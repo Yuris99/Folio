@@ -4,6 +4,7 @@ import type { User, View, Workspace } from '../types';
 const navItems: Array<{ view: View; icon: string; label: string; mobile?: boolean }> = [
   { view: 'home', icon: '⌂', label: '홈', mobile: true },
   { view: 'applications', icon: '▦', label: '지원 관리', mobile: true },
+  { view: 'vault', icon: '▤', label: '통합 보관함' },
   { view: 'calendar', icon: '◫', label: '일정', mobile: true },
   { view: 'career', icon: '◇', label: '커리어', mobile: true },
   { view: 'imports', icon: '⇩', label: 'AI 가져오기', mobile: true },

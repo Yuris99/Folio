@@ -1,4 +1,4 @@
-import type { Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, Interview, Job, Profile, SupportDocument, TaskItem, User, Workspace } from './types';
+import type { Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, Interview, Job, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 const requestTimeoutMs = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
@@ -69,6 +69,9 @@ export const api = {
   createConsultation: (payload: Omit<ConsultationRecord, 'id'>) => request<ConsultationRecord>('/consultations', json('POST', payload)),
   updateConsultation: (id: string, payload: Partial<ConsultationRecord>) => request<ConsultationRecord>(`/consultations/${id}`, json('PUT', payload)),
   deleteConsultation: (id: string) => request<void>(`/consultations/${id}`, { method: 'DELETE' }),
+  createVaultNote: (payload: Pick<VaultNote, 'title' | 'content'>) => request<VaultNote>('/vault-notes', json('POST', payload)),
+  updateVaultNote: (id: string, payload: Partial<Pick<VaultNote, 'title' | 'content'>>) => request<VaultNote>(`/vault-notes/${id}`, json('PUT', payload)),
+  deleteVaultNote: (id: string) => request<void>(`/vault-notes/${id}`, { method: 'DELETE' }),
   createJob: (payload: Omit<Job, 'id'>) => request<Job>('/jobs', json('POST', payload)),
   updateJob: (id: string, payload: Partial<Job>) => request<Job>(`/jobs/${id}`, json('PATCH', payload)),
   analyzeJob: (payload: Pick<Job, 'company' | 'role' | 'deadline' | 'url' | 'description'>) => request<{ skills: string[] }>('/ai/jobs/analyze', json('POST', payload)),

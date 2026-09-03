@@ -178,6 +178,27 @@ button { color: inherit; }
 .doc-list button.active { border-radius: 4px; background: var(--accent-soft); color: #e0a5aa; }
 .editor-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .editor textarea { width: 100%; min-height: 330px; border: 0; outline: 0; resize: vertical; background: #1d1d1f; color: var(--text); font-size: 14px; line-height: 1.9; }
+.vault-note-layout { display: grid; grid-template-columns: minmax(210px, 280px) minmax(0, 1fr); gap: 16px; }
+.vault-note-list { align-self: start; padding: 14px; }
+.vault-note-list .section-head { margin-bottom: 8px; }
+.vault-note-list .section-head span { color: var(--faint); font-size: 11px; }
+.vault-note-list > button { width: 100%; display: grid; gap: 4px; padding: 12px 10px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; text-align: left; }
+.vault-note-list > button.active { border-radius: 5px; background: var(--accent-soft); color: var(--accent-strong); }
+.vault-note-list button strong, .vault-note-list button small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-note-list button small { color: var(--muted); font-size: 10px; }
+.vault-note-editor { min-width: 0; padding: 18px; }
+.vault-note-toolbar { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.vault-note-toolbar input { min-width: 0; flex: 1; margin: 0; font-size: 17px; font-weight: 700; }
+.vault-note-toolbar > div { display: flex; gap: 7px; }
+.vault-note-editor textarea { width: 100%; min-height: 520px; margin-top: 14px; border: 0; outline: 0; resize: vertical; background: transparent; color: var(--text); font: 14px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace; }
+
+@media (max-width: 780px) {
+  .vault-note-layout { grid-template-columns: minmax(0, 1fr); }
+  .vault-note-list { max-height: 220px; overflow-y: auto; }
+  .vault-note-toolbar { align-items: stretch; flex-direction: column; }
+  .vault-note-toolbar > div { justify-content: flex-end; }
+  .vault-note-editor textarea { min-height: 50vh; }
+}
 .word-count { color: var(--muted); font-size: 11px; }
 .insight { margin-top: 12px; padding: 11px 13px; border-left: 3px solid var(--accent); background: #352a2d; color: #d8c4c6; font-size: 11px; }
 

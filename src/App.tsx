@@ -11,9 +11,10 @@ import { JobsPage } from './pages/JobsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ConsultationsPage } from './pages/ConsultationsPage';
 import { ImportsPage } from './pages/ImportsPage';
+import { VaultPage } from './pages/VaultPage';
 import type { View } from './types';
 
-const views: View[] = ['home', 'applications', 'documents', 'calendar', 'career', 'imports', 'consultations', 'jobs', 'interviews'];
+const views: View[] = ['home', 'applications', 'documents', 'vault', 'calendar', 'career', 'imports', 'consultations', 'jobs', 'interviews'];
 
 function viewFromUrl(): View {
   const value = new URLSearchParams(window.location.search).get('view');
@@ -44,6 +45,7 @@ export default function App() {
     home: <HomePage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
     applications: <ApplicationsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
     documents: <DocumentsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />,
+    vault: <VaultPage workspace={folio.workspace} mutate={folio.mutate} />,
     calendar: <CalendarPage workspace={folio.workspace} navigate={navigate} />,
     career: <ProfilePage workspace={folio.workspace} mutate={folio.mutate} onDeleteAccount={folio.deleteAccount} />,
     consultations: <ConsultationsPage workspace={folio.workspace} mutate={folio.mutate} />,

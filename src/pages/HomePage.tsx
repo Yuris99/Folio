@@ -47,7 +47,7 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
     <div className="grid stats-grid home-stats">
       <button className="card stat stat-link highlight" onClick={() => navigate('applications')}><div className="label">서류 작성 중</div><div className="value">{writing}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
       <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">전체 지원</div><div className="value">{workspace.applications.length}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
-      <button className="card stat stat-link" onClick={() => navigate('interviews')}><div className="label">면접 진행</div><div className="value">{interviews}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
+      <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">전형 진행</div><div className="value">{interviews}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
       <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">결과 확인</div><div className="value">{results}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
     </div>
     <div className="grid dashboard-grid home-panels">
