@@ -347,7 +347,9 @@ input:focus, textarea:focus { border-color: #9c6268; box-shadow: 0 0 0 3px rgba(
   .markdown-preview { line-height: 1.85; }
 }
 
-.app-page-link { display: block; min-height: 28px; margin-top: 3px; padding: 2px 0; border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; font-size: 11px; text-align: left; }
+.app-page-link { width: max-content; max-width: 100%; min-height: 30px; display: inline-flex; align-items: center; margin-top: 7px; padding: 4px 9px; border: 1px solid #80545a; border-radius: 5px; background: #3b2b2f; color: #f0aab0; cursor: pointer; font-size: 11px; font-weight: 700; line-height: 1.2; text-align: left; text-decoration: none; }
+.app-page-link:hover { border-color: var(--accent-strong); background: #4a3136; color: #ffd0d4; }
+.app-page-link.disabled { border-color: var(--line); background: transparent; color: var(--faint); cursor: default; }
 .app-controls { grid-template-columns: minmax(88px,1fr) 34px; }
 .application-modal-actions > span { flex: 1; }
 .datetime-24 { width: 100%; display: grid; grid-template-columns: minmax(160px, 1fr) 54px 54px; gap: 4px; }
@@ -579,6 +581,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .view-actions { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .view-actions .section-tabs { margin-top: -8px; }
 .application-row { display: grid; grid-template-columns: minmax(210px,1.4fr) 90px minmax(150px,1fr) 120px 125px; align-items: center; gap: 16px; padding: 15px 17px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.application-row-clickable { cursor: pointer; transition: border-color .14s ease, background .14s ease; }
+.application-row-clickable:hover { border-color: #6c5a61; background: #28272a; }
+.application-row-clickable:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
 .app-company { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .app-open { padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .app-company strong, .app-company small, .app-next small, .app-date small { display: block; }
