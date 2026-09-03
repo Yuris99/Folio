@@ -1868,3 +1868,27 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .priority-tooltip-wrap:hover .priority-tooltip,
   .priority-tooltip-wrap:focus-within .priority-tooltip { transform: translateY(0); }
 }
+
+/* Keep the mobile job detail inset and vertically scrollable only. */
+@media (max-width: 680px) {
+  .modal.wide { width: calc(100% - 16px); }
+  .modal.wide .modal-body { padding: 10px 8px 16px; overflow-x: hidden; }
+  .modal.wide .job-workspace,
+  .job-workspace { width: 100%; max-width: 100%; margin: 10px 0 0; overflow-x: hidden; border: 1px solid var(--line); border-radius: 12px; touch-action: pan-y; overscroll-behavior-x: none; }
+  .job-page-editor { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .job-page-tree { max-height: 150px; display: block; padding: 10px; overflow-x: hidden; overflow-y: auto; }
+  .job-page-tree > .text-button { margin: 0 4px 8px; }
+  .job-page-tree > div { width: 100%; }
+  .job-page-tree .job-tree-item { width: 100%; }
+  .job-page-tree .job-tree-item.root { margin-bottom: 6px; }
+  .job-page-tree .job-tree-item.active { box-shadow: inset 3px 0 var(--accent-strong); }
+  .job-page-tree .job-add-page { width: 100%; margin-top: 7px; }
+  .markdown-toolbar { flex-wrap: wrap; overflow-x: hidden; }
+  .markdown-toolbar .template-button { margin-left: 0; }
+  .job-editor-actions,
+  .job-page-toolbar,
+  .job-overview,
+  .job-overview-edit,
+  .rich-page-editor,
+  .job-attachments { max-width: 100%; }
+}
