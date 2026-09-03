@@ -25,11 +25,11 @@ export function calculateDeadlineScore(deadline?: string, reference = new Date()
   const targetDay = new Date(target); targetDay.setHours(0, 0, 0, 0);
   const days = Math.round((targetDay.getTime() - today.getTime()) / 86400000);
   if (days < 0) return 0;
-  if (days <= 1) return 5;
-  if (days <= 3) return 4;
-  if (days <= 7) return 3;
-  if (days <= 14) return 2;
-  return 1;
+  if (days <= 1) return 15;
+  if (days <= 3) return 12;
+  if (days <= 7) return 9;
+  if (days <= 14) return 6;
+  return 3;
 }
 
 export function getPriorityBreakdown(application: Application, job: Job) {
