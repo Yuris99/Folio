@@ -21,6 +21,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
   const [alwaysOpen, setAlwaysOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   const editingJob = editing ? getJob(workspace, editing) : undefined;
   const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
@@ -97,7 +98,8 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
     <div className="application-summary">{applicationStatuses.map((status) => <span key={status}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</span>)}</div>
-    <div className="application-toolbar">
+    <button type="button" className={`mobile-application-filter-toggle ${mobileFiltersOpen ? 'active' : ''}`} onClick={() => setMobileFiltersOpen((open) => !open)}><span>검색·필터</span><small>{mobileFiltersOpen ? '접기' : '열기'}</small></button>
+    <div className={`application-toolbar ${mobileFiltersOpen ? 'mobile-expanded' : ''}`}>
       <label className="application-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>
       <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="지원 상태 필터"><option>전체</option>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select>
       <select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)} aria-label="직무등급 필터"><option>전체</option>{CAREER_GRADES.map((grade) => <option key={grade}>{grade}</option>)}</select>
