@@ -131,7 +131,6 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   const [activeId, setActiveId] = useState('root');
   const [rootContent, setRootContent] = useState(job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`);
   const [rootHtml, setRootHtml] = useState(job.pageHtml || markdownToHtml(job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`));
-  const [coverImage, setCoverImage] = useState(job.coverImage || '');
   const [rootAttachmentIds, setRootAttachmentIds] = useState(job.attachmentIds || []);
   const [localAttachments, setLocalAttachments] = useState(attachments);
   const [markdownMode, setMarkdownMode] = useState(false);
@@ -142,12 +141,11 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   const markdownSelectionRef = useRef({ start: 0, end: 0 });
   const richEditorRef = useRef<HTMLDivElement>(null);
   const pasteRangeRef = useRef<Range | null>(null);
-  useEffect(() => { const markdown = job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`; setPages(job.pages || []); setRootContent(markdown); setRootHtml(job.pageHtml || markdownToHtml(markdown)); setCoverImage(job.coverImage || ''); setRootAttachmentIds(job.attachmentIds || []); setAlwaysOpen(Boolean(job.alwaysOpen)); }, [job.id]);
+  useEffect(() => { const markdown = job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`; setPages(job.pages || []); setRootContent(markdown); setRootHtml(job.pageHtml || markdownToHtml(markdown)); setRootAttachmentIds(job.attachmentIds || []); setAlwaysOpen(Boolean(job.alwaysOpen)); }, [job.id]);
   useEffect(() => setLocalAttachments(attachments), [attachments]);
   const activePage = useMemo(() => activeId === 'root' ? undefined : findPage(pages, activeId), [pages, activeId]);
   const content = activePage?.content ?? rootContent;
   const html = activePage?.html ?? (activePage ? markdownToHtml(activePage.content) : rootHtml);
-  const pageCover = activePage?.coverImage ?? coverImage;
   const attachmentIds = activePage?.attachmentIds ?? rootAttachmentIds;
 
   useLayoutEffect(() => {
@@ -182,7 +180,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   }
 
   async function save() {
-    await mutate('공고 페이지 저장', () => api.updateJob(job.id, { pageContent: rootContent, pageHtml: rootHtml, coverImage, pages, attachmentIds: rootAttachmentIds }));
+    await mutate('공고 페이지 저장', () => api.updateJob(job.id, { pageContent: rootContent, pageHtml: rootHtml, pages, attachmentIds: rootAttachmentIds }));
   }
 
   async function saveOverview(event: FormEvent<HTMLFormElement>) {
@@ -195,8 +193,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
       deadline: alwaysOpen ? '' : String(data.get('deadline')),
       alwaysOpen,
       url: String(data.get('url')).trim(),
-      description: String(data.get('description')).trim(),
-      skills: String(data.get('skills')).split(/[,\n]/).map((item) => item.trim()).filter(Boolean)
+      description: String(data.get('description')).trim()
     }));
     setOverviewEditing(false);
   }
@@ -286,11 +283,6 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     await uploadFile(namedImage);
   }
 
-  function setCurrentCover(value: string) {
-    if (activeId === 'root') setCoverImage(value);
-    else setPages((items) => updatePage(items, activeId, { coverImage: value }));
-  }
-
   function insertMarkdown(before: string, after = '', fallback = '텍스트') {
     const editor = editorRef.current;
     const start = editor?.selectionStart ?? content.length;
@@ -322,18 +314,15 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   return <div className="job-workspace">
     <aside className="job-page-tree"><button className="text-button" onClick={onBack}>← 공고 목록</button><div className={`job-tree-item root ${activeId === 'root' ? 'active' : ''}`}><button onClick={() => setActiveId('root')}><span>{job.company[0]}</span>{job.company}</button><button onClick={() => createSubpage('root')}>+</button></div><PageTree pages={pages} activeId={activeId} onSelect={setActiveId} onAdd={createSubpage} /><button className="job-add-page" onClick={() => createSubpage()}>+ 새 페이지</button></aside>
     <main className="job-page-editor">
-      {pageCover && <div className="job-cover" style={{ backgroundImage: `url(${pageCover})` }}><button onClick={() => setCurrentCover('')}>커버 제거</button></div>}
       <div className="job-page-toolbar"><div><span className="eyebrow">{activeId === 'root' ? 'JOB OVERVIEW' : 'NOTE PAGE'}</span>{activeId === 'root' ? <><h1>{job.company} · {job.role}</h1><p>{job.alwaysOpen ? '상시 채용' : `${dateLabel(job.deadline)} 마감`}</p></> : <input className="job-page-title" value={activePage?.title || ''} onChange={(event) => setPages((items) => updatePage(items, activeId, { title: event.target.value }))} />}</div><div>{activeId === 'root' ? <><button className="button small" onClick={() => void save()}>페이지 저장</button><button className="button small" onClick={() => setOverviewEditing((value) => !value)}>{overviewEditing ? '편집 닫기' : '공고 편집'}</button><button className="button primary small" onClick={() => createSubpage('root')}>+ 메모 페이지</button></> : <><button className="button small" onClick={toggleMarkdownMode}>{markdownMode ? '시각적 편집' : 'Markdown'}</button><button className="button primary small" onClick={() => void save()}>저장</button></>}</div></div>
-      <div className="job-editor-actions"><label className="button small file-button">파일 업로드<input hidden multiple type="file" accept="application/pdf,image/*" onChange={(event) => void chooseFile(event)} /></label><label>커버 URL<input value={pageCover} onChange={(event) => setCurrentCover(event.target.value)} placeholder="https://..." /></label>{activeId !== 'root' && <button className="text-button danger-text" onClick={() => { if (window.confirm('이 페이지와 하위 페이지를 삭제할까요?')) { setPages((items) => removePage(items, activeId)); setActiveId('root'); } }}>페이지 삭제</button>}<button className="text-button" onClick={() => createSubpage(activeId)}>+ 하위 페이지</button></div>
+      <div className="job-editor-actions"><label className="button small file-button">파일 업로드<input hidden multiple type="file" accept="application/pdf,image/*" onChange={(event) => void chooseFile(event)} /></label>{activeId !== 'root' && <><button className="text-button danger-text" onClick={() => { if (window.confirm('이 페이지와 하위 페이지를 삭제할까요?')) { setPages((items) => removePage(items, activeId)); setActiveId('root'); } }}>페이지 삭제</button><button className="text-button" onClick={() => createSubpage(activeId)}>+ 하위 페이지</button></>}</div>
       {activeId === 'root' ? overviewEditing ? <form className="job-overview-edit" onSubmit={saveOverview}>
         <div className="form-grid two"><label>회사명<input required name="company" defaultValue={job.company} /></label><label>직무명<input required name="role" defaultValue={job.role} /></label></div>
         <label>근무지역<input name="location" defaultValue={job.location || ''} placeholder="예: 서울 강남구 · 주 2회 재택" /></label>
         <label className="inline-check"><input type="checkbox" checked={alwaysOpen} onChange={(event) => setAlwaysOpen(event.target.checked)} /> 상시 채용 <small>마감일 없음 · 마감 우선순위 0점</small></label><div className="form-grid two"><label>마감 일시<DateTimeInput name="deadline" ariaLabel="공고 마감 일시" defaultValue={job.deadline} disabled={alwaysOpen} /></label><label>공고 URL<input name="url" type="url" defaultValue={job.url} placeholder="https://..." /></label></div>
         <label>공고 내용<textarea name="description" rows={14} defaultValue={job.description} /></label>
-        <label>기술 키워드<textarea name="skills" rows={3} defaultValue={job.skills.join(', ')} placeholder="쉼표 또는 줄바꿈으로 구분" /></label>
         <div className="job-overview-edit-actions"><button type="button" className="button ghost" onClick={() => setOverviewEditing(false)}>취소</button><button className="button primary">변경사항 저장</button></div>
       </form> : <section className="job-overview" tabIndex={0} onPaste={(event) => void pasteImage(event)}>
-        <div className="job-overview-grid"><article><small>마감</small><strong>{job.alwaysOpen ? '상시' : dateLabel(job.deadline)}</strong></article><article><small>근무지역</small><strong>{job.location || '미정'}</strong></article><article><small>기술 키워드</small><strong>{job.skills.length}개</strong></article><article><small>메모 페이지</small><strong>{pages.length}개</strong></article></div>
         <article className="job-overview-section"><div className="section-head"><h2>공고 내용</h2>{job.url && <a href={job.url} target="_blank" rel="noreferrer">원문 열기 ↗</a>}</div><p>{job.description || '저장된 공고 내용이 없습니다.'}</p></article>
         {!!job.skills.length && <article className="job-overview-section"><h2>핵심 키워드</h2><div className="tag-row">{job.skills.map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></article>}
         {!!attachmentIds.length && <div className="job-overview-images">{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id && item.type.startsWith('image/')); return file ? <img key={id} src={api.fileUrl(id)} alt={file.name} /> : null; })}</div>}

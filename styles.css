@@ -1894,4 +1894,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .job-overview-edit,
   .rich-page-editor,
   .job-attachments { max-width: 100%; }
+  .job-page-toolbar > div:last-child:has(> :nth-child(3)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .job-page-toolbar > div:last-child:has(> :nth-child(3)) .button { font-size: 11px; white-space: nowrap; }
 }
