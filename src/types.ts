@@ -194,6 +194,7 @@ export interface Application {
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
   applicationFitScore?: number;
+  compensationScore?: number;
   companyScore?: number;
   locationScore?: number;
   processScore?: number;
@@ -321,6 +322,7 @@ export interface ApplicationPayload {
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
   applicationFitScore?: number;
+  compensationScore?: number;
   companyScore?: number;
   locationScore?: number;
   processScore?: number;

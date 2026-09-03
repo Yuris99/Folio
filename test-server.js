@@ -81,8 +81,11 @@ async function json(path, options={}, cookie='') {
     assert.equal(manualFact.response.status,201);
     assert.equal(manualFact.data.data.title,'Folio');
 
-    const created=await json('/api/v1/applications',{method:'POST',body:JSON.stringify({company:'테스트 회사',role:'개발자',status:'작성 중',deadline:'2026-09-01',next:'지원서 작성'})},cookie);
+    const created=await json('/api/v1/applications',{method:'POST',body:JSON.stringify({company:'테스트 회사',role:'개발자',status:'작성 중',deadline:'2026-09-01',next:'지원서 작성',applicationFitScore:99,compensationScore:99,companyScore:99})},cookie);
     assert.equal(created.response.status,201);
+    assert.equal(created.data.data.applicationFitScore,25);
+    assert.equal(created.data.data.compensationScore,15);
+    assert.equal(created.data.data.companyScore,5);
     const applicationId=created.data.data.id;
 
     const updated=await json(`/api/v1/applications/${applicationId}`,{method:'PATCH',body:JSON.stringify({status:'지원 완료'})},cookie);
