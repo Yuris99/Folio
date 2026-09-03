@@ -242,8 +242,8 @@ function calendarTime(value){
 }
 
 function folioCalendarEvents(workspace){
-  const result=[];
-  for(const job of workspace.jobs||[])if(job.deadline)result.push({key:`job:${job.id}`,summary:`[Folio] ${job.company} 지원 마감`,description:[job.role,job.url].filter(Boolean).join('\n'),...calendarTime(job.deadline)});
+  const result=[],trackedJobIds=new Set((workspace.applications||[]).map(item=>item.jobId));
+  for(const job of workspace.jobs||[])if(job.deadline&&trackedJobIds.has(job.id))result.push({key:`job:${job.id}`,summary:`[Folio] ${job.company} 지원 마감`,description:[job.role,job.url].filter(Boolean).join('\n'),...calendarTime(job.deadline)});
   for(const item of workspace.interviews||[])if(item.date)result.push({key:`interview:${item.id}`,summary:`[Folio] ${item.company} ${item.type}`,description:[item.role,item.memo].filter(Boolean).join('\n'),...calendarTime(item.date)});
   for(const application of workspace.applications||[]){const job=(workspace.jobs||[]).find(item=>item.id===application.jobId);for(const step of application.processSteps||[])if(step.date&&!['완료','취소'].includes(step.status))result.push({key:`process:${application.id}:${step.id}`,summary:`[Folio] ${job?.company||'지원'} ${step.name}`,description:job?.role||'',...calendarTime(step.date)});}
   return result;
