@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type FormEvent, type ReactNode } from 'react';
 import { api } from '../api';
 import { DateTimeInput } from './DateTimeInput';
 import type { Mutation } from '../hooks/useFolio';
@@ -138,14 +138,23 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   const [overviewEditing, setOverviewEditing] = useState(false);
   const [alwaysOpen, setAlwaysOpen] = useState(Boolean(job.alwaysOpen));
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const markdownSelectionRef = useRef({ start: 0, end: 0 });
   const richEditorRef = useRef<HTMLDivElement>(null);
   const pasteRangeRef = useRef<Range | null>(null);
-  useEffect(() => { const markdown = job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`; setPages(job.pages || []); setRootContent(markdown); setRootHtml(job.pageHtml || markdownToHtml(markdown)); setCoverImage(job.coverImage || ''); setRootAttachmentIds(job.attachmentIds || []); setLocalAttachments(attachments); setAlwaysOpen(Boolean(job.alwaysOpen)); }, [job.id, attachments]);
+  useEffect(() => { const markdown = job.pageContent || `# ${job.company} ${job.role}\n\n## 공고 메모\n\n${job.description || ''}`; setPages(job.pages || []); setRootContent(markdown); setRootHtml(job.pageHtml || markdownToHtml(markdown)); setCoverImage(job.coverImage || ''); setRootAttachmentIds(job.attachmentIds || []); setAlwaysOpen(Boolean(job.alwaysOpen)); }, [job.id]);
+  useEffect(() => setLocalAttachments(attachments), [attachments]);
   const activePage = useMemo(() => activeId === 'root' ? undefined : findPage(pages, activeId), [pages, activeId]);
   const content = activePage?.content ?? rootContent;
   const html = activePage?.html ?? (activePage ? markdownToHtml(activePage.content) : rootHtml);
   const pageCover = activePage?.coverImage ?? coverImage;
   const attachmentIds = activePage?.attachmentIds ?? rootAttachmentIds;
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || document.activeElement !== editor) return;
+    const { start, end } = markdownSelectionRef.current;
+    editor.setSelectionRange(Math.min(start, content.length), Math.min(end, content.length));
+  }, [content, activeId, markdownMode]);
 
   function changeContent(value: string) {
     if (activeId === 'root') setRootContent(value);
@@ -206,7 +215,14 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     if (file.type.startsWith('image/')) {
       const url = api.fileUrl(attachment.id);
       const safeName = escapeAttribute(file.name);
-      if (markdownMode) changeContent(`${content}${content.endsWith('\n') ? '' : '\n'}\n![${file.name}](${url})\n`);
+      if (markdownMode) {
+        const { start, end } = markdownSelectionRef.current;
+        const imageMarkdown = `![${file.name}](${url})`;
+        const nextContent = `${content.slice(0, start)}${imageMarkdown}${content.slice(end)}`;
+        const nextCursor = start + imageMarkdown.length;
+        markdownSelectionRef.current = { start: nextCursor, end: nextCursor };
+        changeContent(nextContent);
+      }
       else if (activeId !== 'root' && richEditorRef.current && pasteRangeRef.current) {
         const selection = window.getSelection();
         selection?.removeAllRanges(); selection?.addRange(pasteRangeRef.current);
@@ -309,7 +325,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
         {!!attachmentIds.length && <div className="job-overview-images">{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id && item.type.startsWith('image/')); return file ? <img key={id} src={api.fileUrl(id)} alt={file.name} /> : null; })}</div>}
         <div className="paste-image-hint">이미지를 복사한 뒤 이 영역을 클릭하고 Ctrl+V 하면 바로 첨부됩니다.</div>
       </section> : <><div className="markdown-toolbar" aria-label="문서 서식 도구">{markdownMode ? <><button onClick={() => insertMarkdown('## ', '', '제목')}>H2</button><button onClick={() => insertMarkdown('**', '**')}>B</button><button onClick={() => insertMarkdown('- ', '', '목록 항목')}>• 목록</button><button onClick={() => insertMarkdown('- [ ] ', '', '할 일')}>☐ 할 일</button><button onClick={() => insertMarkdown('> ', '', '인용문')}>❯ 인용</button><button onClick={() => insertMarkdown('[', '](https://)', '링크 이름')}>↗ 링크</button></> : <><button onClick={() => richCommand('formatBlock', 'h2')}>제목</button><button onClick={() => richCommand('bold')}>굵게</button><button onClick={() => richCommand('insertUnorderedList')}>• 목록</button><button onClick={() => richCommand('insertHTML', '<div class="rich-task">☐ 할 일</div>')}>☐ 할 일</button><button onClick={() => richCommand('formatBlock', 'blockquote')}>❯ 인용</button><button onClick={() => { const url = window.prompt('링크 주소를 입력하세요.'); if (url) richCommand('createLink', url); }}>↗ 링크</button></>}<button className="template-button" onClick={insertTemplate}>▤ 공고 정리 양식</button><span>{markdownMode ? 'Markdown 직접 편집' : '이미지는 Ctrl+V로 바로 삽입'}</span></div>
-      {markdownMode ? <div className="markdown-source-layout"><textarea ref={editorRef} className="job-markdown-editor" value={content} onChange={(event) => changeContent(event.target.value)} onPaste={(event) => void pasteImage(event)} /><Markdown source={content} /></div> : <div key={`${job.id}-${activeId}`} ref={richEditorRef} className="rich-page-editor" contentEditable suppressContentEditableWarning onInput={(event) => changeHtml(event.currentTarget.innerHTML)} onPaste={(event) => void pasteImage(event)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />}</>}
+      {markdownMode ? <div className="markdown-source-layout"><textarea ref={editorRef} className="job-markdown-editor" value={content} onSelect={(event) => { markdownSelectionRef.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd }; }} onChange={(event) => { markdownSelectionRef.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd }; changeContent(event.target.value); }} onPaste={(event) => void pasteImage(event)} /><Markdown source={content} /></div> : <div key={`${job.id}-${activeId}`} ref={richEditorRef} className="rich-page-editor" contentEditable suppressContentEditableWarning onInput={(event) => changeHtml(event.currentTarget.innerHTML)} onPaste={(event) => void pasteImage(event)} dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />}</>}
       <section className="job-attachments"><div><strong>첨부 파일</strong><small>PDF와 이미지를 페이지별로 보관합니다.</small></div><div>{attachmentIds.map((id) => { const file = localAttachments.find((item) => item.id === id); return file ? <article key={id}><span>{file.type === 'application/pdf' ? 'PDF' : 'IMG'}</span><div><b>{file.name}</b><small>{Math.ceil(file.size / 1024)}KB</small></div><a href={api.fileUrl(file.id)} target="_blank" rel="noreferrer">열기</a><button onClick={() => void renameAttachment(file)}>이름 변경</button><button onClick={() => void persistAttachmentIds(attachmentIds.filter((item) => item !== id))}>연결 해제</button></article> : null; })}{!attachmentIds.length && <p>첨부된 파일이 없습니다.</p>}</div></section>
       {activeId === 'root' && <div className="job-root-actions"><a className="button" href={job.url} target="_blank" rel="noreferrer">원본 공고 열기</a>{onCreateApplication && <button className="button primary" onClick={onCreateApplication}>지원 건 만들기</button>}</div>}
     </main>
