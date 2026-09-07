@@ -102,6 +102,17 @@ function dedupeJobs(workspace){
   if(changed){workspace.jobs=unique;for(const application of workspace.applications||[])if(remap.has(application.jobId))application.jobId=remap.get(application.jobId);}
   return changed;
 }
+
+function completePastProcessSteps(workspace, reference = Date.now()) {
+  let changed=false;
+  for(const application of workspace.applications||[])for(const step of application.processSteps||[]){
+    if(!step.date||step.dateTbd||['완료','취소'].includes(step.status))continue;
+    const raw=String(step.date);
+    const target=/^\d{4}-\d{2}-\d{2}$/.test(raw)||step.timeTbd?new Date(`${raw.slice(0,10)}T23:59:59+09:00`):new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)?raw:`${raw}:00+09:00`);
+    if(!Number.isNaN(target.getTime())&&target.getTime()<reference){step.status='완료';step.updatedAt=now();changed=true;}
+  }
+  return changed;
+}
 function assertDataDirectoryWritable() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   const probe = path.join(DATA_DIR, `.folio-write-check-${process.pid}-${crypto.randomBytes(4).toString('hex')}`);
@@ -336,7 +347,7 @@ async function api(req,res,url) {
   w.vaultNotes=Array.isArray(w.vaultNotes)?w.vaultNotes:[];
   if(!Array.isArray(w.consultations))w.consultations=[];
   const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
-  if(method==='GET'&&route==='/api/v1/bootstrap') return ok(res,w);
+  if(method==='GET'&&route==='/api/v1/bootstrap'){if(completePastProcessSteps(w))saveDb();return ok(res,w);}
   if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||''});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
   if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return fail(res,502,'Google Calendar 동기화에 실패했습니다. 연결 상태를 확인해 주세요.','CALENDAR_SYNC_FAILED');}}

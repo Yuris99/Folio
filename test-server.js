@@ -90,6 +90,11 @@ async function json(path, options={}, cookie='') {
 
     const updated=await json(`/api/v1/applications/${applicationId}`,{method:'PATCH',body:JSON.stringify({status:'지원 완료'})},cookie);
     assert.equal(updated.data.data.status,'지원 완료');
+    await json(`/api/v1/applications/${applicationId}`,{method:'PATCH',body:JSON.stringify({processSteps:[{id:'past-step',name:'지난 전형',date:'2020-01-01T09:00',status:'예정'},{id:'unknown-step',name:'일정 미정 전형',date:'',dateTbd:true,status:'예정'}]})},cookie);
+    const completedBootstrap=await json('/api/v1/bootstrap',{},cookie);
+    const completedApplication=completedBootstrap.data.data.applications.find(item=>item.id===applicationId);
+    assert.equal(completedApplication.processSteps[0].status,'완료');
+    assert.equal(completedApplication.processSteps[1].status,'예정');
 
     const task=await json('/api/v1/tasks',{method:'POST',body:JSON.stringify({text:'테스트 할 일',date:'오늘',done:false})},cookie);
     const taskUpdated=await json(`/api/v1/tasks/${task.data.data.id}`,{method:'PATCH',body:JSON.stringify({done:true})},cookie);
