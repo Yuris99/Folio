@@ -1981,25 +1981,29 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .home-clock { display: flex; align-items: flex-end; flex-direction: column; }
 .home-clock b { font: 700 18px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .04em; }
 .home-clock small { margin-top: 5px; color: var(--muted); font-size: 11px; }
-.deadline-urgent { padding: 8px; border: 1px solid #815059; border-radius: 7px; background: #342329; }
-.deadline-urgent > small { color: #f0a2aa; font-weight: 800; }
+.deadline-urgent { padding-left: 10px; border-left: 3px solid #cf737d; }
+.deadline-urgent > small { color: #e3949c; font-weight: 800; }
 .deadline-timer { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; color: #ffb0b7; white-space: nowrap; }
 .deadline-timer small { color: #c8838a; font-size: 9px; }
 .deadline-timer b { font: 800 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .03em; }
 .deadline-timer.compact b { font-size: 11px; }
-.home-urgent-deadlines { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid #74464e; border-radius: 10px; background: linear-gradient(135deg, #342329, #222631); }
+.home-urgent-deadlines { margin-bottom: 16px; padding: 14px 16px 16px; border: 1px solid var(--line); border-left: 3px solid #bd6872; border-radius: 10px; background: var(--panel); }
 .home-urgent-deadlines > div:first-child strong, .home-urgent-deadlines > div:first-child small { display: block; }
-.home-urgent-deadlines > div:first-child strong { color: #ffb0b7; }
-.home-urgent-deadlines > div:first-child small { margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.45; }
-.home-urgent-deadlines > div:last-child { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; }
-.home-urgent-deadlines button { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 9px 10px; border: 1px solid #583c43; border-radius: 7px; background: #291f24; color: var(--text); cursor: pointer; text-align: left; }
+.home-urgent-deadlines > div:first-child { display: flex; align-items: baseline; gap: 10px; margin-bottom: 11px; }
+.home-urgent-deadlines > div:first-child strong { color: var(--text); font-size: 13px; }
+.home-urgent-deadlines > div:first-child strong::before { content: ''; width: 7px; height: 7px; display: inline-block; margin-right: 7px; border-radius: 50%; background: #cf737d; }
+.home-urgent-deadlines > div:first-child small { color: var(--faint); font-size: 10px; }
+.home-urgent-deadlines > div:last-child { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px; }
+.home-urgent-deadlines button { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 10px 11px; border: 1px solid var(--line); border-radius: 7px; background: #192230; color: var(--text); cursor: pointer; text-align: left; transition: border-color .15s ease, background .15s ease; }
+.home-urgent-deadlines button:hover { border-color: #59677a; background: #202b3b; }
 .home-urgent-deadlines button span b, .home-urgent-deadlines button span small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-urgent-deadlines button span small { color: var(--muted); font-size: 9px; }
-.home-urgent-deadlines button > em { color: #ff9da6; font-size: 12px; font-style: normal; font-weight: 800; }
-.home-urgent-deadlines button .deadline-timer { grid-column: 1 / -1; margin-top: 4px; }
+.home-urgent-deadlines button > em { padding: 3px 7px; border-radius: 10px; background: #3a272d; color: #ee969f; font-size: 10px; font-style: normal; font-weight: 800; }
+.home-urgent-deadlines button .deadline-timer { grid-column: 1 / -1; margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line); }
 
 @media (max-width: 680px) {
   .home-clock b { font-size: 15px; }
-  .home-urgent-deadlines { grid-template-columns: 1fr; padding: 12px; }
+  .home-urgent-deadlines { padding: 12px; }
+  .home-urgent-deadlines > div:first-child { align-items: flex-start; flex-direction: column; gap: 3px; }
   .home-urgent-deadlines > div:last-child { grid-template-columns: 1fr; }
 }
