@@ -1652,6 +1652,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   font-size: 9px;
   font-style: normal;
 }
+.app-process-progress > span:first-of-type { margin-top: 5px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.app-process-progress > span:first-of-type b { color: var(--text); font-size: 15px; }
+.app-process-progress .process-progress-track { width: 100%; height: 5px; display: block; margin-top: 7px; overflow: hidden; border-radius: 3px; background: #303a49; }
+.app-process-progress .process-progress-track i { min-width: 3px; height: 100%; display: block; margin: 0; border-radius: inherit; background: #72a8df; transition: width .2s ease; }
 
 .calendar-layout,
 .calendar,
