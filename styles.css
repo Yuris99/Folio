@@ -1955,3 +1955,22 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .mobile-date-events .agenda-row small { color: var(--muted); }
   .calendar-list-panel.date-selected { display: none; }
 }
+
+/* Per-process schedule options and preparation checklist. */
+.process-step-row .process-time-tbd { grid-column: 2 / 4; display: flex; align-items: center; gap: 7px; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.process-step-row .process-time-tbd input { width: 16px; min-height: 16px; margin: 0; }
+.process-todos { grid-column: 2 / -1; min-width: 0; margin-top: 3px; padding: 10px; border-top: 1px solid var(--line); }
+.process-todos > div { display: flex; align-items: center; justify-content: space-between; }
+.process-todos > div > strong { font-size: 11px; }
+.process-todos button { border: 0; background: transparent; color: var(--accent-strong); cursor: pointer; }
+.process-todos > label { display: grid; grid-template-columns: 18px minmax(0, 1fr) 28px; align-items: center; gap: 7px; margin-top: 7px; }
+.process-todos > label > input[type="checkbox"] { width: 16px; min-height: 16px; margin: 0; }
+.process-todos > label > input:not([type="checkbox"]) { min-height: 34px; margin: 0; }
+.process-todos > small { display: block; margin-top: 6px; color: var(--faint); font-size: 10px; }
+.task.process-task > span b, .task.process-task > span small { display: block; }
+.task.process-task > span small { margin-top: 2px; color: var(--faint); font-size: 9px; }
+
+@media (max-width: 680px) {
+  .process-step-row .process-time-tbd, .process-todos { grid-column: 2 / -1; }
+  .process-todos { padding-right: 0; padding-left: 0; }
+}

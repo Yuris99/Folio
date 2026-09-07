@@ -176,6 +176,14 @@ export interface ApplicationProcessStep {
   name: string;
   date: string;
   status: '예정' | '진행 중' | '완료' | '취소';
+  timeTbd?: boolean;
+  todos?: ProcessTodo[];
+}
+
+export interface ProcessTodo {
+  id: string;
+  text: string;
+  done: boolean;
 }
 
 export type CareerGrade = 'S' | 'A' | 'B' | 'C' | 'D';

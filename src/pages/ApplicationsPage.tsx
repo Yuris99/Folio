@@ -61,10 +61,18 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setProcessSteps((steps) => steps.map((step) => step.id === id ? { ...step, ...patch } : step));
   }
 
+  function addProcessTodo(stepId: string) {
+    setProcessSteps((steps) => steps.map((step) => step.id === stepId ? { ...step, todos: [...(step.todos || []), { id: crypto.randomUUID(), text: '', done: false }] } : step));
+  }
+
+  function updateProcessTodo(stepId: string, todoId: string, patch: { text?: string; done?: boolean }) {
+    setProcessSteps((steps) => steps.map((step) => step.id === stepId ? { ...step, todos: (step.todos || []).map((todo) => todo.id === todoId ? { ...todo, ...patch } : todo) } : step));
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const savedSteps = processSteps.filter((step) => step.name.trim()).map((step) => ({ ...step, name: step.name.trim() }));
+    const savedSteps = processSteps.filter((step) => step.name.trim()).map((step) => ({ ...step, name: step.name.trim(), todos: (step.todos || []).filter((todo) => todo.text.trim()).map((todo) => ({ ...todo, text: todo.text.trim() })) }));
     const nextStep = savedSteps.find((step) => step.status === '진행 중') || savedSteps.find((step) => step.status === '예정');
     const payload: ApplicationPayload = {
       company: String(data.get('company')), role: String(data.get('role')), location: String(data.get('location')), status: String(data.get('status')),
@@ -150,9 +158,11 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <div className="process-step-list">{processSteps.map((step, index) => <div className="process-step-row" key={step.id}>
         <span className="process-step-index">{index + 1}</span>
         <label>단계명<input aria-label={`${index + 1}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="예: 실무진 커피챗" /></label>
-        <label>예정 일시 (24시간)<DateTimeInput ariaLabel={`${index + 1}번째 예정 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} /></label>
+        <label>예정 {step.timeTbd ? '날짜' : '일시 (24시간)'}{step.timeTbd ? <input aria-label={`${index + 1}번째 예정 날짜`} type="date" value={step.date.slice(0, 10)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /> : <DateTimeInput ariaLabel={`${index + 1}번째 예정 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} />}</label>
         <label>진행 상태<select aria-label={`${index + 1}번째 진행 상태`} value={step.status} onChange={(event) => updateProcessStep(step.id, { status: event.target.value as ApplicationProcessStep['status'] })}><option>예정</option><option>진행 중</option><option>완료</option><option>취소</option></select></label>
         <button type="button" className="process-remove" aria-label={`${index + 1}번째 단계 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button>
+        <label className="process-time-tbd"><input type="checkbox" checked={Boolean(step.timeTbd)} onChange={(event) => updateProcessStep(step.id, { timeTbd: event.target.checked, date: event.target.checked ? step.date.slice(0, 10) : step.date ? `${step.date.slice(0, 10)}T00:00` : todayDateTimeInputValue() })} /> 시간 미정</label>
+        <div className="process-todos"><div><strong>이 단계 할 일</strong><button type="button" onClick={() => addProcessTodo(step.id)}>+ 추가</button></div>{(step.todos || []).map((todo) => <label key={todo.id}><input type="checkbox" checked={todo.done} onChange={(event) => updateProcessTodo(step.id, todo.id, { done: event.target.checked })} /><input aria-label={`${step.name || `${index + 1}번째 단계`} 할 일`} value={todo.text} onChange={(event) => updateProcessTodo(step.id, todo.id, { text: event.target.value })} placeholder="예: 예상 질문 정리" /><button type="button" aria-label="할 일 삭제" onClick={() => updateProcessStep(step.id, { todos: (step.todos || []).filter((item) => item.id !== todo.id) })}>×</button></label>)}{!(step.todos || []).length && <small>이 전형에서 준비할 일을 추가하세요.</small>}</div>
       </div>)}</div>
       {!processSteps.length && <button type="button" className="process-empty" onClick={addProcessStep}>+ 첫 프로세스 단계 추가</button>}
       <label>공고 URL<input name="url" type="url" defaultValue={editingJob?.url || ''} placeholder="https://..." /></label>
