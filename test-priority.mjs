@@ -4,8 +4,10 @@ function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
 }
 
-assert(calculateDeadlineScore('2026-09-02', new Date('2026-09-02T09:00:00')) === 15, 'D-day score');
-assert(calculateDeadlineScore('2026-09-10', new Date('2026-09-02T09:00:00')) === 6, 'D-8 score');
+assert(calculateDeadlineScore('2026-09-02', new Date('2026-09-02T09:00:00')) === 50, 'D-day score');
+assert(calculateDeadlineScore('2026-09-03', new Date('2026-09-02T09:00:00')) === 40, 'D-1 score');
+assert(calculateDeadlineScore('2026-09-05', new Date('2026-09-02T09:00:00')) === 15, 'D-3 score');
+assert(calculateDeadlineScore('2026-09-10', new Date('2026-09-02T09:00:00')) === 3, 'D-8 score');
 assert(calculateDeadlineScore('2026-09-01', new Date('2026-09-02T09:00:00')) === 0, 'expired deadline score');
 const alwaysOpen = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'S' }, { id:'j', company:'회사', role:'Backend', deadline:'2026-09-03', alwaysOpen:true, url:'', description:'', skills:[] });
 assert(alwaysOpen.deadline === 0, 'always-open deadline score');

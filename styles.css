@@ -1957,8 +1957,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 }
 
 /* Per-process schedule options and preparation checklist. */
-.process-step-row .process-time-tbd { grid-column: 2 / 4; display: flex; align-items: center; gap: 7px; margin-top: 2px; color: var(--muted); font-size: 11px; }
-.process-step-row .process-time-tbd input { width: 16px; min-height: 16px; margin: 0; }
+.process-date-options { grid-column: 2 / 4; display: flex; align-items: center; gap: 14px; margin-top: 2px; }
+.process-date-options label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+.process-date-options input { width: 16px; min-height: 16px; margin: 0; }
+.process-date-placeholder { min-height: 44px; display: flex; align-items: center; margin-top: 4px; padding: 0 11px; border: 1px dashed var(--line); border-radius: 7px; color: var(--faint); }
 .process-todos { grid-column: 2 / -1; min-width: 0; margin-top: 3px; padding: 10px; border-top: 1px solid var(--line); }
 .process-todos > div { display: flex; align-items: center; justify-content: space-between; }
 .process-todos > div > strong { font-size: 11px; }
@@ -1971,6 +1973,33 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .task.process-task > span small { margin-top: 2px; color: var(--faint); font-size: 9px; }
 
 @media (max-width: 680px) {
-  .process-step-row .process-time-tbd, .process-todos { grid-column: 2 / -1; }
+  .process-date-options, .process-todos { grid-column: 2 / -1; }
   .process-todos { padding-right: 0; padding-left: 0; }
+}
+
+/* Live deadline urgency and home clock. */
+.home-clock { display: flex; align-items: flex-end; flex-direction: column; }
+.home-clock b { font: 700 18px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .04em; }
+.home-clock small { margin-top: 5px; color: var(--muted); font-size: 11px; }
+.deadline-urgent { padding: 8px; border: 1px solid #815059; border-radius: 7px; background: #342329; }
+.deadline-urgent > small { color: #f0a2aa; font-weight: 800; }
+.deadline-timer { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; color: #ffb0b7; white-space: nowrap; }
+.deadline-timer small { color: #c8838a; font-size: 9px; }
+.deadline-timer b { font: 800 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .03em; }
+.deadline-timer.compact b { font-size: 11px; }
+.home-urgent-deadlines { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid #74464e; border-radius: 10px; background: linear-gradient(135deg, #342329, #222631); }
+.home-urgent-deadlines > div:first-child strong, .home-urgent-deadlines > div:first-child small { display: block; }
+.home-urgent-deadlines > div:first-child strong { color: #ffb0b7; }
+.home-urgent-deadlines > div:first-child small { margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.home-urgent-deadlines > div:last-child { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; }
+.home-urgent-deadlines button { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 9px 10px; border: 1px solid #583c43; border-radius: 7px; background: #291f24; color: var(--text); cursor: pointer; text-align: left; }
+.home-urgent-deadlines button span b, .home-urgent-deadlines button span small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-urgent-deadlines button span small { color: var(--muted); font-size: 9px; }
+.home-urgent-deadlines button > em { color: #ff9da6; font-size: 12px; font-style: normal; font-weight: 800; }
+.home-urgent-deadlines button .deadline-timer { grid-column: 1 / -1; margin-top: 4px; }
+
+@media (max-width: 680px) {
+  .home-clock b { font-size: 15px; }
+  .home-urgent-deadlines { grid-template-columns: 1fr; padding: 12px; }
+  .home-urgent-deadlines > div:last-child { grid-template-columns: 1fr; }
 }
