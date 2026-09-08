@@ -20,6 +20,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [priorityFilter, setPriorityFilter] = useState('전체');
   const [sortBy, setSortBy] = useState<'recent' | 'priority' | 'grade' | 'deadline' | 'company'>('priority');
   const [pinnedOnly, setPinnedOnly] = useState(false);
+  const [consideringOnly, setConsideringOnly] = useState(false);
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
   const [alwaysOpen, setAlwaysOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -32,7 +33,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const priority = getPriorityLabel(getPriorityBreakdown(application, job).final);
     const matchesGrade = gradeFilter === '전체' || application.careerGrade === gradeFilter;
     const matchesPriority = priorityFilter === '전체' || priority === priorityFilter;
-    return matchesQuery && matchesStatus && matchesGrade && matchesPriority && (!pinnedOnly || application.pinned);
+    return matchesQuery && matchesStatus && matchesGrade && matchesPriority && (!pinnedOnly || application.pinned) && (!consideringOnly || application.considering);
   }).sort((a, b) => {
     const closedOrder = Number(isClosedApplication(a.status)) - Number(isClosedApplication(b.status));
     if (closedOrder) return closedOrder;
@@ -43,7 +44,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
     if (sortBy === 'deadline') return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999');
     return (b.createdAt || '').localeCompare(a.createdAt || '');
-  }), [workspace, query, statusFilter, gradeFilter, priorityFilter, sortBy, pinnedOnly]);
+  }), [workspace, query, statusFilter, gradeFilter, priorityFilter, sortBy, pinnedOnly, consideringOnly]);
 
   function open(id?: string) {
     const application = id ? workspace.applications.find((item) => item.id === id) : undefined;
@@ -87,6 +88,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const nextStep = savedSteps.find((step) => step.status === '진행 중') || savedSteps.find((step) => step.status === '예정');
     const payload: ApplicationPayload = {
       company: String(data.get('company')), role: String(data.get('role')), location: String(data.get('location')), status: String(data.get('status')),
+      considering: data.get('considering') === 'on',
       careerGrade: String(data.get('careerGrade')) as CareerGrade,
       applicationFitScore: Number(data.get('applicationFitScore') || 0), compensationScore: Number(data.get('compensationScore') || 0), companyScore: Number(data.get('companyScore') || 0), locationScore: Number(data.get('locationScore') || 0), processScore: Number(data.get('processScore') || 0),
       appliedAt: String(data.get('appliedAt')), deadline: alwaysOpen ? '' : String(data.get('deadline')), alwaysOpen,
@@ -126,6 +128,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} aria-label="우선순위 필터"><option>전체</option>{['최우선','적극 지원','지원 검토','후순위','낮음'].map((label) => <option key={label}>{label}</option>)}</select>
       <select className="application-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">지원 우선순위 높은 순</option><option value="grade">직무선호도 순</option><option value="deadline">마감 임박순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
       <button className={`pin-filter ${pinnedOnly ? 'active' : ''}`} onClick={() => setPinnedOnly((value) => !value)}>★ 상단 고정만</button>
+      <button className={`pin-filter considering-filter ${consideringOnly ? 'active' : ''}`} onClick={() => setConsideringOnly((value) => !value)}>고민 중만</button>
     </div>
     <div className="application-list">
       {visibleApplications.map((application) => {
@@ -141,7 +144,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
         const scoreTitle = `직무선호도 ${application.careerGrade || '미입력'} ${breakdown.career}/30 · 지원적합성 ${breakdown.fit}/25 · 연봉/보상 ${breakdown.compensation}/15 · 지역 ${breakdown.location}/10 · 전형 ${breakdown.process}/10 · 회사 ${breakdown.company}/5 · 마감 ${breakdown.deadline}/50`;
         return <article className={`application-row application-row-clickable priority-card-${priorityClass(breakdown.final)} ${closed ? 'application-closed' : ''}`} key={application.id} role="button" tabIndex={0} onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, select, input, textarea, label')) setWorkspaceJobId(job.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setWorkspaceJobId(job.id); } }}>
           <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}{job.location ? ` · ${job.location}` : ''}</small>{job.url ? <a className="app-page-link" href={job.url} target="_blank" rel="noreferrer">공고 홈페이지 ↗</a> : <span className="app-page-link disabled">공고 링크 없음</span>}</div></div>
-          <div className="app-status-stack"><span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span><span className={`career-grade grade-${application.careerGrade || 'none'}`}>{application.careerGrade || '–'}</span><span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b> · {priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span></div>
+          <div className="app-status-stack"><span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>{application.considering && <span className="considering-badge">고민 중</span>}<span className={`career-grade grade-${application.careerGrade || 'none'}`}>{application.careerGrade || '–'}</span><span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b> · {priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span></div>
           <span className="app-next"><small>다음 프로세스</small><strong>{application.processSteps?.find((step) => step.status === '진행 중')?.name || application.processSteps?.find((step) => step.status === '예정')?.name || application.nextProcess || application.next || '미정'}</strong>{(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate) && <em>{dateLabel(application.processSteps?.find((step) => ['진행 중', '예정'].includes(step.status))?.date || application.nextDate)}</em>}</span>
           {normalizedStatus === '전형 진행' ? <span className="app-date app-process-progress"><small>전형 진행률</small>{processStepsForProgress.length ? <><span><b>{completedSteps}</b> / {processStepsForProgress.length}단계</span><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span></> : <span>단계 미등록</span>}{processDays !== null && <em className="deadline-count">{processDays === 0 ? 'D-DAY' : processDays > 0 ? `D-${processDays}` : '일정 경과'}</em>}</span> : <span className={`app-date ${deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? 'deadline-urgent' : ''}`}><small>{deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? '마감 임박' : '접수 / 마감'}</small><span><i>접수</i>{dateLabel(application.appliedAt)}</span><span><i>마감</i>{job.alwaysOpen ? '상시' : job.deadline ? dateLabel(job.deadline) : '미정'}</span>{!job.alwaysOpen && deadlineDays !== null && <em className="deadline-count">{deadlineDays >= 0 ? `D-${deadlineDays}` : '마감'}</em>}<DeadlineCountdown deadline={job.deadline} compact /></span>}
           <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void mutate('지원 상태 변경', () => api.updateApplication(application.id, { status: event.target.value })).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`pin-button ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}>★</button><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
@@ -156,6 +159,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <div className="form-grid two"><label>회사명<input required name="company" list="company-suggestions" defaultValue={editingJob?.company || ''} /></label><label>직무명<input required name="role" defaultValue={editingJob?.role || ''} /></label></div>
       <label>근무지역<input name="location" defaultValue={editingJob?.location || ''} placeholder="예: 서울 강남구 · 주 2회 재택" /></label>
       <label>현재 상태<select name="status" defaultValue={normalizedApplicationStatus(editing?.status || '관심')}>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+      <label className="inline-check considering-check"><input type="checkbox" name="considering" defaultChecked={Boolean(editing?.considering)} /> 지원 여부 고민 중 <small>아직 지원할지 결정하지 않은 공고로 표시합니다.</small></label>
       <fieldset className="job-preference-field"><legend>직무선호도 <span className="preference-info" tabIndex={0}>ⓘ<span className="preference-guide overall" role="tooltip"><strong>직무선호도란?</strong><p>합격 가능성이나 회사 수준이 아니라 “내가 이 일을 얼마나 하고 싶은가”만 평가합니다.</p>{CAREER_GRADES.map((grade) => <span key={grade}><b>{grade}</b>{JOB_PREFERENCE_CONFIG[grade].label}</span>)}</span></span></legend><div className="preference-options"><label className="preference-option none"><input type="radio" name="careerGrade" value="" defaultChecked={!editing?.careerGrade} /><span>미입력</span></label>{CAREER_GRADES.map((grade) => { const config = JOB_PREFERENCE_CONFIG[grade]; return <label className={`preference-option grade-${grade}`} key={grade}><input type="radio" name="careerGrade" value={grade} defaultChecked={editing?.careerGrade === grade} /><span>{grade}</span><span className="preference-guide" role="tooltip"><strong>{grade} · {config.label}</strong><p>{config.description}</p><small>{config.score}점</small></span></label>; })}</div></fieldset>
       <div className="form-section-label">지원 우선순위 점수</div>
       <p className="form-help">직무선호도와 아래 평가값, 마감일을 합산해 100점 만점으로 자동 계산합니다.</p>

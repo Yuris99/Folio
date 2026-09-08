@@ -199,6 +199,7 @@ export interface Application {
   nextDate?: string;
   processSteps?: ApplicationProcessStep[];
   memo?: string;
+  considering?: boolean;
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
@@ -327,6 +328,7 @@ export interface ApplicationPayload {
   nextProcess: string;
   nextDate: string;
   processSteps: ApplicationProcessStep[];
+  considering?: boolean;
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;

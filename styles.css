@@ -2021,3 +2021,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .process-step-row { grid-template-columns: 28px minmax(0, 1fr) 52px; }
   .process-order-actions { grid-column: 3; grid-row: 1; }
 }
+
+/* Applications still under consideration. */
+.considering-badge { padding: 3px 7px; border: 1px solid #725f3c; border-radius: 10px; background: #342d20; color: #e0b970; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.considering-filter.active { border-color: #8a7042; background: #342d20; color: #e7c27d; }
+.considering-check { margin-top: -2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #1a2330; }
