@@ -10,7 +10,7 @@ export function normalizedApplicationStatus(status: string): string {
   return '전형 진행';
 }
 
-export const nextProcesses = ['서류 제출', '서류 결과', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
+export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
 
 export function dateLabel(value?: string): string {
   if (!value) return '미정';
