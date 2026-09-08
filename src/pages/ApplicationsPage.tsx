@@ -62,6 +62,16 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setProcessSteps((steps) => steps.map((step) => step.id === id ? { ...step, ...patch } : step));
   }
 
+  function moveProcessStep(index: number, direction: -1 | 1) {
+    setProcessSteps((steps) => {
+      const target = index + direction;
+      if (target < 0 || target >= steps.length) return steps;
+      const reordered = [...steps];
+      [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+      return reordered;
+    });
+  }
+
   function addProcessTodo(stepId: string) {
     setProcessSteps((steps) => steps.map((step) => step.id === stepId ? { ...step, todos: [...(step.todos || []), { id: crypto.randomUUID(), text: '', done: false }] } : step));
   }
@@ -161,7 +171,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
         <label>단계명<input aria-label={`${index + 1}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="예: 실무진 커피챗" /></label>
         <label>예정 {step.dateTbd ? '일정' : step.timeTbd ? '날짜' : '일시 (24시간)'}{step.dateTbd ? <span className="process-date-placeholder">아직 정해지지 않음</span> : step.timeTbd ? <input aria-label={`${index + 1}번째 예정 날짜`} type="date" value={step.date.slice(0, 10)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /> : <DateTimeInput ariaLabel={`${index + 1}번째 예정 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} />}</label>
         <label>진행 상태<select aria-label={`${index + 1}번째 진행 상태`} value={step.status} onChange={(event) => updateProcessStep(step.id, { status: event.target.value as ApplicationProcessStep['status'] })}><option>예정</option><option>진행 중</option><option>완료</option><option>취소</option></select></label>
-        <button type="button" className="process-remove" aria-label={`${index + 1}번째 단계 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button>
+        <div className="process-order-actions"><button type="button" disabled={index === 0} aria-label={`${step.name || `${index + 1}번째 단계`} 위로 이동`} onClick={() => moveProcessStep(index, -1)}>↑</button><button type="button" disabled={index === processSteps.length - 1} aria-label={`${step.name || `${index + 1}번째 단계`} 아래로 이동`} onClick={() => moveProcessStep(index, 1)}>↓</button><button type="button" className="process-remove" aria-label={`${index + 1}번째 단계 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button></div>
         <div className="process-date-options"><label><input type="checkbox" checked={Boolean(step.dateTbd)} onChange={(event) => updateProcessStep(step.id, { dateTbd: event.target.checked, timeTbd: event.target.checked ? false : step.timeTbd, date: event.target.checked ? '' : todayDateTimeInputValue() })} /> 날짜 미정</label><label><input type="checkbox" disabled={Boolean(step.dateTbd)} checked={!step.dateTbd && Boolean(step.timeTbd)} onChange={(event) => updateProcessStep(step.id, { timeTbd: event.target.checked, date: event.target.checked ? step.date.slice(0, 10) : step.date ? `${step.date.slice(0, 10)}T00:00` : todayDateTimeInputValue() })} /> 시간 미정</label></div>
         <div className="process-todos"><div><strong>이 단계 할 일</strong><button type="button" onClick={() => addProcessTodo(step.id)}>+ 추가</button></div>{(step.todos || []).map((todo) => <label key={todo.id}><input type="checkbox" checked={todo.done} onChange={(event) => updateProcessTodo(step.id, todo.id, { done: event.target.checked })} /><input aria-label={`${step.name || `${index + 1}번째 단계`} 할 일`} value={todo.text} onChange={(event) => updateProcessTodo(step.id, todo.id, { text: event.target.value })} placeholder="예: 예상 질문 정리" /><button type="button" aria-label="할 일 삭제" onClick={() => updateProcessStep(step.id, { todos: (step.todos || []).filter((item) => item.id !== todo.id) })}>×</button></label>)}{!(step.todos || []).length && <small>이 전형에서 준비할 일을 추가하세요.</small>}</div>
       </div>)}</div>

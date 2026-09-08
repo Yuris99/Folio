@@ -41,7 +41,8 @@ export function getPriorityBreakdown(application: Application, job: Job) {
   const company = clampScore(application.companyScore, 0, 5);
   const location = clampScore(application.locationScore, 0, 10);
   const process = clampScore(application.processScore, 0, 10);
-  const deadline = job.alwaysOpen ? 0 : calculateDeadlineScore(job.deadline);
+  const deadlineEligible = ['관심', '지원 준비', '작성 중', '서류 준비'].includes(application.status);
+  const deadline = job.alwaysOpen || !deadlineEligible ? 0 : calculateDeadlineScore(job.deadline);
   const base = career + fit + compensation + company + location + process + deadline;
   return { career, fit, compensation, company, location, process, deadline, base, final: clampScore(base, 0, 100) };
 }

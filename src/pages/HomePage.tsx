@@ -22,7 +22,7 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
     ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '', type: 'process', jobId: job?.id || '' })); })
   ].sort((a, b) => a.date.localeCompare(b.date));
   const events = allEvents.filter((item) => daysUntil(item.date) >= 0).slice(0, 5);
-  const urgentDeadlines = workspace.jobs.filter((job) => job.deadline && trackedJobIds.has(job.id) && daysUntil(job.deadline) >= 0 && daysUntil(job.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 4);
+  const urgentDeadlines = workspace.jobs.filter((job) => job.deadline && workspace.applications.some((application) => application.jobId === job.id && ['관심', '지원 준비'].includes(normalizedApplicationStatus(application.status))) && daysUntil(job.deadline) >= 0 && daysUntil(job.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 4);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
