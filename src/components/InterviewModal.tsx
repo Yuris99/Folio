@@ -13,6 +13,7 @@ export function InterviewModal({ item, mutate, onClose }: { item?: Interview; mu
     const payload = { company: String(data.get('company')), role: String(data.get('role')), date: String(data.get('date')), type: String(data.get('type')), memo: String(data.get('memo')), prepared: item?.prepared || 0 };
     if (item) await mutate('면접 일정 수정', () => api.updateInterview(item.id, payload));
     else await mutate('면접 일정 추가', () => api.createInterview(payload));
+    await api.syncGoogleCalendar().catch(() => undefined);
     onClose();
   }
 

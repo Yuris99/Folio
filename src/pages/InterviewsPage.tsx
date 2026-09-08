@@ -11,6 +11,7 @@ export function InterviewsPage({ workspace, navigate, mutate }: { workspace: Wor
   async function remove(id: string) {
     if (!window.confirm('이 면접 일정을 삭제할까요?')) return;
     await mutate('면접 일정 삭제', () => api.deleteInterview(id));
+    await api.syncGoogleCalendar().catch(() => undefined);
   }
   return <>
     <PageHead kicker="INTERVIEWS" title="면접" description="예정된 면접 일정과 준비 메모를 관리합니다." actions={<button className="button primary" onClick={() => setModal({ open: true })}>+ 일정 추가</button>} />

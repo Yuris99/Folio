@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { DeadlineCountdown } from '../components/DeadlineCountdown';
 import { JobCreateModal } from '../components/JobCreateModal';
+import { JobWorkspace } from '../components/JobWorkspace';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
@@ -10,6 +11,7 @@ import { dateLabel, daysUntil, normalizedApplicationStatus } from '../utils';
 export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [taskOpen, setTaskOpen] = useState(false);
   const [jobOpen, setJobOpen] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState('');
   const [clock, setClock] = useState(new Date());
   useEffect(() => { const timer = window.setInterval(() => setClock(new Date()), 1000); return () => window.clearInterval(timer); }, []);
   const trackedJobIds = new Set(workspace.applications.map((item) => item.jobId));
@@ -51,10 +53,7 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
 
   function openJob(jobId: string) {
     if (!jobId) return navigate('calendar');
-    const url = new URL(window.location.href);
-    url.searchParams.set('job', jobId);
-    window.history.replaceState(null, '', url);
-    navigate('jobs');
+    setSelectedJobId(jobId);
   }
 
   return <>
@@ -74,5 +73,6 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
     </div>
     {taskOpen && <Modal title="할 일 추가" kicker="TASK" compact onClose={() => setTaskOpen(false)}><form onSubmit={addTask}><label>할 일<input required name="text" autoFocus placeholder="예: 자기소개서 2번 문항 작성" /></label><label>기한<input name="date" placeholder="오늘, 내일 또는 날짜" defaultValue="오늘" /></label><div className="modal-actions"><button type="button" className="button ghost" onClick={() => setTaskOpen(false)}>취소</button><button className="button primary">저장</button></div></form></Modal>}
     {jobOpen && <JobCreateModal mutate={mutate} onClose={() => setJobOpen(false)} onCreated={(job) => { setJobOpen(false); openJob(job.id); }} />}
+    {selectedJobId && (() => { const job = workspace.jobs.find((item) => item.id === selectedJobId); return job ? <Modal title={`${job.company} · ${job.role}`} kicker="JOB INFO & NOTES" wide onClose={() => setSelectedJobId('')}><JobWorkspace job={job} attachments={workspace.attachments} mutate={mutate} onBack={() => setSelectedJobId('')} /></Modal> : null; })()}
   </>;
 }

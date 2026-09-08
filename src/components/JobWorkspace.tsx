@@ -195,6 +195,7 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
       url: String(data.get('url')).trim(),
       description: String(data.get('description')).trim()
     }));
+    await api.syncGoogleCalendar().catch(() => undefined);
     setOverviewEditing(false);
   }
 

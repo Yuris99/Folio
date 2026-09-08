@@ -108,6 +108,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
         next: payload.nextProcess
       });
     });
+    await api.syncGoogleCalendar().catch(() => undefined);
     setModalOpen(false);
   }
 

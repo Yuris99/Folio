@@ -17,7 +17,7 @@ const minutes = Array.from({ length: 60 }, (_, index) => String(index).padStart(
 export function DateTimeInput({ name, value, defaultValue, required, ariaLabel, onChange, disabled }: Props) {
   const initial = dateTimeInputValue(value ?? defaultValue) || todayDateTimeInputValue();
   const [localValue, setLocalValue] = useState(initial);
-  const current = dateTimeInputValue(value) || localValue;
+  const current = value !== undefined ? dateTimeInputValue(value) : localValue;
   const [date = '', time = '00:00'] = current.split('T');
   const [hour = '00', minute = '00'] = time.split(':');
 
