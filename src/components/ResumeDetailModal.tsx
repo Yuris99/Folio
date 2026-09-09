@@ -20,7 +20,8 @@ const fields: Record<SectionKey, Array<[string, string]>> = {
 
 export function ResumeDetailModal({ section, index, profile, attachments, mutate, onClose }: { section: SectionKey; index: number; profile: Profile; attachments: Attachment[]; mutate: Mutation; onClose: () => void }) {
   const existing = (profile[section] as unknown as Item[])[index];
-  const [draft, setDraft] = useState<Item>({ ...existing });
+  const isNew = index < 0;
+  const [draft, setDraft] = useState<Item>(existing ? { ...existing } : {});
   const [viewer, setViewer] = useState<Attachment | null>(null);
   const attachmentIds = Array.isArray(draft.attachmentIds) ? draft.attachmentIds as string[] : [];
   const courses = section === 'educations' ? (Array.isArray(draft.courses) ? draft.courses as Education['courses'] : []) || [] : [];
@@ -34,14 +35,17 @@ export function ResumeDetailModal({ section, index, profile, attachments, mutate
   }
   async function save(event: FormEvent) {
     event.preventDefault(); const next = { ...profile };
-    const list = [...(next[section] as unknown as Item[])]; list[index] = { ...draft, verified: Boolean(draft.verified) }; (next[section] as unknown as Item[]) = list;
+    const list = [...(next[section] as unknown as Item[])];
+    const saved = { ...draft, verified: Boolean(draft.verified) };
+    if (isNew) list.push(saved); else list[index] = saved;
+    (next[section] as unknown as Item[]) = list;
     await mutate(`${labels[section]} 저장`, () => api.updateProfile(next)); onClose();
   }
   function addCourse() { change('courses', [...courses, { name: '', category: '전공', credits: '', grade: '' }]); }
   function updateCourse(index: number, key: string, value: string) { change('courses', courses.map((course, i) => i === index ? { ...course, [key]: value } : course)); }
   function copyCourses() { const text = courses.map((course) => `[${course.category}] ${course.name} · ${course.credits}학점 · ${course.grade}`).join('\n'); void navigator.clipboard.writeText(text); }
   return <>
-    <Modal title={`${labels[section]} 상세`} kicker="RESUME RECORD" onClose={onClose}>
+    <Modal title={isNew ? `${labels[section]} 직접 추가` : `${labels[section]} 상세`} kicker="RESUME RECORD" onClose={onClose}>
       <form onSubmit={save}><div className="form-grid two">{fields[section].map(([key,label]) => <label className={['description','achievements','skills'].includes(key) ? 'wide' : ''} key={key}>{label}{['description','achievements'].includes(key) ? <textarea rows={4} value={String(draft[key] || '')} onChange={(e) => change(key,e.target.value)} /> : <input value={Array.isArray(draft[key]) ? (draft[key] as string[]).join(', ') : String(draft[key] || '')} onChange={(e) => change(key,key === 'skills' ? e.target.value.split(',').map(x=>x.trim()).filter(Boolean) : e.target.value)} />}</label>)}</div>
         {section === 'educations' && <section className="course-editor"><div className="section-head"><div><h3>수강 과목</h3><p>전공·교양·기타로 분류해 저장하고 복사할 수 있습니다.</p></div><div><button type="button" className="button small" onClick={copyCourses}>과목 복사</button><button type="button" className="button small" onClick={addCourse}>+ 과목</button></div></div>{courses.map((course,index) => <div className="course-row" key={index}><select value={course.category} onChange={(e)=>updateCourse(index,'category',e.target.value)}><option>전공</option><option>교양</option><option>기타</option></select><input placeholder="과목명" value={course.name} onChange={(e)=>updateCourse(index,'name',e.target.value)} /><input placeholder="학점" value={course.credits} onChange={(e)=>updateCourse(index,'credits',e.target.value)} /><input placeholder="성적" value={course.grade} onChange={(e)=>updateCourse(index,'grade',e.target.value)} /><button type="button" onClick={()=>change('courses',courses.filter((_,i)=>i!==index))}>×</button></div>)}</section>}
         <section className="record-files"><div className="section-head"><div><h3>관련 자료</h3><p>성적표, 증명서, 포트폴리오 등 PDF를 항목에 보관합니다.</p></div><label className="button small file-button">PDF 올리기<input hidden type="file" accept="application/pdf" onChange={(e)=>void upload(e)} /></label></div>{attachmentIds.length ? attachmentIds.map((id) => { const file=attachments.find(x=>x.id===id); return file ? <div className="record-file" key={id}><span><b>{file.name}</b><small>{Math.ceil(file.size/1024)}KB</small></span><button type="button" onClick={()=>setViewer(file)}>웹에서 보기</button><button type="button" onClick={()=>change('attachmentIds',attachmentIds.filter(x=>x!==id))}>연결 해제</button></div> : null; }) : <p className="form-help">연결된 자료가 없습니다.</p>}</section>
