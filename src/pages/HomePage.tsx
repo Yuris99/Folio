@@ -15,7 +15,7 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
   const [clock, setClock] = useState(new Date());
   useEffect(() => { const timer = window.setInterval(() => setClock(new Date()), 1000); return () => window.clearInterval(timer); }, []);
   const trackedJobIds = new Set(workspace.applications.map((item) => item.jobId));
-  const writing = workspace.applications.filter((item) => ['관심', '지원 준비'].includes(normalizedApplicationStatus(item.status))).length;
+  const writing = workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === '지원 준비').length;
   const interviews = workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === '전형 진행').length;
   const results = workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === '결과 대기').length;
   const allEvents = [
@@ -56,11 +56,19 @@ export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace
     setSelectedJobId(jobId);
   }
 
+  function openPreparingApplications() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('status', '지원 준비');
+    url.searchParams.set('sort', 'deadline');
+    window.history.replaceState(null, '', url);
+    navigate('applications');
+  }
+
   return <>
     <div className="page-head compact-head"><div><h1>홈</h1></div><span className="home-clock"><b>{new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(clock)}</b><small>{new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(clock)}</small></span></div>
     {!workspace.applications.length && <div className="onboarding-strip"><div><strong>{hasProfile ? '첫 지원을 등록해 시작하세요.' : '먼저 이력서를 커리어 데이터로 정리하세요.'}</strong><span>{hasProfile ? '회사와 직무, 마감일만 입력하면 됩니다.' : '확인된 데이터는 ChatGPT에서 바로 사용할 수 있습니다.'}</span></div><div>{!hasProfile && <button className="button" onClick={() => navigate('career')}>이력서 정리</button>}<button className="button primary" onClick={() => navigate('applications')}>지원 추가</button></div></div>}
     <div className="grid stats-grid home-stats">
-      <button className="card stat stat-link highlight" onClick={() => navigate('applications')}><div className="label">서류 작성 중</div><div className="value">{writing}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
+      <button className="card stat stat-link highlight" onClick={openPreparingApplications}><div className="label">서류 작성 중</div><div className="value">{writing}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
       <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">전체 지원</div><div className="value">{workspace.applications.length}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
       <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">전형 진행</div><div className="value">{interviews}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>
       <button className="card stat stat-link" onClick={() => navigate('applications')}><div className="label">결과 확인</div><div className="value">{results}<span className="unit">건</span></div><span className="stat-arrow">→</span></button>

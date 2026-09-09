@@ -28,6 +28,8 @@ export default function App() {
     setView(next);
     const url = new URL(window.location.href);
     if (next === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', next);
+    if (next !== 'applications') { url.searchParams.delete('status'); url.searchParams.delete('sort'); }
+    if (next !== 'jobs') url.searchParams.delete('job');
     window.history.pushState(null, '', url);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
