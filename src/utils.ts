@@ -16,7 +16,7 @@ export function dateLabel(value?: string): string {
   if (!value) return '미정';
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', weekday: 'short' };
   if (value.includes('T') && !value.endsWith('T00:00')) Object.assign(options, { hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23' });
   return new Intl.DateTimeFormat('ko-KR', options).format(date);
 }
@@ -52,4 +52,10 @@ export function statusClass(status: string): string {
   if (status === '전형 진행' || status === '결과 대기') return 'interview';
   if (status.includes('준비')) return 'writing';
   return 'default';
+}
+
+export function dateText(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : `${value} (${new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date)})`;
 }

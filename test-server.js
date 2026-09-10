@@ -88,6 +88,15 @@ async function json(path, options={}, cookie='') {
     assert.equal(created.data.data.companyScore,5);
     assert.equal(created.data.data.considering,true);
     const applicationId=created.data.data.id;
+    const notionUrl='https://www.notion.so/folio-application';
+    await json(`/api/v1/applications/${applicationId}`,{method:'PATCH',body:JSON.stringify({notionUrl})},cookie);
+    const withNotion=await json('/api/v1/bootstrap',{},cookie);
+    const linkedJob=withNotion.data.data.jobs.find(item=>item.id===created.data.data.jobId);
+    assert.equal(linkedJob.notionUrl,notionUrl);
+    await json(`/api/v1/jobs/${linkedJob.id}`,{method:'PATCH',body:JSON.stringify({notionUrl:''})},cookie);
+    const withoutNotion=await json('/api/v1/bootstrap',{},cookie);
+    assert.equal(withoutNotion.data.data.jobs.find(item=>item.id===linkedJob.id).notionUrl,'');
+
 
     const updated=await json(`/api/v1/applications/${applicationId}`,{method:'PATCH',body:JSON.stringify({status:'지원 완료'})},cookie);
     assert.equal(updated.data.data.status,'지원 완료');

@@ -2027,3 +2027,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .considering-filter.active { border-color: #8a7042; background: #342d20; color: #e7c27d; }
 .considering-check { margin-top: -2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #1a2330; }
 .application-toolbar .pin-filter:disabled { opacity: .48; cursor: default; }
+
+.datetime-weekday { grid-column: 1 / -1; color: var(--muted); }
+.date-with-weekday { display: grid; gap: 4px; }
+.date-with-weekday small { color: var(--muted); }
+.app-page-link + .app-page-link { margin-left: 6px; }

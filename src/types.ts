@@ -143,6 +143,7 @@ export interface Job {
   deadline: string;
   alwaysOpen?: boolean;
   url: string;
+  notionUrl?: string;
   description: string;
   skills: string[];
   pageContent?: string;
@@ -339,6 +340,7 @@ export interface ApplicationPayload {
   processScore?: number;
   priorityAdjustment?: number;
   url: string;
+  notionUrl?: string;
   memo: string;
   jobId?: string;
 }

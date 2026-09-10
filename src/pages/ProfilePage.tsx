@@ -1,3 +1,4 @@
+import { dateText } from '../utils';
 import { useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { Modal } from '../components/Modal';
@@ -49,14 +50,14 @@ function createMarkdown(workspace: Workspace, includeSensitive: boolean, include
   }
   if (profile.summary) lines.push('', '### 요약', profile.summary);
   const structured = [
-    ['학력', profile.educations.map((item) => `- ${item.school}${item.major ? ` · ${item.major}` : ''}${item.degree ? ` · ${item.degree}` : ''} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)],
-    ['경력', profile.experiences.map((item) => `- ${item.company}${item.position ? ` · ${item.position}` : ''} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}${item.achievements ? `\n  성과: ${item.achievements}` : ''}`)],
-    ['프로젝트', profile.projects.map((item) => `- ${item.name}${item.role ? ` · ${item.role}` : ''} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}${item.achievements ? `\n  성과: ${item.achievements}` : ''}`)],
-    ['자격증', profile.certifications.map((item) => `- ${item.name}${item.issuer ? ` · ${item.issuer}` : ''}${item.acquiredDate ? ` (${item.acquiredDate})` : ''}`)],
+    ['학력', profile.educations.map((item) => `- ${item.school}${item.major ? ` · ${item.major}` : ''}${item.degree ? ` · ${item.degree}` : ''} (${[item.startDate, item.endDate].map(dateText).filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)],
+    ['경력', profile.experiences.map((item) => `- ${item.company}${item.position ? ` · ${item.position}` : ''} (${[item.startDate, item.endDate].map(dateText).filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}${item.achievements ? `\n  성과: ${item.achievements}` : ''}`)],
+    ['프로젝트', profile.projects.map((item) => `- ${item.name}${item.role ? ` · ${item.role}` : ''} (${[item.startDate, item.endDate].map(dateText).filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}${item.achievements ? `\n  성과: ${item.achievements}` : ''}`)],
+    ['자격증', profile.certifications.map((item) => `- ${item.name}${item.issuer ? ` · ${item.issuer}` : ''}${item.acquiredDate ? ` (${dateText(item.acquiredDate)})` : ''}`)],
     ['어학', profile.languages.map((item) => `- ${item.name}${item.level ? ` · ${item.level}` : ''}${item.score ? ` · ${item.score}` : ''}`)],
-    ['수상', profile.awards.map((item) => `- ${item.name}${item.issuer ? ` · ${item.issuer}` : ''}${item.date ? ` (${item.date})` : ''}${item.description ? `\n  ${item.description}` : ''}`)]
-    ,['활동·교육', profile.activities.map((item) => `- ${item.name}${item.organization ? ` · ${item.organization}` : ''} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)]
-    ,['병역', profile.militaryServices.map((item) => `- ${[item.branch, item.rank, item.role].filter(Boolean).join(' · ')} (${[item.startDate, item.endDate].filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)]
+    ['수상', profile.awards.map((item) => `- ${item.name}${item.issuer ? ` · ${item.issuer}` : ''}${item.date ? ` (${dateText(item.date)})` : ''}${item.description ? `\n  ${item.description}` : ''}`)]
+    ,['활동·교육', profile.activities.map((item) => `- ${item.name}${item.organization ? ` · ${item.organization}` : ''} (${[item.startDate, item.endDate].map(dateText).filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)]
+    ,['병역', profile.militaryServices.map((item) => `- ${[item.branch, item.rank, item.role].filter(Boolean).join(' · ')} (${[item.startDate, item.endDate].map(dateText).filter(Boolean).join(' ~ ')})${item.description ? `\n  ${item.description}` : ''}`)]
   ] as const;
   for (const [title, items] of structured) if (items.length) lines.push('', `## ${title}`, ...items);
   for (const category of categories.filter((item) => item.value !== 'profile')) {
@@ -111,14 +112,14 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   }, [workspace.careerFacts]);
   const filteredFacts = workspace.careerFacts.filter((fact) => filter === 'all' || fact.status === filter);
   const resumeGroups = [
-    { label:'학력',section:'educations' as const,items:workspace.profile.educations.map((x,index)=>({section:'educations' as const,index,title:x.school,meta:[x.major,x.degree,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:[x.gpa&&`전체 ${x.gpa}`,x.majorGpa&&`전공 ${x.majorGpa}`,x.description].filter(Boolean).join(' · '),verified:x.verified})) },
-    { label:'경력',section:'experiences' as const,items:workspace.profile.experiences.map((x,index)=>({section:'experiences' as const,index,title:x.company,meta:[x.position,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
-    { label:'프로젝트',section:'projects' as const,items:workspace.profile.projects.map((x,index)=>({section:'projects' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
-    { label:'자격증',section:'certifications' as const,items:workspace.profile.certifications.map((x,index)=>({section:'certifications' as const,index,title:x.name,meta:[x.issuer,x.acquiredDate].filter(Boolean).join(' · '),detail:x.credentialId,verified:x.verified})) },
-    { label:'어학',section:'languages' as const,items:workspace.profile.languages.map((x,index)=>({section:'languages' as const,index,title:x.name,meta:[x.level,x.score,x.acquiredDate].filter(Boolean).join(' · '),detail:'',verified:x.verified})) },
-    { label:'수상',section:'awards' as const,items:workspace.profile.awards.map((x,index)=>({section:'awards' as const,index,title:x.name,meta:[x.issuer,x.date].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
-    { label:'활동·교육',section:'activities' as const,items:workspace.profile.activities.map((x,index)=>({section:'activities' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
-    { label:'병역',section:'militaryServices' as const,items:workspace.profile.militaryServices.map((x,index)=>({section:'militaryServices' as const,index,title:[x.branch,x.rank].filter(Boolean).join(' · '),meta:[x.role,[x.startDate,x.endDate].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) }
+    { label:'학력',section:'educations' as const,items:workspace.profile.educations.map((x,index)=>({section:'educations' as const,index,title:x.school,meta:[x.major,x.degree,[x.startDate,x.endDate].map(dateText).filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:[x.gpa&&`전체 ${x.gpa}`,x.majorGpa&&`전공 ${x.majorGpa}`,x.description].filter(Boolean).join(' · '),verified:x.verified})) },
+    { label:'경력',section:'experiences' as const,items:workspace.profile.experiences.map((x,index)=>({section:'experiences' as const,index,title:x.company,meta:[x.position,[x.startDate,x.endDate].map(dateText).filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'프로젝트',section:'projects' as const,items:workspace.profile.projects.map((x,index)=>({section:'projects' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].map(dateText).filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'자격증',section:'certifications' as const,items:workspace.profile.certifications.map((x,index)=>({section:'certifications' as const,index,title:x.name,meta:[x.issuer,dateText(x.acquiredDate)].filter(Boolean).join(' · '),detail:x.credentialId,verified:x.verified})) },
+    { label:'어학',section:'languages' as const,items:workspace.profile.languages.map((x,index)=>({section:'languages' as const,index,title:x.name,meta:[x.level,x.score,dateText(x.acquiredDate)].filter(Boolean).join(' · '),detail:'',verified:x.verified})) },
+    { label:'수상',section:'awards' as const,items:workspace.profile.awards.map((x,index)=>({section:'awards' as const,index,title:x.name,meta:[x.issuer,dateText(x.date)].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'활동·교육',section:'activities' as const,items:workspace.profile.activities.map((x,index)=>({section:'activities' as const,index,title:x.name,meta:[x.organization,x.role,[x.startDate,x.endDate].map(dateText).filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) },
+    { label:'병역',section:'militaryServices' as const,items:workspace.profile.militaryServices.map((x,index)=>({section:'militaryServices' as const,index,title:[x.branch,x.rank].filter(Boolean).join(' · '),meta:[x.role,[x.startDate,x.endDate].map(dateText).filter(Boolean).join(' ~ ')].filter(Boolean).join(' · '),detail:x.description,verified:x.verified})) }
   ];
   const selectedResumeGroup = resumeGroups.find((group) => group.label === resumeCategory) || resumeGroups[0];
 

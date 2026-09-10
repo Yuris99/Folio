@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { dateTimeInputValue, todayDateTimeInputValue } from '../utils';
+import { dateLabel, dateTimeInputValue, todayDateTimeInputValue } from '../utils';
 
 type Props = {
   name?: string;
@@ -32,5 +32,6 @@ export function DateTimeInput({ name, value, defaultValue, required, ariaLabel, 
     <input aria-label={`${ariaLabel || '일시'} 날짜`} type="date" required={required && !disabled} disabled={disabled} min="2000-01-01" max="2100-12-31" value={date} onChange={(event) => update(event.target.value, hour, minute)} />
     <select aria-label={`${ariaLabel || '일시'} 시`} disabled={disabled} value={hour} onChange={(event) => update(date, event.target.value, minute)}>{hours.map((item) => <option key={item} value={item}>{item}</option>)}</select>
     <select aria-label={`${ariaLabel || '일시'} 분`} disabled={disabled} value={minute} onChange={(event) => update(date, hour, event.target.value)}>{minutes.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+    {date && !disabled && <small className="datetime-weekday">{dateLabel(date)}</small>}
   </div>;
 }
