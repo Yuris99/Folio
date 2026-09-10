@@ -31,11 +31,11 @@ export function todayDateTimeInputValue(): string {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00`;
 }
 
-export function daysUntil(value?: string): number {
+export function daysUntil(value?: string, reference = new Date()): number {
   if (!value) return Number.POSITIVE_INFINITY;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(value.includes('T') ? value : `${value}T00:00:00`).getTime() - today.getTime()) / 86400000);
+  const deadline = new Date(value.includes('T') ? value : `${value}T23:59:59`);
+  const remaining = deadline.getTime() - reference.getTime();
+  return remaining < 0 ? Math.floor(remaining / 86400000) : Math.ceil(remaining / 86400000);
 }
 
 export function getJob(workspace: Workspace, application: Application): Job {

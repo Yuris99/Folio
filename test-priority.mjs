@@ -1,4 +1,5 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
+import { daysUntil } from './src/utils.ts';
 
 function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
@@ -8,6 +9,9 @@ assert(calculateDeadlineScore('2026-09-02', new Date('2026-09-02T09:00:00')) ===
 assert(calculateDeadlineScore('2026-09-03', new Date('2026-09-02T09:00:00')) === 40, 'D-1 score');
 assert(calculateDeadlineScore('2026-09-05', new Date('2026-09-02T09:00:00')) === 15, 'D-3 score');
 assert(calculateDeadlineScore('2026-09-10', new Date('2026-09-02T09:00:00')) === 3, 'D-8 score');
+assert(daysUntil('2026-09-03T07:00', new Date('2026-09-02T09:00:00')) === 1, '22 hours remaining is D-1');
+assert(daysUntil('2026-09-04T08:59', new Date('2026-09-02T09:00:00')) === 2, 'under 48 hours remaining is D-2');
+assert(daysUntil('2026-09-02T08:00', new Date('2026-09-02T09:00:00')) === -1, 'expired deadline is negative');
 assert(calculateDeadlineScore('2026-09-01', new Date('2026-09-02T09:00:00')) === 0, 'expired deadline score');
 const alwaysOpen = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'S' }, { id:'j', company:'회사', role:'Backend', deadline:'2026-09-03', alwaysOpen:true, url:'', description:'', skills:[] });
 assert(alwaysOpen.deadline === 0, 'always-open deadline score');
