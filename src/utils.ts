@@ -35,7 +35,7 @@ export function daysUntil(value?: string, reference = new Date()): number {
   if (!value) return Number.POSITIVE_INFINITY;
   const deadline = new Date(value.includes('T') ? value : `${value}T23:59:59`);
   const remaining = deadline.getTime() - reference.getTime();
-  return remaining < 0 ? Math.floor(remaining / 86400000) : Math.ceil(remaining / 86400000);
+  return Math.floor(remaining / 86400000);
 }
 
 export function getJob(workspace: Workspace, application: Application): Job {
