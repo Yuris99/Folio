@@ -143,7 +143,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} aria-label="우선순위 필터"><option>전체</option>{['최우선','적극 지원','지원 검토','후순위','낮음'].map((label) => <option key={label}>{label}</option>)}</select>
       <select className="application-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">지원 우선순위 높은 순</option><option value="grade">직무선호도 순</option><option value="deadline">마감 임박순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
       <button className={`pin-filter ${pinnedOnly ? 'active' : ''}`} onClick={() => setPinnedOnly((value) => !value)}>★ 상단 고정만</button>
-      <button className={`pin-filter ${pinFirst && sortBy !== 'deadline' ? 'active' : ''}`} disabled={sortBy === 'deadline'} onClick={() => setPinFirst((value) => !value)}>{sortBy === 'deadline' ? '★ 마감순에서는 제외' : `★ 상단 우선 ${pinFirst ? 'ON' : 'OFF'}`}</button>
+      {sortBy !== 'deadline' && <button className={`pin-filter ${pinFirst ? 'active' : ''}`} aria-pressed={pinFirst} onClick={() => setPinFirst((value) => !value)}>★ 상단 우선 {pinFirst ? 'ON' : 'OFF'}</button>}
       <button className={`pin-filter considering-filter ${consideringOnly ? 'active' : ''}`} onClick={() => setConsideringOnly((value) => !value)}>고민 중만</button>
     </div>
     <div className="application-list">

@@ -622,7 +622,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .application-search { position: relative; grid-column: span 2; margin: 0; }
 .application-search span { position: absolute; top: 50%; left: 13px; z-index: 1; color: var(--faint); transform: translateY(-50%); }
 .application-search input { width: 100%; padding-left: 34px; }
-.pin-filter { min-height: 42px; padding: 0 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--muted); cursor: pointer; white-space: nowrap; }
+.pin-filter { min-height: 42px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--muted); cursor: pointer; white-space: normal; overflow-wrap: anywhere; }
 .pin-filter.active { border-color: #a97942; background: #3b3022; color: #f0bd73; }
 .app-controls { display: grid; grid-template-columns: minmax(0, 1fr) 28px 28px; gap: 6px; align-items: center; }
 .pin-button { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: #67636a; cursor: pointer; }
@@ -2026,7 +2026,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .considering-badge { padding: 3px 7px; border: 1px solid #725f3c; border-radius: 10px; background: #342d20; color: #e0b970; font-size: 9px; font-weight: 800; white-space: nowrap; }
 .considering-filter.active { border-color: #8a7042; background: #342d20; color: #e7c27d; }
 .considering-check { margin-top: -2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #1a2330; }
-.application-toolbar .pin-filter:disabled { opacity: .48; cursor: default; }
 
 .datetime-weekday { grid-column: 1 / -1; color: var(--muted); }
 .date-with-weekday { display: grid; gap: 4px; }
