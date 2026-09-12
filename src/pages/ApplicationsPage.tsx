@@ -25,7 +25,6 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [gradeFilter, setGradeFilter] = useState('전체');
   const [priorityFilter, setPriorityFilter] = useState('전체');
   const [sortBy, setSortBy] = useState<'recent' | 'priority' | 'grade' | 'deadline' | 'company'>(() => { const value = new URLSearchParams(window.location.search).get('sort'); return ['recent', 'priority', 'grade', 'deadline', 'company'].includes(value || '') ? value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company' : 'priority'; });
-  const [pinnedOnly, setPinnedOnly] = useState(false);
   const [pinFirst, setPinFirst] = useState(true);
   const [consideringOnly, setConsideringOnly] = useState(false);
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
@@ -40,7 +39,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const priority = getPriorityLabel(getPriorityBreakdown(application, job).final);
     const matchesGrade = gradeFilter === '전체' || application.careerGrade === gradeFilter;
     const matchesPriority = priorityFilter === '전체' || priority === priorityFilter;
-    return matchesQuery && matchesStatus && matchesGrade && matchesPriority && (!pinnedOnly || application.pinned) && (!consideringOnly || application.considering);
+    return matchesQuery && matchesStatus && matchesGrade && matchesPriority && (!consideringOnly || application.considering);
   }).sort((a, b) => {
     const closedOrder = Number(isClosedApplication(a.status)) - Number(isClosedApplication(b.status));
     if (closedOrder) return closedOrder;
@@ -51,7 +50,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
     if (sortBy === 'deadline') return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999');
     return (b.createdAt || '').localeCompare(a.createdAt || '');
-  }), [workspace, query, statusFilter, gradeFilter, priorityFilter, sortBy, pinnedOnly, pinFirst, consideringOnly]);
+  }), [workspace, query, statusFilter, gradeFilter, priorityFilter, sortBy, pinFirst, consideringOnly]);
 
   function changeStatusFilter(status: string) {
     setStatusFilter(status);
@@ -142,8 +141,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)} aria-label="직무선호도 필터"><option>전체</option>{CAREER_GRADES.map((grade) => <option key={grade}>{grade}</option>)}</select>
       <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} aria-label="우선순위 필터"><option>전체</option>{['최우선','적극 지원','지원 검토','후순위','낮음'].map((label) => <option key={label}>{label}</option>)}</select>
       <select className="application-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">지원 우선순위 높은 순</option><option value="grade">직무선호도 순</option><option value="deadline">마감 임박순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
-      <button className={`pin-filter ${pinnedOnly ? 'active' : ''}`} onClick={() => setPinnedOnly((value) => !value)}>★ 상단 고정만</button>
-      {sortBy !== 'deadline' && <button className={`pin-filter ${pinFirst ? 'active' : ''}`} aria-pressed={pinFirst} onClick={() => setPinFirst((value) => !value)}>★ 상단 우선 {pinFirst ? 'ON' : 'OFF'}</button>}
+      {sortBy !== 'deadline' && <button className={`pin-filter pin-priority ${pinFirst ? 'active' : ''}`} aria-pressed={pinFirst} onClick={() => setPinFirst((value) => !value)}><span>★ 상단 우선</span><span className="pin-priority-state">{pinFirst ? 'ON' : 'OFF'}</span></button>}
       <button className={`pin-filter considering-filter ${consideringOnly ? 'active' : ''}`} onClick={() => setConsideringOnly((value) => !value)}>고민 중만</button>
     </div>
     <div className="application-list">

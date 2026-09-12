@@ -624,6 +624,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .application-search input { width: 100%; padding-left: 34px; }
 .pin-filter { min-height: 42px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--muted); cursor: pointer; white-space: normal; overflow-wrap: anywhere; }
 .pin-filter.active { border-color: #a97942; background: #3b3022; color: #f0bd73; }
+.application-toolbar .pin-priority { display: flex; align-items: center; justify-content: center; gap: 6px; padding-inline: 8px; font-size: 13px; white-space: nowrap; overflow-wrap: normal; }
+.pin-priority-state { flex: 0 0 3ch; text-align: center; }
 .app-controls { display: grid; grid-template-columns: minmax(0, 1fr) 28px 28px; gap: 6px; align-items: center; }
 .pin-button { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: #67636a; cursor: pointer; }
 .pin-button:hover, .pin-button.active { border-color: #a97942; background: #3b3022; color: #f0bd73; }
