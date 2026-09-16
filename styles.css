@@ -741,6 +741,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .calendar-sync-actions { display: flex; gap: 8px; }
 .calendar-sync-state { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -12px 0 16px; padding: 10px 13px; border: 1px solid #3f5f4a; border-radius: 7px; background: #223128; color: #a9d5b5; font-size: 12px; }
 .calendar-sync-state small { color: #7fa58a; }
+.calendar-sync-state.error { border-color: #71464b; background: #392529; color: #f0b0b7; }
+.calendar-sync-state.error small { color: #d9969e; }
 .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .calendar-head h2 { margin: 0; font-size: 17px; }
 .calendar-head button { border: 0; background: transparent; color: var(--muted); font-size: 20px; }

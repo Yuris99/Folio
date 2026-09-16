@@ -246,7 +246,7 @@ async function googleCalendarStart(req,res,url,user){
 async function calendarAccessToken(user){
   const refreshToken=user.googleCalendar?.refreshToken;if(!refreshToken)throw new Error('CALENDAR_NOT_CONNECTED');
   const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,refresh_token:refreshToken,grant_type:'refresh_token'})});
-  if(!response.ok)throw new Error('CALENDAR_TOKEN_FAILED');return (await response.json()).access_token;
+  if(!response.ok){const error=new Error('CALENDAR_TOKEN_FAILED');error.status=response.status;throw error;}return (await response.json()).access_token;
 }
 
 function calendarTime(value){
@@ -264,12 +264,14 @@ function folioCalendarEvents(workspace){
 
 async function syncGoogleCalendar(user){
   const token=await calendarAccessToken(user),connection=user.googleCalendar,eventIds=connection.eventIds||{},events=folioCalendarEvents(user.workspace),active=new Set(events.map(item=>item.key));let created=0,updated=0,removed=0;
-  for(const [key,eventId] of Object.entries(eventIds))if(!active.has(key)){const response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'DELETE',headers:{Authorization:`Bearer ${token}`}});if(response.ok||response.status===404){delete eventIds[key];removed++;}}
-  for(const {key,...event} of events){let eventId=eventIds[key],response;if(eventId)response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'PUT',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(event)});
-    if(!eventId||response.status===404){response=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(event)});if(response.ok){eventIds[key]=(await response.json()).id;created++;}}
+  const headers={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
+  await Promise.all(Object.entries(eventIds).filter(([key])=>!active.has(key)).map(async([key,eventId])=>{const response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'DELETE',headers});if(response.ok||[404,410].includes(response.status)){delete eventIds[key];removed++;return;}const error=new Error(`CALENDAR_DELETE_${response.status}`);error.status=response.status;throw error;}));
+  await Promise.all(events.map(async({key,...source})=>{const event={...source,extendedProperties:{private:{folioKey:key}}};let eventId=eventIds[key],response;
+    if(eventId)response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'PATCH',headers,body:JSON.stringify(event)});
+    if(!eventId||[404,410].includes(response.status)){response=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{method:'POST',headers,body:JSON.stringify(event)});if(response.ok){eventIds[key]=(await response.json()).id;created++;}}
     else if(response.ok)updated++;
-    if(!response.ok)throw new Error(`CALENDAR_EVENT_${response.status}`);
-  }
+    if(!response.ok){const error=new Error(`CALENDAR_EVENT_${response.status}`);error.status=response.status;throw error;}
+  }));
   connection.eventIds=eventIds;connection.lastSyncedAt=now();saveDb();return {created,updated,removed,total:events.length,lastSyncedAt:connection.lastSyncedAt};
 }
 
@@ -350,7 +352,7 @@ async function api(req,res,url) {
   if(method==='GET'&&route==='/api/v1/bootstrap'){if(completePastProcessSteps(w))saveDb();return ok(res,w);}
   if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||''});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
-  if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return fail(res,502,'Google Calendar 동기화에 실패했습니다. 연결 상태를 확인해 주세요.','CALENDAR_SYNC_FAILED');}}
+  if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);const reconnect=['CALENDAR_NOT_CONNECTED','CALENDAR_TOKEN_FAILED'].includes(error?.message);return fail(res,reconnect?401:502,reconnect?'Google Calendar 연결이 만료되었습니다. 연결을 해제한 뒤 다시 연결해 주세요.':'Google Calendar 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.','CALENDAR_SYNC_FAILED',{reason:error?.message||'UNKNOWN',status:error?.status});}}
   if(method==='POST'&&route==='/api/v1/calendar/disconnect'){delete user.googleCalendar;saveDb();res.writeHead(204);return res.end();}
   if(method==='GET'&&route==='/api/v1/account/export')return send(res,200,{data:exportWorkspace(user)},{'Content-Disposition':`attachment; filename="folio-export-${new Date().toISOString().slice(0,10)}.json"`,'Cache-Control':'no-store'});
   let fileMatch=route.match(/^\/api\/v1\/files\/([^/]+)$/);

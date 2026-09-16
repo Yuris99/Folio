@@ -15,9 +15,9 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, timeoutMs = requestTimeoutMs): Promise<T> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       credentials: 'include',
@@ -51,7 +51,7 @@ export const api = {
     const returnTo = encodeURIComponent(window.location.href.split('#')[0]);
     window.location.assign(`${apiBaseUrl}/calendar/connect?returnTo=${returnTo}`);
   },
-  syncGoogleCalendar: () => request<{ created: number; updated: number; removed: number; total: number; lastSyncedAt: string }>('/calendar/sync', { method: 'POST' }),
+  syncGoogleCalendar: () => request<{ created: number; updated: number; removed: number; total: number; lastSyncedAt: string }>('/calendar/sync', { method: 'POST' }, 60_000),
   disconnectGoogleCalendar: () => request<void>('/calendar/disconnect', { method: 'POST' }),
   exportUrl: () => `${apiBaseUrl}/account/export`,
   importCareerData: (payload: unknown) => request<{ workspace: Workspace; imported: { profileFields: number; profileItems: number; facts: number; skippedDuplicates: number } }>('/career-import', json('POST', payload)),
