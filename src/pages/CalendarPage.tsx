@@ -44,7 +44,8 @@ export function CalendarPage({ workspace, navigate, mutate }: { workspace: Works
       setSyncing(true); setSyncError('');
       const result = await api.syncGoogleCalendar();
       setGoogleStatus({ connected: true, lastSyncedAt: result.lastSyncedAt });
-      window.alert(`Google Calendar 동기화 완료\n추가 ${result.created}개 · 업데이트 ${result.updated}개 · 삭제 ${result.removed}개`);
+      const warning = result.failed || result.skipped ? `\n처리 실패 ${result.failed}개 · 잘못된 날짜 제외 ${result.skipped}개${result.failures.length ? `\n오류: ${result.failures.join(', ')}` : ''}` : '';
+      window.alert(`Google Calendar 동기화 완료\n추가 ${result.created}개 · 업데이트 ${result.updated}개 · 삭제 ${result.removed}개${warning}`);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Google Calendar 동기화에 실패했습니다.';
       setSyncError(message);

@@ -251,28 +251,35 @@ async function calendarAccessToken(user){
 
 function calendarTime(value){
   if(/^\d{4}-\d{2}-\d{2}$/.test(value)){const end=new Date(`${value}T00:00:00Z`);end.setUTCDate(end.getUTCDate()+1);return {start:{date:value},end:{date:end.toISOString().slice(0,10)}};}
-  const dateTime=value.length===16?`${value}:00+09:00`:value;const end=new Date(dateTime);end.setHours(end.getHours()+1);return {start:{dateTime,timeZone:'Asia/Seoul'},end:{dateTime:end.toISOString(),timeZone:'Asia/Seoul'}};
+  const local=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value),dateTime=local?`${value.length===16?`${value}:00`:value}+09:00`:value;
+  const start=new Date(dateTime);if(Number.isNaN(start.getTime()))return null;const end=new Date(start.getTime()+60*60_000);return {start:{dateTime:start.toISOString(),timeZone:'Asia/Seoul'},end:{dateTime:end.toISOString(),timeZone:'Asia/Seoul'}};
 }
 
 function folioCalendarEvents(workspace){
-  const result=[],trackedJobIds=new Set((workspace.applications||[]).map(item=>item.jobId));
-  for(const job of workspace.jobs||[])if(job.deadline&&trackedJobIds.has(job.id))result.push({key:`job:${job.id}`,summary:`[Folio] ${job.company} 지원 마감`,description:[job.role,job.url].filter(Boolean).join('\n'),...calendarTime(job.deadline)});
-  for(const item of workspace.interviews||[])if(item.date)result.push({key:`interview:${item.id}`,summary:`[Folio] ${item.company} ${item.type}`,description:[item.role,item.memo].filter(Boolean).join('\n'),...calendarTime(item.date)});
-  for(const application of workspace.applications||[]){const job=(workspace.jobs||[]).find(item=>item.id===application.jobId);for(const step of application.processSteps||[])if(step.date&&!['완료','취소'].includes(step.status))result.push({key:`process:${application.id}:${step.id}`,summary:`[Folio] ${job?.company||'지원'} ${step.name}`,description:job?.role||'',...calendarTime(step.date)});}
-  return result;
+  const result=[],invalid=[],trackedJobIds=new Set((workspace.applications||[]).map(item=>item.jobId));
+  const add=(key,summary,description,value)=>{const time=calendarTime(value);if(time)result.push({key,summary,description,...time});else invalid.push(key);};
+  for(const job of workspace.jobs||[])if(job.deadline&&trackedJobIds.has(job.id))add(`job:${job.id}`,`[Folio] ${job.company} 지원 마감`,[job.role,job.url].filter(Boolean).join('\n'),job.deadline);
+  for(const item of workspace.interviews||[])if(item.date)add(`interview:${item.id}`,`[Folio] ${item.company} ${item.type}`,[item.role,item.memo].filter(Boolean).join('\n'),item.date);
+  for(const application of workspace.applications||[]){const job=(workspace.jobs||[]).find(item=>item.id===application.jobId);for(const step of application.processSteps||[])if(step.date&&!['완료','취소'].includes(step.status))add(`process:${application.id}:${step.id}`,`[Folio] ${job?.company||'지원'} ${step.name}`,job?.role||'',step.date);}
+  return {events:result,invalid};
+}
+
+async function googleCalendarFailure(response){
+  const body=await response.json().catch(()=>null);return body?.error?.errors?.[0]?.reason||body?.error?.status||String(response.status);
 }
 
 async function syncGoogleCalendar(user){
-  const token=await calendarAccessToken(user),connection=user.googleCalendar,eventIds=connection.eventIds||{},events=folioCalendarEvents(user.workspace),active=new Set(events.map(item=>item.key));let created=0,updated=0,removed=0;
+  const token=await calendarAccessToken(user),connection=user.googleCalendar,eventIds=connection.eventIds||{},built=folioCalendarEvents(user.workspace),events=built.events,active=new Set(events.map(item=>item.key));let created=0,updated=0,removed=0,failed=0;const failures=[];
   const headers={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
-  await Promise.all(Object.entries(eventIds).filter(([key])=>!active.has(key)).map(async([key,eventId])=>{const response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'DELETE',headers});if(response.ok||[404,410].includes(response.status)){delete eventIds[key];removed++;return;}const error=new Error(`CALENDAR_DELETE_${response.status}`);error.status=response.status;throw error;}));
+  await Promise.all(Object.entries(eventIds).filter(([key])=>!active.has(key)).map(async([key,eventId])=>{try{const response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'DELETE',headers});if(response.ok||[404,410].includes(response.status)){delete eventIds[key];removed++;return;}failed++;failures.push(`${key}:delete:${await googleCalendarFailure(response)}`);}catch(error){failed++;failures.push(`${key}:delete:network`);}}));
   await Promise.all(events.map(async({key,...source})=>{const event={...source,extendedProperties:{private:{folioKey:key}}};let eventId=eventIds[key],response;
-    if(eventId)response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'PATCH',headers,body:JSON.stringify(event)});
-    if(!eventId||[404,410].includes(response.status)){response=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{method:'POST',headers,body:JSON.stringify(event)});if(response.ok){eventIds[key]=(await response.json()).id;created++;}}
-    else if(response.ok)updated++;
-    if(!response.ok){const error=new Error(`CALENDAR_EVENT_${response.status}`);error.status=response.status;throw error;}
+    try{if(eventId)response=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,{method:'PATCH',headers,body:JSON.stringify(event)});
+      if(!eventId||[404,410].includes(response.status)){response=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{method:'POST',headers,body:JSON.stringify(event)});if(response.ok){eventIds[key]=(await response.json()).id;created++;}}
+      else if(response.ok)updated++;
+      if(!response.ok){failed++;failures.push(`${key}:${await googleCalendarFailure(response)}`);}
+    }catch(error){failed++;failures.push(`${key}:network`);}
   }));
-  connection.eventIds=eventIds;connection.lastSyncedAt=now();saveDb();return {created,updated,removed,total:events.length,lastSyncedAt:connection.lastSyncedAt};
+  connection.eventIds=eventIds;connection.lastSyncedAt=now();saveDb();return {created,updated,removed,failed,skipped:built.invalid.length,total:events.length,lastSyncedAt:connection.lastSyncedAt,failures:failures.slice(0,10)};
 }
 
 function extractResponseText(result) {

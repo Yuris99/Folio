@@ -51,7 +51,7 @@ export const api = {
     const returnTo = encodeURIComponent(window.location.href.split('#')[0]);
     window.location.assign(`${apiBaseUrl}/calendar/connect?returnTo=${returnTo}`);
   },
-  syncGoogleCalendar: () => request<{ created: number; updated: number; removed: number; total: number; lastSyncedAt: string }>('/calendar/sync', { method: 'POST' }, 60_000),
+  syncGoogleCalendar: () => request<{ created: number; updated: number; removed: number; failed: number; skipped: number; total: number; lastSyncedAt: string; failures: string[] }>('/calendar/sync', { method: 'POST' }, 60_000),
   disconnectGoogleCalendar: () => request<void>('/calendar/disconnect', { method: 'POST' }),
   exportUrl: () => `${apiBaseUrl}/account/export`,
   importCareerData: (payload: unknown) => request<{ workspace: Workspace; imported: { profileFields: number; profileItems: number; facts: number; skippedDuplicates: number } }>('/career-import', json('POST', payload)),
