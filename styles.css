@@ -152,6 +152,35 @@ button { color: inherit; }
 .company-logo { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 6px; background: #352f32; color: #dda0a5; font-weight: 700; }
 .posting-card { cursor: pointer; }
 .deadline { padding: 4px 7px; border-radius: 14px; background: var(--warning-soft); color: var(--warning); font-size: 10px; }
+.job-summary-filters { display: flex; gap: 7px; margin-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+.job-summary-filters::-webkit-scrollbar { display: none; }
+.job-summary-filters button { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--muted); cursor: pointer; }
+.job-summary-filters button b { color: var(--text); font-size: 13px; }
+.job-summary-filters button span { font-size: 11px; white-space: nowrap; }
+.job-summary-filters button.active { border-color: var(--accent); background: var(--accent-soft); color: #e3afb3; }
+.job-vault-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, 190px) minmax(140px, 190px); gap: 8px; margin-bottom: 16px; }
+.job-vault-toolbar > * { min-width: 0; margin: 0; }
+.job-vault-toolbar select, .job-vault-toolbar input { width: 100%; min-width: 0; min-height: 42px; margin: 0; }
+.job-vault-card { display: flex; flex-direction: column; min-width: 0; }
+.job-card-badges { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; }
+.job-status { padding: 4px 8px; border-radius: 14px; background: #2c3540; color: #bac5d2; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.job-status.status-전형-진행 { background: #2b344d; color: #b8c3ff; }
+.job-status.status-지원-준비, .job-status.status-관심 { background: var(--warning-soft); color: var(--warning); }
+.job-status.status-합격 { background: #223c31; color: #8dd4aa; }
+.job-status.status-불합격, .job-status.status-포기, .job-status.status-마감 { background: #40292d; color: #e49aa2; }
+.job-card-state { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 1px; margin: 14px 0 12px; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--line); }
+.job-card-state > span { display: flex; align-items: flex-start; flex-direction: column; min-width: 0; padding: 10px; background: #1d252f; }
+.job-card-state small, .job-card-state b, .job-card-state em { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-card-state small { color: var(--muted); font-size: 9px; }
+.job-card-state b { margin-top: 4px; font-size: 12px; }
+.job-card-state em { margin-top: 3px; color: var(--faint); font-size: 9px; font-style: normal; }
+.job-result-note { margin: 0 0 12px; padding: 9px 10px; border-radius: 5px; background: #35272a; color: #d9a0a6 !important; overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .job-vault-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .job-vault-toolbar .application-search { grid-column: 1 / -1; }
+  .job-card-state { grid-template-columns: 1fr 1fr; }
+  .job-card-state > span:nth-child(3) { grid-column: 1 / -1; }
+}
 .detail-hero { margin: 18px 0 16px; padding: 25px; border: 1px solid #70434a; border-radius: 7px; background: #513238; }
 .detail-hero h2 { margin: 0; font-size: 27px; }
 .detail-hero p { color: #ddc7ca; }
