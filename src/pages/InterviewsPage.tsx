@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { EmptyState, PageHead } from '../components/Common';
 import { InterviewModal } from '../components/InterviewModal';
 import type { Mutation } from '../hooks/useFolio';
 import type { Interview, View, Workspace } from '../types';
-import { dateLabel, daysUntil } from '../utils';
+import { scheduleWorkspace, dateLabel, daysUntil } from '../utils';
 
-export function InterviewsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+export function InterviewsPage({ workspace: fullWorkspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+  const workspace = useMemo(() => scheduleWorkspace(fullWorkspace), [fullWorkspace]);
   const [modal, setModal] = useState<{ open: boolean; item?: Interview }>({ open: false });
   async function remove(id: string) {
     if (!window.confirm('이 면접 일정을 삭제할까요?')) return;

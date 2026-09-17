@@ -106,6 +106,14 @@ async function json(path, options={}, cookie='') {
     assert.equal(completedApplication.processSteps[0].status,'완료');
     assert.equal(completedApplication.processSteps[1].status,'예정');
 
+    const rejected=await json('/api/v1/applications/'+applicationId,{method:'PATCH',body:JSON.stringify({status:'불합격',rejectionReason:'직무 경험 부족 — 다음 지원 전 보완',memo:'기존 메모 유지'})},cookie);
+    assert.equal(rejected.data.data.rejectionReason,'직무 경험 부족 — 다음 지원 전 보완');
+    const rejectionReload=(await json('/api/v1/bootstrap',{},cookie)).data.data.applications.find(item=>item.id===applicationId);
+    assert.equal(rejectionReload.status,'불합격');
+    assert.equal(rejectionReload.memo,'기존 메모 유지');
+    assert.equal(rejectionReload.rejectionReason,rejected.data.data.rejectionReason);
+    await json('/api/v1/applications/'+applicationId,{method:'PATCH',body:JSON.stringify({status:completedApplication.status})},cookie);
+
     const task=await json('/api/v1/tasks',{method:'POST',body:JSON.stringify({text:'테스트 할 일',date:'오늘',done:false})},cookie);
     const taskUpdated=await json(`/api/v1/tasks/${task.data.data.id}`,{method:'PATCH',body:JSON.stringify({done:true})},cookie);
     assert.equal(taskUpdated.data.data.done,true);
@@ -174,6 +182,7 @@ async function json(path, options={}, cookie='') {
     const restored=await json(restoreUrl,{method:'POST'},cookie);
     assert.equal(restored.response.status,200);
     assert.equal(restored.data.data.id,applicationId);
+    assert.equal(restored.data.data.rejectionReason,'직무 경험 부족 — 다음 지원 전 보완');
     assert.deepEqual(restored.data.data.processSteps,completedApplication.processSteps);
     const restoredWorkspace=(await json('/api/v1/bootstrap',{},cookie)).data.data;
     assert.ok(restoredWorkspace.applications.some(item=>item.id===applicationId));

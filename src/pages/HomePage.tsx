@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { DeadlineCountdown } from '../components/DeadlineCountdown';
 import { JobCreateModal } from '../components/JobCreateModal';
@@ -6,9 +6,10 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
-import { dateLabel, daysUntil, normalizedApplicationStatus } from '../utils';
+import { scheduleWorkspace, dateLabel, daysUntil, normalizedApplicationStatus } from '../utils';
 
-export function HomePage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+export function HomePage({ workspace: fullWorkspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+  const workspace = useMemo(() => scheduleWorkspace(fullWorkspace), [fullWorkspace]);
   const [taskOpen, setTaskOpen] = useState(false);
   const [jobOpen, setJobOpen] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState('');

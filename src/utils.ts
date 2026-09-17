@@ -60,3 +60,24 @@ export function dateText(value: string): string {
   const date = new Date(`${value}T00:00:00`);
   return Number.isNaN(date.getTime()) ? value : `${value} (${new Intl.DateTimeFormat('ko-KR', { weekday: 'short' }).format(date)})`;
 }
+
+export function isRejected(status: string): boolean {
+  return status === "불합격" || status === "탈락";
+}
+
+export function matchesApplicationTab(status: string, tab: string): boolean {
+  if (isRejected(status)) return tab === "불합격";
+  return tab === "전체" || normalizedApplicationStatus(status) === tab;
+}
+
+export function scheduleWorkspace(workspace: Workspace): Workspace {
+  const rejectedIds = new Set([...workspace.applications, ...workspace.archivedApplications].filter((item) => isRejected(item.status)).map((item) => item.jobId));
+  const rejectedJobs = workspace.jobs.filter((job) => rejectedIds.has(job.id));
+  const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  return {
+    ...workspace,
+    applications: workspace.applications.filter((item) => !isRejected(item.status) && !rejectedIds.has(item.jobId)),
+    jobs: workspace.jobs.filter((job) => !rejectedIds.has(job.id)),
+    interviews: workspace.interviews.filter((item) => !rejectedJobs.some((job) => normalize(job.company) === normalize(item.company) && normalize(job.role) === normalize(item.role)))
+  };
+}

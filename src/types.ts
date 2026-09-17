@@ -200,6 +200,7 @@ export interface Application {
   nextDate?: string;
   processSteps?: ApplicationProcessStep[];
   memo?: string;
+  rejectionReason?: string;
   considering?: boolean;
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
@@ -343,5 +344,6 @@ export interface ApplicationPayload {
   url: string;
   notionUrl?: string;
   memo: string;
+  rejectionReason?: string;
   jobId?: string;
 }

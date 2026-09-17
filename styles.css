@@ -2035,3 +2035,12 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .date-with-weekday { display: grid; gap: 4px; }
 .date-with-weekday small { color: var(--muted); }
 .app-page-link + .app-page-link { margin-left: 6px; }
+
+/* Keep rejected applications separate and visually quieter. */
+.view-applications .application-summary { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(58px, .72fr); align-items: center; }
+.view-applications .application-summary .rejected-tab { padding: 6px 3px; font-size: 10px; color: #e3a3a3; background: rgba(183, 65, 65, .12); border-color: rgba(183, 65, 65, .18); }
+.view-applications .application-summary .rejected-tab b { font-size: 15px; color: #e3a3a3; }
+.view-applications .application-summary .rejected-tab.active { background: rgba(183, 65, 65, .23); border-color: #ad6060; }
+.app-rejection-reason { grid-column: span 2; min-width: 0; }
+.app-rejection-reason small { color: var(--muted); }
+.app-rejection-reason p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }

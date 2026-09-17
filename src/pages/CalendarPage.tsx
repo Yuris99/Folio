@@ -5,12 +5,13 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
-import { dateLabel, daysUntil } from '../utils';
+import { scheduleWorkspace, dateLabel, daysUntil } from '../utils';
 
 type CalendarEvent = { date: string; title: string; detail: string; type: 'deadline' | 'interview' | 'process'; jobId: string };
 const eventLabels = { deadline: '공고 마감', interview: '면접', process: '전형' } as const;
 
-export function CalendarPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+export function CalendarPage({ workspace: fullWorkspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
+  const workspace = useMemo(() => scheduleWorkspace(fullWorkspace), [fullWorkspace]);
   const [cursor, setCursor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; lastSyncedAt: string } | null>(null);
   const [syncing, setSyncing] = useState(false);
