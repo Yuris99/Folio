@@ -1855,7 +1855,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   .view-applications .page-head { margin-bottom: 14px; }
   .view-applications .page-head > div > p:not(.eyebrow) { display: none; }
   .view-applications .view-actions { gap: 8px; margin-bottom: 12px; }
-  .view-applications .application-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 10px; }
+  .view-applications .application-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 10px; }
   .view-applications .application-summary span,
   .view-applications .application-summary button { padding: 7px 3px; font-size: 10px; }
   .mobile-application-filter-toggle { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 0 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--text); font-weight: 700; }

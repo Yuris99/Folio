@@ -298,6 +298,7 @@ export interface Workspace {
   stories: CareerStory[];
   jobs: Job[];
   applications: Application[];
+  archivedApplications: Application[];
   tasks: TaskItem[];
   docs: SupportDocument[];
   interviews: Interview[];

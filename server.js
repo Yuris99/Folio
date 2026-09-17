@@ -73,7 +73,7 @@ function defaultWorkspace(name = '사용자', email = '') {
       activities:[],
       militaryServices:[]
     },
-    stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [], consultations: [], vaultNotes: [],
+    stories: [], jobs: [], applications: [], archivedApplications: [], tasks: [], docs: [], interviews: [], attachments: [], consultations: [], vaultNotes: [],
     careerVaultVersion:1, careerSources:[], careerFacts:[]
   };
 }
@@ -99,7 +99,7 @@ function dedupeJobs(workspace){
   const jobs=Array.isArray(workspace.jobs)?workspace.jobs:[],seen=new Map(),remap=new Map(),unique=[];let changed=false;
   const keyOf=job=>`${String(job.company||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()}|${String(job.role||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()}`;
   for(const job of jobs){const key=keyOf(job),existing=seen.get(key);if(!key.replace('|','')||!existing){seen.set(key,job);unique.push(job);continue;}changed=true;remap.set(job.id,existing.id);for(const field of ['location','deadline','url','description','coverImage'])if(!existing[field]&&job[field])existing[field]=job[field];existing.skills=[...new Set([...(existing.skills||[]),...(job.skills||[])])];existing.pages=[...(existing.pages||[]),...(job.pages||[])];existing.attachmentIds=[...new Set([...(existing.attachmentIds||[]),...(job.attachmentIds||[])])];}
-  if(changed){workspace.jobs=unique;for(const application of workspace.applications||[])if(remap.has(application.jobId))application.jobId=remap.get(application.jobId);}
+  if(changed){workspace.jobs=unique;for(const application of [...(workspace.applications||[]),...(workspace.archivedApplications||[])])if(remap.has(application.jobId))application.jobId=remap.get(application.jobId);}
   return changed;
 }
 
@@ -353,6 +353,7 @@ async function api(req,res,url) {
   if(method==='GET'&&route==='/api/v1/auth/session'){const user=requireUser(req,res);if(user)return ok(res,publicUser(user));return;}
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
+  w.archivedApplications=Array.isArray(w.archivedApplications)?w.archivedApplications:[];
   w.vaultNotes=Array.isArray(w.vaultNotes)?w.vaultNotes:[];
   if(!Array.isArray(w.consultations))w.consultations=[];
   const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
@@ -379,7 +380,7 @@ async function api(req,res,url) {
     const ensureJob=(company,role)=>{let job=findJob(company,role);if(!job&&clean(company)){job={id:uid(),company:clean(company,200),role:clean(role,200),deadline:'',url:'',description:'',skills:[],createdAt:now()};w.jobs.unshift(job);total++;}return job;};
     if(payload.kind==='applications'){
       for(const raw of payload.data.jobs||[]){if(!raw||typeof raw!=='object'||!clean(raw.company))continue;if(findJob(raw.company,raw.role)){skippedDuplicates++;continue;}w.jobs.unshift({id:uid(),company:clean(raw.company,200),role:clean(raw.role,200),deadline:clean(raw.deadline,50),url:clean(raw.url,2000),description:clean(raw.description),skills:(Array.isArray(raw.skills)?raw.skills:[]).map(x=>clean(x,100)).filter(Boolean).slice(0,50),createdAt:now()});total++;}
-      const statuses=new Set(['관심','지원 준비','전형 진행','결과 대기']);
+      const statuses=new Set(['관심','지원 준비','전형 진행','결과 대기','불합격']);
       for(const raw of payload.data.applications||[]){if(!raw||typeof raw!=='object')continue;const job=ensureJob(raw.company,raw.role);if(!job)continue;if(w.applications.some(item=>item.jobId===job.id)){skippedDuplicates++;continue;}w.applications.unshift({id:uid(),jobId:job.id,status:statuses.has(raw.status)?raw.status:'관심',next:clean(raw.next,500),memo:clean(raw.memo,5000),createdAt:now(),updatedAt:now()});total++;}
     }
     if(payload.kind==='company-analysis')for(const raw of payload.data.analyses||[]){if(!raw||typeof raw!=='object'||!clean(raw.company))continue;const job=ensureJob(raw.company,raw.role);if(!job)continue;const list=(value,max=100)=>Array.isArray(value)?value.map(x=>clean(x,1000)).filter(Boolean).slice(0,max):[];job.companyAnalysis={overview:clean(raw.overview,20000),products:list(raw.products),industry:clean(raw.industry,500),culture:list(raw.culture),recentTopics:list(raw.recentTopics),roleResponsibilities:list(raw.roleResponsibilities),requirements:list(raw.requirements),preferred:list(raw.preferred),fitEvidence:list(raw.fitEvidence),gaps:list(raw.gaps),interviewTopics:list(raw.interviewTopics),sources:(Array.isArray(raw.sources)?raw.sources:[]).map(source=>({title:clean(source?.title,500),url:clean(source?.url,2000)})).filter(source=>source.title||source.url).slice(0,100),analyzedAt:now()};job.skills=[...new Set([...(job.skills||[]),...job.companyAnalysis.requirements,...job.companyAnalysis.preferred])].slice(0,100);total++;}
@@ -505,9 +506,17 @@ async function api(req,res,url) {
   }
   if(fileMatch&&method==='PATCH'){const item=(w.attachments||[]).find(x=>x.id===fileMatch[1]);if(!item)return fail(res,404,'파일을 찾을 수 없습니다.','NOT_FOUND');const name=String(payload.name||'').trim().slice(0,200);if(!name)return fail(res,400,'파일 이름을 입력해 주세요.','INVALID_FILE_NAME');item.name=name;item.updatedAt=now();saveDb();return ok(res,item);}
   if(fileMatch&&method==='DELETE'){const index=(w.attachments||[]).findIndex(x=>x.id===fileMatch[1]);if(index<0)return fail(res,404,'파일을 찾을 수 없습니다.','NOT_FOUND');const [item]=w.attachments.splice(index,1);const filePath=path.join(DATA_DIR,'uploads',user.id,item.storageName);if(fs.existsSync(filePath))fs.unlinkSync(filePath);saveDb();res.writeHead(204);return res.end();}
+  const restoreMatch=route.match(/^\/api\/v1\/applications\/([^/]+)\/restore$/);
+  if(restoreMatch&&method==='POST'){
+    const index=w.archivedApplications.findIndex(x=>x.id===restoreMatch[1]);
+    if(index<0)return fail(res,404,'보관된 지원 기록을 찾을 수 없습니다.','NOT_FOUND');
+    const item=w.archivedApplications[index];
+    if(w.applications.some(x=>x.jobId===item.jobId))return fail(res,409,'이미 지원 관리에 등록된 공고입니다.','CONFLICT');
+    w.archivedApplications.splice(index,1);delete item.archivedAt;item.updatedAt=now();w.applications.unshift(item);saveDb();return ok(res,item);
+  }
   let match=route.match(/^\/api\/v1\/applications\/([^/]+)$/);
   if(match&&method==='PATCH'){const item=w.applications.find(x=>x.id===match[1]);if(!item)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');for(const [key,min,max] of [['applicationFitScore',0,25],['compensationScore',0,15],['companyScore',0,5],['locationScore',0,10],['processScore',0,10],['priorityAdjustment',-10,10]])if(payload[key]!==undefined)payload[key]=Math.min(max,Math.max(min,Number(payload[key])||0));if(payload.careerGrade!==undefined&&!['S','A','B','C','D'].includes(payload.careerGrade))payload.careerGrade=undefined;Object.assign(item,payload,{updatedAt:now()});const job=w.jobs.find(j=>j.id===item.jobId);if(job){for(const key of ['company','role','location','deadline','alwaysOpen','url','notionUrl'])if(payload[key]!==undefined)job[key]=payload[key];if(job.alwaysOpen)job.deadline='';}saveDb();return ok(res,item);}
-  if(match&&method==='DELETE'){const before=w.applications.length;w.applications=w.applications.filter(x=>x.id!==match[1]);if(before===w.applications.length)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');saveDb();res.writeHead(204);return res.end();}
+  if(match&&method==='DELETE'){const index=w.applications.findIndex(x=>x.id===match[1]);if(index<0)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');const [item]=w.applications.splice(index,1);w.archivedApplications.unshift({...item,archivedAt:now()});saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/documents'){const item={...payload,id:uid(),createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
   match=route.match(/^\/api\/v1\/documents\/([^/]+)$/);
   if(match&&method==='PUT'){const item=w.docs.find(x=>x.id===match[1]);if(!item)return fail(res,404,'문서를 찾을 수 없습니다.','NOT_FOUND');Object.assign(item,payload,{updatedAt:now()});saveDb();return ok(res,item);}

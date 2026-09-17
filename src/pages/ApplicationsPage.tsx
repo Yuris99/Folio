@@ -124,14 +124,13 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   }
 
   async function remove(id: string) {
-    if (!window.confirm('이 지원 기록을 삭제할까요?')) return;
-    await mutate('지원 삭제', () => api.deleteApplication(id));
+    await mutate('공고보관함으로 이동', () => api.deleteApplication(id));
     await api.syncGoogleCalendar().catch(() => undefined);
     setModalOpen(false);
   }
 
   return <>
-    <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
+    <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." actions={<button className="button" onClick={() => navigate('jobs')}>공고보관함 →</button>} />
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
     <div className="application-summary">{applicationStatuses.map((status) => <button type="button" className={statusFilter === status ? 'active' : ''} aria-pressed={statusFilter === status} key={status} onClick={() => changeStatusFilter(statusFilter === status ? '전체' : status)}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</button>)}</div>
     <button type="button" className={`mobile-application-filter-toggle ${mobileFiltersOpen ? 'active' : ''}`} onClick={() => setMobileFiltersOpen((open) => !open)}><span>검색·필터</span><small>{mobileFiltersOpen ? '접기' : '열기'}</small></button>
@@ -203,7 +202,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       {!processSteps.length && <button type="button" className="process-empty" onClick={addProcessStep}>+ 첫 프로세스 단계 추가</button>}
       <label>공고 URL<input name="url" type="url" defaultValue={editingJob?.url || ''} placeholder="https://..." /></label><label>노션 URL<input name="notionUrl" type="url" defaultValue={editingJob?.notionUrl || ''} placeholder="https://www.notion.so/..." /></label>
       <label>메모<textarea name="memo" rows={4} defaultValue={editing?.memo || ''} placeholder="지원 과정에서 기억할 내용을 입력하세요." /></label>
-      <div className="modal-actions application-modal-actions">{editing && <button type="button" className="button danger" onClick={() => void remove(editing.id)}>지원 삭제</button>}<span /><button type="button" className="button ghost" onClick={() => setModalOpen(false)}>취소</button><button className="button primary">저장</button></div>
+      <div className="modal-actions application-modal-actions">{editing && <button type="button" className="button danger" onClick={() => void remove(editing.id)}>보관함으로 이동</button>}<span /><button type="button" className="button ghost" onClick={() => setModalOpen(false)}>취소</button><button className="button primary">저장</button></div>
     </form></Modal>}
   </>;
 }

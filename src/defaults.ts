@@ -8,7 +8,7 @@ export const emptyProfile: Profile = {
 
 export const emptyWorkspace: Workspace = {
   profile: emptyProfile,
-  stories: [], jobs: [], applications: [], tasks: [], docs: [], interviews: [], attachments: [],
+  stories: [], jobs: [], applications: [], archivedApplications: [], tasks: [], docs: [], interviews: [], attachments: [],
   careerVaultVersion: 1, careerSources: [], careerFacts: []
   ,consultations: [], vaultNotes: []
 };
@@ -49,6 +49,7 @@ export function normalizeWorkspace(value: Partial<Workspace> | undefined): Works
     stories: array(value?.stories),
     jobs: array(value?.jobs),
     applications: array(value?.applications),
+    archivedApplications: array(value?.archivedApplications),
     tasks: array(value?.tasks),
     docs: array(value?.docs),
     interviews: array(value?.interviews),

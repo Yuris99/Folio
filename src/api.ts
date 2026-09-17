@@ -77,6 +77,7 @@ export const api = {
   analyzeJob: (payload: Pick<Job, 'company' | 'role' | 'deadline' | 'url' | 'description'>) => request<{ skills: string[] }>('/ai/jobs/analyze', json('POST', payload)),
   createApplication: (payload: ApplicationPayload) => request<Application>('/applications', json('POST', payload)),
   updateApplication: (id: string, payload: Partial<ApplicationPayload>) => request<Application>(`/applications/${id}`, json('PATCH', payload)),
+  restoreApplication: (id: string) => request<Application>(`/applications/${id}/restore`, { method: 'POST' }),
   deleteApplication: (id: string) => request<void>(`/applications/${id}`, { method: 'DELETE' }),
   createTask: (payload: Omit<TaskItem, 'id'>) => request<TaskItem>('/tasks', json('POST', payload)),
   updateTask: (id: string, payload: Partial<TaskItem>) => request<TaskItem>(`/tasks/${id}`, json('PATCH', payload)),

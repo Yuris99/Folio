@@ -1,10 +1,14 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
-import { daysUntil } from './src/utils.ts';
+import { applicationStatuses, normalizedApplicationStatus, statusClass, daysUntil } from './src/utils.ts';
 
 function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
 }
 
+assert(applicationStatuses.includes('불합격'), 'rejected status is selectable');
+assert(normalizedApplicationStatus('불합격') === '불합격', 'rejected status is preserved');
+assert(normalizedApplicationStatus('탈락') === '불합격', 'legacy rejected status is preserved');
+assert(statusClass('불합격') === 'closed', 'rejected status uses closed styling');
 assert(calculateDeadlineScore('2026-09-02', new Date('2026-09-02T09:00:00')) === 50, 'D-day score');
 assert(calculateDeadlineScore('2026-09-03', new Date('2026-09-02T09:00:00')) === 40, 'D-1 score');
 assert(calculateDeadlineScore('2026-09-05', new Date('2026-09-02T09:00:00')) === 15, 'D-3 score');
