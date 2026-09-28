@@ -1,4 +1,4 @@
-export type View = 'home' | 'applications' | 'documents' | 'vault' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'interviews';
+export type View = 'home' | 'applications' | 'documents' | 'vault' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'interviews' | 'stats';
 
 export interface User {
   id: string;
