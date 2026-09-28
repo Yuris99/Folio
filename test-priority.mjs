@@ -63,3 +63,26 @@ const synced = await context.syncGoogleCalendar(user);
 assert(synced.removed === 3 && synced.total === 0, "previously synced rejected events removed");
 assert(requests.length === 3 && requests.every(item=>item.method === "DELETE"), "no rejected events recreated");
 console.log("PASS rejection filtering and Google Calendar cleanup");
+
+const { applicationStats, documentOutcome } = await import('./src/utils.ts');
+const statsFixture = [
+  { id: 's1', jobId: 'j1', status: '관심', next: '', documentResult: '합격' },
+  { id: 's2', jobId: 'j2', status: '전형 진행', next: '', documentResult: '합격' },
+  { id: 's3', jobId: 'j3', status: '불합격', next: '', documentResult: '불합격' },
+  { id: 's4', jobId: 'j4', status: '결과 대기', next: '' },
+  { id: 's5', jobId: 'j5', status: '결과 대기', next: '', documentResult: '합격' },
+  { id: 's6', jobId: 'j6', status: '불합격', next: '', documentResult: '합격' },
+  { id: 's7', jobId: 'j7', status: '불합격', next: '' }
+];
+assert(documentOutcome(statsFixture[0]) === 'not-submitted', 'interested application is not submitted');
+assert(documentOutcome(statsFixture[1]) === 'passed', 'manual document pass');
+assert(documentOutcome(statsFixture[2]) === 'failed', 'manual document fail');
+assert(documentOutcome(statsFixture[3]) === 'pending', 'no result recorded yet is pending');
+assert(documentOutcome(statsFixture[5]) === 'passed', 'rejection after interview still passed documents');
+assert(documentOutcome(statsFixture[6]) === 'unrecorded', 'rejection without document result is excluded');
+const summary = applicationStats(statsFixture);
+assert(summary.submitted === 6 && summary.passed === 3 && summary.failed === 1 && summary.pending === 1, 'document stats counts');
+assert(summary.passRate === 75, 'document pass rate excludes pending and unrecorded');
+assert(summary.milestone === 0 && summary.nextMilestone === 10 && summary.milestoneProgress === 60, 'milestone progress');
+assert(applicationStats(Array.from({ length: 23 }, (_, index) => ({ id: `m${index}`, jobId: 'j', status: '결과 대기', next: '' }))).milestone === 20, '10-application milestones');
+console.log('PASS document pass rate and milestones');

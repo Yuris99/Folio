@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
+import { Celebrations } from './components/Celebration';
 import { Layout } from './components/Layout';
 import { useFolio } from './hooks/useFolio';
 import { ApplicationsPage } from './pages/ApplicationsPage';
@@ -56,5 +57,5 @@ export default function App() {
     interviews: <InterviewsPage workspace={folio.workspace} navigate={navigate} mutate={folio.mutate} />
   }[view];
 
-  return <Layout view={view} navigate={navigate} user={folio.user} workspace={folio.workspace} syncState={folio.syncState} error={folio.error} onLogout={() => void folio.logout()}>{page}</Layout>;
+  return <Layout view={view} navigate={navigate} user={folio.user} workspace={folio.workspace} syncState={folio.syncState} error={folio.error} onLogout={() => void folio.logout()}>{page}<Celebrations workspace={folio.workspace} userId={folio.user.id} /></Layout>;
 }

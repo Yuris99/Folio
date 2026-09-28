@@ -7,9 +7,14 @@ import { DateTimeInput } from '../components/DateTimeInput';
 import { DeadlineCountdown } from '../components/DeadlineCountdown';
 import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
-import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, View, Workspace } from '../types';
+import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, DocumentResult, View, Workspace } from '../types';
 import { CAREER_GRADES, JOB_PREFERENCE_CONFIG, getPriorityBreakdown, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
-import { isRejected, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+import { isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+
+const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
+const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
+const documentResultClass = (result?: DocumentResult) => result === '합격' ? 'pass' : result === '불합격' ? 'fail' : 'pending';
+const processStepClass = (status: ApplicationProcessStep['status']) => ({ '예정': 'planned', '진행 중': 'active', '완료': 'done', '취소': 'cancelled' })[status];
 
 export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -21,6 +26,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [rejectId, setRejectId] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [rejectSaving, setRejectSaving] = useState(false);
+  const [rejectedAtDocuments, setRejectedAtDocuments] = useState(true);
   const [calendarWarning, setCalendarWarning] = useState('');
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 30_000);
@@ -35,6 +41,8 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
   const [alwaysOpen, setAlwaysOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [expandedStepId, setExpandedStepId] = useState('');
+  const [documentResult, setDocumentResult] = useState<DocumentResult>('');
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   const editingJob = editing ? getJob(workspace, editing) : undefined;
   const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
@@ -70,15 +78,25 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setAlwaysOpen(Boolean(application && getJob(workspace, application).alwaysOpen));
     setEditStatus(normalizedApplicationStatus(application?.status || '관심'));
     setEditingId(id || null);
+    setExpandedStepId('');
+    setDocumentResult(application?.documentResult || '');
     setModalOpen(true);
   }
 
-  function addProcessStep() {
-    setProcessSteps((steps) => [...steps, { id: crypto.randomUUID(), name: '', date: todayDateTimeInputValue(), status: '예정' }]);
+  function addProcessStep(name = '') {
+    const id = crypto.randomUUID();
+    setProcessSteps((steps) => [...steps, { id, name, date: '', dateTbd: true, status: '예정' }]);
+    setExpandedStepId(id);
   }
 
   function updateProcessStep(id: string, patch: Partial<ApplicationProcessStep>) {
     setProcessSteps((steps) => steps.map((step) => step.id === id ? { ...step, ...patch } : step));
+  }
+
+  function setStepResult(step: ApplicationProcessStep, result: DocumentResult) {
+    // 결과가 나온 단계는 완료로 넘기고, 서류 단계 결과는 서합율용 서류 결과에도 반영합니다.
+    updateProcessStep(step.id, result ? { result, status: '완료' } : { result });
+    if (step.name.includes('서류')) setDocumentResult(result);
   }
 
   function moveProcessStep(index: number, direction: -1 | 1) {
@@ -112,7 +130,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       applicationFitScore: Number(data.get('applicationFitScore') || 0), compensationScore: Number(data.get('compensationScore') || 0), companyScore: Number(data.get('companyScore') || 0), locationScore: Number(data.get('locationScore') || 0), processScore: Number(data.get('processScore') || 0),
       appliedAt: String(data.get('appliedAt')), deadline, alwaysOpen,
       nextProcess: nextStep?.name || '', nextDate: nextStep?.date || '', processSteps: savedSteps,
-      next: nextStep?.name || '', url: String(data.get('url')), notionUrl: String(data.get('notionUrl') || '').trim(), memo: String(data.get('memo')), rejectionReason: String(data.get('rejectionReason') ?? editing?.rejectionReason ?? '')
+      next: nextStep?.name || '', url: String(data.get('url')), notionUrl: String(data.get('notionUrl') || '').trim(), memo: String(data.get('memo')), documentResult: isSubmitted({ id: '', jobId: '', next: '', status: String(data.get('status')) }) ? documentResult : editing?.documentResult || '', rejectionReason: String(data.get('rejectionReason') ?? editing?.rejectionReason ?? '')
     };
     if (editing) await mutate('지원 수정', () => api.updateApplication(editing.id, payload));
     else await mutate('지원 추가', async () => {
@@ -122,6 +140,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
         nextProcess: payload.nextProcess,
         nextDate: payload.nextDate,
         processSteps: payload.processSteps,
+        documentResult: payload.documentResult,
         next: payload.nextProcess
       });
     });
@@ -139,8 +158,15 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     } catch { setCalendarWarning('지원 상태는 저장했지만 Google Calendar 동기화에 실패했습니다. 일정 화면에서 다시 동기화해 주세요.'); }
   }
 
+  function openRejection(id: string) {
+    const application = workspace.applications.find((item) => item.id === id);
+    setRejectId(id);
+    setRejectReason(application?.rejectionReason || '');
+    setRejectedAtDocuments(application?.documentResult !== '합격');
+  }
+
   async function changeApplicationStatus(id: string, status: string) {
-    if (isRejected(status)) { setRejectId(id); setRejectReason(workspace.applications.find((item) => item.id === id)?.rejectionReason || ''); return; }
+    if (isRejected(status)) { openRejection(id); return; }
     await mutate('지원 상태 변경', () => api.updateApplication(id, { status }));
     await syncCalendarAfterStatusChange();
   }
@@ -148,7 +174,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   async function saveRejection() {
     setRejectSaving(true);
     try {
-      await mutate('불합격 사유 저장', () => api.updateApplication(rejectId, { status: '불합격', rejectionReason: rejectReason.trim() }));
+      await mutate('불합격 사유 저장', () => api.updateApplication(rejectId, { status: '불합격', rejectionReason: rejectReason.trim(), documentResult: rejectedAtDocuments ? '불합격' : '합격' }));
       setRejectId('');
       await syncCalendarAfterStatusChange();
     } catch { /* The mutation error is shown by the layout; keep the memo open. */ }
@@ -164,7 +190,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   return <>
     <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." actions={<button className="button" onClick={() => navigate('jobs')}>공고보관함 →</button>} />
     {calendarWarning && <p className="calendar-sync-state error" role="status">{calendarWarning}</p>}
-    {rejectId && <Modal title="불합격 사유" kicker="APPLICATION RESULT" onClose={() => { if (!rejectSaving) setRejectId(''); }}><form onSubmit={(event) => { event.preventDefault(); void saveRejection(); }}><label>사유 메모 (선택)<textarea autoFocus rows={5} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="안내받은 사유나 다음 지원에 참고할 내용을 적어 주세요." /></label><p className="empty-note">불합격 탭에만 표시되며 관련 일정과 할 일은 숨겨집니다.</p><div className="modal-actions"><button type="button" className="button ghost" disabled={rejectSaving} onClick={() => setRejectId('')}>취소</button><button className="button primary" disabled={rejectSaving}>{rejectSaving ? '저장 중…' : '불합격으로 저장'}</button></div></form></Modal>}
+    {rejectId && <Modal title="불합격 사유" kicker="APPLICATION RESULT" onClose={() => { if (!rejectSaving) setRejectId(''); }}><form onSubmit={(event) => { event.preventDefault(); void saveRejection(); }}><label>사유 메모 (선택)<textarea autoFocus rows={5} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="안내받은 사유나 다음 지원에 참고할 내용을 적어 주세요." /></label><label className="inline-check"><input type="checkbox" checked={rejectedAtDocuments} onChange={(event) => setRejectedAtDocuments(event.target.checked)} /> 서류 단계에서 불합격 <small>해제하면 서류는 합격한 것으로 기록돼요.</small></label><p className="empty-note">불합격 탭에만 표시되며 관련 일정과 할 일은 숨겨집니다.</p><div className="modal-actions"><button type="button" className="button ghost" disabled={rejectSaving} onClick={() => setRejectId('')}>취소</button><button className="button primary" disabled={rejectSaving}>{rejectSaving ? '저장 중…' : '불합격으로 저장'}</button></div></form></Modal>}
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
     <div className="application-summary">{applicationStatuses.map((status) => <button type="button" className={`${statusFilter === status ? 'active' : ''} ${status === '불합격' ? 'rejected-tab' : ''}`} aria-pressed={statusFilter === status} key={status} onClick={() => changeStatusFilter(statusFilter === status ? '전체' : status)}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</button>)}</div>
     <button type="button" className={`mobile-application-filter-toggle ${mobileFiltersOpen ? 'active' : ''}`} onClick={() => setMobileFiltersOpen((open) => !open)}><span>검색·필터</span><small>{mobileFiltersOpen ? '접기' : '열기'}</small></button>
@@ -198,9 +224,9 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
         const scoreTitle = `직무선호도 ${application.careerGrade || '미입력'} ${breakdown.career}/30 · 지원적합성 ${breakdown.fit}/25 · 연봉/보상 ${breakdown.compensation}/15 · 지역 ${breakdown.location}/10 · 전형 ${breakdown.process}/10 · 회사 ${breakdown.company}/5 · 마감 ${breakdown.deadline}/50`;
         return <article className={`application-row application-row-clickable priority-card-${priorityClass(breakdown.final)} ${closed ? 'application-closed' : ''}`} key={application.id} role="button" tabIndex={0} onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, select, input, textarea, label')) setWorkspaceJobId(job.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setWorkspaceJobId(job.id); } }}>
           <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}{job.location ? ` · ${job.location}` : ''}</small>{job.url ? <a className="app-page-link" href={job.url} target="_blank" rel="noreferrer">공고 홈페이지 ↗</a> : <span className="app-page-link disabled">공고 링크 없음</span>}{job.notionUrl ? <a className="app-page-link" href={job.notionUrl} target="_blank" rel="noreferrer">노션 바로가기 ↗</a> : <span className="app-page-link disabled">노션 링크 미등록</span>}</div></div>
-          <div className="app-status-stack"><span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>{application.considering && <span className="considering-badge">고민 중</span>}<span className={`career-grade grade-${application.careerGrade || 'none'}`}>{application.careerGrade || '–'}</span><span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b> · {priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span></div>
-          {isRejected(application.status) ? <div className="app-rejection-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => { setRejectId(application.id); setRejectReason(application.rejectionReason || ''); }}>사유 메모 수정</button></div> : <><span className="app-next"><small>다음 프로세스</small><strong>{activeProcessStep?.name || application.nextProcess || application.next || '미정'}</strong>{activeProcessDateLabel && <em>{activeProcessDateLabel}</em>}</span>
-          {normalizedStatus === '전형 진행' ? <span className="app-date app-process-progress"><small>전형 진행률</small>{processStepsForProgress.length ? <><span><b>{completedSteps}</b> / {processStepsForProgress.length}단계</span><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span></> : <span>단계 미등록</span>}{processDays !== null && <em className="deadline-count">{processDays === 0 ? 'D-DAY' : processDays > 0 ? `D-${processDays}` : '일정 경과'}</em>}</span> : <span className={`app-date ${deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? 'deadline-urgent' : ''}`}><small>{deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? '마감 임박' : '접수 / 마감'}</small><span><i>접수</i>{dateLabel(application.appliedAt)}</span><span><i>마감</i>{job.alwaysOpen ? '상시' : job.deadline ? dateLabel(job.deadline) : '미정'}</span>{!job.alwaysOpen && deadlineDays !== null && <em className="deadline-count">{deadlineDays === 0 ? 'D-DAY' : deadlineDays > 0 ? `D-${deadlineDays}` : '마감'}</em>}<DeadlineCountdown deadline={job.deadline} compact /></span>}</>}
+          <div className="app-status-stack"><span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>{application.considering && <span className="considering-badge">고민 중</span>}{isSubmitted(application) && <select className={`document-result-chip doc-${documentResultClass(application.documentResult)}`} value={application.documentResult || ''} onChange={(event) => void mutate('서류 결과 기록', () => api.updateApplication(application.id, { documentResult: event.target.value as DocumentResult })).catch(() => undefined)} aria-label={`${job.company} 서류 결과`} title="서류 결과를 직접 기록하면 홈의 서류 합격률에 반영돼요."><option value="">서류 대기</option><option value="합격">서류 합격</option><option value="불합격">서류 탈락</option></select>}<span className={`career-grade grade-${application.careerGrade || 'none'}`}>{application.careerGrade || '–'}</span><span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b> · {priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span></div>
+          {isRejected(application.status) ? <div className="app-rejection-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 메모 수정</button></div> : <><span className="app-next"><small>다음 프로세스</small><strong>{activeProcessStep?.name || application.nextProcess || application.next || '미정'}</strong>{activeProcessDateLabel && <em>{activeProcessDateLabel}</em>}</span>
+          {normalizedStatus === '전형 진행' ? <span className="app-date app-process-progress"><small>전형 진행률</small>{processStepsForProgress.length ? <><span><b>{completedSteps}</b> / {processStepsForProgress.length}단계</span><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span>{processStepsForProgress.some((step) => step.result) && <span className="step-result-chain">{processStepsForProgress.filter((step) => step.result).map((step) => <i key={step.id} className={`doc-${documentResultClass(step.result)}`}>{step.name} {step.result === '합격' ? '✓' : '✕'}</i>)}</span>}</> : <span>단계 미등록</span>}{processDays !== null && <em className="deadline-count">{processDays === 0 ? 'D-DAY' : processDays > 0 ? `D-${processDays}` : '일정 경과'}</em>}</span> : <span className={`app-date ${deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? 'deadline-urgent' : ''}`}><small>{deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? '마감 임박' : '접수 / 마감'}</small><span><i>접수</i>{dateLabel(application.appliedAt)}</span><span><i>마감</i>{job.alwaysOpen ? '상시' : job.deadline ? dateLabel(job.deadline) : '미정'}</span>{!job.alwaysOpen && deadlineDays !== null && <em className="deadline-count">{deadlineDays === 0 ? 'D-DAY' : deadlineDays > 0 ? `D-${deadlineDays}` : '마감'}</em>}<DeadlineCountdown deadline={job.deadline} compact /></span>}</>}
           <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void changeApplicationStatus(application.id, event.target.value).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`pin-button ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}>★</button><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
         </article>;
       })}
@@ -213,6 +239,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <div className="form-grid two"><label>회사명<input required name="company" list="company-suggestions" defaultValue={editingJob?.company || ''} /></label><label>직무명<input required name="role" defaultValue={editingJob?.role || ''} /></label></div>
       <label>근무지역<input name="location" defaultValue={editingJob?.location || ''} placeholder="예: 서울 강남구 · 주 2회 재택" /></label>
       <label>현재 상태<select name="status" value={editStatus} onChange={(event) => setEditStatus(event.target.value)}>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+      {isSubmitted({ id: '', jobId: '', next: '', status: editStatus }) && <fieldset className="document-result-field"><legend>서류 결과 <small>발표가 나면 직접 기록하세요 · ‘서류’ 단계 결과와 연동돼요</small></legend><div>{([['', '대기'], ['합격', '합격'], ['불합격', '탈락']] as const).map(([value, label]) => <label key={value} className={`doc-${documentResultClass(value)}`}><input type="radio" name="documentResult" value={value} checked={documentResult === value} onChange={() => setDocumentResult(value)} /><span>{label}</span></label>)}</div></fieldset>}
       <label className="inline-check considering-check"><input type="checkbox" name="considering" defaultChecked={Boolean(editing?.considering)} /> 지원 여부 고민 중 <small>아직 지원할지 결정하지 않은 공고로 표시합니다.</small></label>
       <fieldset className="job-preference-field"><legend>직무선호도 <span className="preference-info" tabIndex={0}>ⓘ<span className="preference-guide overall" role="tooltip"><strong>직무선호도란?</strong><p>합격 가능성이나 회사 수준이 아니라 “내가 이 일을 얼마나 하고 싶은가”만 평가합니다.</p>{CAREER_GRADES.map((grade) => <span key={grade}><b>{grade}</b>{JOB_PREFERENCE_CONFIG[grade].label}</span>)}</span></span></legend><div className="preference-options"><label className="preference-option none"><input type="radio" name="careerGrade" value="" defaultChecked={!editing?.careerGrade} /><span>미입력</span></label>{CAREER_GRADES.map((grade) => { const config = JOB_PREFERENCE_CONFIG[grade]; return <label className={`preference-option grade-${grade}`} key={grade}><input type="radio" name="careerGrade" value={grade} defaultChecked={editing?.careerGrade === grade} /><span>{grade}</span><span className="preference-guide" role="tooltip"><strong>{grade} · {config.label}</strong><p>{config.description}</p><small>{config.score}점</small></span></label>; })}</div></fieldset>
       <div className="form-section-label">지원 우선순위 점수</div>
@@ -221,19 +248,35 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <div className="form-section-label">지원 일정</div>
       <label className="inline-check"><input type="checkbox" checked={alwaysOpen} onChange={(event) => setAlwaysOpen(event.target.checked)} /> 상시 채용 <small>마감일 없음 · 마감 우선순위 0점</small></label>
       <div className="form-grid two"><label>서류 접수 일시 (24시간)<DateTimeInput name="appliedAt" ariaLabel="서류 접수 일시" defaultValue={editing?.appliedAt || todayDateTimeInputValue()} /></label><label>서류 마감 일시 (24시간)<DateTimeInput name="deadline" ariaLabel="서류 마감 일시" defaultValue={editingJob?.deadline || todayDateTimeInputValue()} disabled={alwaysOpen} /></label></div>
-      <div className="form-section-label process-section-head"><span>채용 프로세스</span><button type="button" className="text-button" onClick={addProcessStep}>+ 단계 추가</button></div>
-      <p className="form-help">단계명은 직접 입력하거나 추천 항목에서 선택할 수 있습니다.</p>
+      <div className="form-section-label process-section-head"><span>채용 프로세스</span><small>{processSteps.length ? `${processSteps.filter((step) => step.status === '완료').length} / ${processSteps.length}단계 완료` : ''}</small></div>
+      <p className="form-help">상태 버튼은 예정 → 진행 중 → 완료 순으로 바뀌고, 발표가 나면 단계마다 합격·불합격을 고르세요. 일정·할 일은 날짜를 눌러 펼치세요.</p>
       <datalist id="process-suggestions">{nextProcesses.map((process) => <option key={process} value={process} />)}</datalist>
-      <div className="process-step-list">{processSteps.map((step, index) => <div className="process-step-row" key={step.id}>
-        <span className="process-step-index">{index}</span>
-        <label>단계명<input aria-label={`${index}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="예: 실무진 커피챗" /></label>
-        <label>예정 {step.dateTbd ? '일정' : step.timeTbd ? '날짜' : '일시 (24시간)'}{step.dateTbd ? <span className="process-date-placeholder">아직 정해지지 않음</span> : step.timeTbd ? <DateInput aria-label={`${index}번째 예정 날짜`} type="date" value={step.date.slice(0, 10)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /> : <DateTimeInput ariaLabel={`${index}번째 예정 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} />}</label>
-        <label>진행 상태<select aria-label={`${index}번째 진행 상태`} value={step.status} onChange={(event) => updateProcessStep(step.id, { status: event.target.value as ApplicationProcessStep['status'] })}><option>예정</option><option>진행 중</option><option>완료</option><option>취소</option></select></label>
-        <div className="process-order-actions"><button type="button" disabled={index === 0} aria-label={`${step.name || `${index}번째 단계`} 위로 이동`} onClick={() => moveProcessStep(index, -1)}>↑</button><button type="button" disabled={index === processSteps.length - 1} aria-label={`${step.name || `${index}번째 단계`} 아래로 이동`} onClick={() => moveProcessStep(index, 1)}>↓</button><button type="button" className="process-remove" aria-label={`${index}번째 단계 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button></div>
-        <div className="process-date-options"><label><input type="checkbox" checked={Boolean(step.dateTbd)} onChange={(event) => updateProcessStep(step.id, { dateTbd: event.target.checked, timeTbd: event.target.checked ? false : step.timeTbd, date: event.target.checked ? '' : todayDateTimeInputValue() })} /> 날짜 미정</label><label><input type="checkbox" disabled={Boolean(step.dateTbd)} checked={!step.dateTbd && Boolean(step.timeTbd)} onChange={(event) => updateProcessStep(step.id, { timeTbd: event.target.checked, date: event.target.checked ? step.date.slice(0, 10) : step.date ? `${step.date.slice(0, 10)}T00:00` : todayDateTimeInputValue() })} /> 시간 미정</label></div>
-        <div className="process-todos"><div><strong>이 단계 할 일</strong><button type="button" onClick={() => addProcessTodo(step.id)}>+ 추가</button></div>{(step.todos || []).map((todo) => <label key={todo.id}><input type="checkbox" checked={todo.done} onChange={(event) => updateProcessTodo(step.id, todo.id, { done: event.target.checked })} /><input aria-label={`${step.name || `${index}번째 단계`} 할 일`} value={todo.text} onChange={(event) => updateProcessTodo(step.id, todo.id, { text: event.target.value })} placeholder="예: 예상 질문 정리" /><button type="button" aria-label="할 일 삭제" onClick={() => updateProcessStep(step.id, { todos: (step.todos || []).filter((item) => item.id !== todo.id) })}>×</button></label>)}{!(step.todos || []).length && <small>이 전형에서 준비할 일을 추가하세요.</small>}</div>
-      </div>)}</div>
-      {!processSteps.length && <button type="button" className="process-empty" onClick={addProcessStep}>+ 첫 프로세스 단계 추가</button>}
+      <div className="pstep-list">{processSteps.map((step, index) => {
+        const expanded = expandedStepId === step.id;
+        const linkedToDeadline = index === 0 && step.name.trim() === '서류 마감';
+        const todos = step.todos || [];
+        const openTodos = todos.filter((todo) => !todo.done).length;
+        const when = linkedToDeadline ? (alwaysOpen ? '상시 채용' : '마감 일시와 연동') : step.dateTbd || !step.date ? '날짜 미정' : step.timeTbd ? `${dateLabel(step.date.slice(0, 10))} · 시간 미정` : dateLabel(step.date);
+        const label = step.name || `${index + 1}번째 단계`;
+        return <div className={`pstep pstep-${processStepClass(step.status)} ${expanded ? 'expanded' : ''}`} key={step.id}>
+          <div className="pstep-main">
+            <button type="button" className="pstep-status" onClick={() => updateProcessStep(step.id, { status: nextStepStatus(step.status) })} aria-label={`${label} 상태 ${step.status}, 눌러서 변경`}>{step.status}</button>
+            <input className="pstep-name" aria-label={`${index + 1}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="단계명 (예: 1차 면접)" />
+            {/마감|제출/.test(step.name) ? <span aria-hidden="true" /> : <select className={`pstep-result doc-${documentResultClass(step.result)}`} value={step.result || ''} onChange={(event) => setStepResult(step, event.target.value as DocumentResult)} aria-label={`${label} 결과`}><option value="">결과 대기</option><option value="합격">합격</option><option value="불합격">불합격</option></select>}
+            <button type="button" className="pstep-when" aria-expanded={expanded} onClick={() => setExpandedStepId(expanded ? '' : step.id)}><span>{when}</span>{openTodos > 0 && <em>할 일 {openTodos}</em>}<i className="pstep-chevron" aria-hidden="true" /></button>
+            <button type="button" className="pstep-remove" aria-label={`${label} 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button>
+          </div>
+          {expanded && <div className="pstep-detail">
+            {linkedToDeadline ? <p className="pstep-note">첫 단계 ‘서류 마감’은 위의 서류 마감 일시로 저장됩니다.</p> : <div className="pstep-date">
+              {step.dateTbd ? <span className="process-date-placeholder">아직 정해지지 않음</span> : step.timeTbd ? <DateInput aria-label={`${label} 날짜`} type="date" value={step.date.slice(0, 10)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /> : <DateTimeInput ariaLabel={`${label} 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} />}
+              <div className="pstep-date-options"><label><input type="checkbox" checked={Boolean(step.dateTbd)} onChange={(event) => updateProcessStep(step.id, { dateTbd: event.target.checked, timeTbd: event.target.checked ? false : step.timeTbd, date: event.target.checked ? '' : todayDateTimeInputValue() })} /> 날짜 미정</label><label><input type="checkbox" disabled={Boolean(step.dateTbd)} checked={!step.dateTbd && Boolean(step.timeTbd)} onChange={(event) => updateProcessStep(step.id, { timeTbd: event.target.checked, date: event.target.checked ? step.date.slice(0, 10) : step.date ? `${step.date.slice(0, 10)}T00:00` : todayDateTimeInputValue() })} /> 시간 미정</label></div>
+            </div>}
+            <div className="pstep-todos"><strong>이 단계 할 일</strong>{todos.map((todo) => <label key={todo.id}><input type="checkbox" checked={todo.done} onChange={(event) => updateProcessTodo(step.id, todo.id, { done: event.target.checked })} /><input aria-label={`${label} 할 일`} value={todo.text} onChange={(event) => updateProcessTodo(step.id, todo.id, { text: event.target.value })} placeholder="예: 예상 질문 정리" /><button type="button" aria-label="할 일 삭제" onClick={() => updateProcessStep(step.id, { todos: todos.filter((item) => item.id !== todo.id) })}>×</button></label>)}<button type="button" className="text-button" onClick={() => addProcessTodo(step.id)}>+ 할 일 추가</button></div>
+            <div className="pstep-tools"><button type="button" disabled={index === 0} onClick={() => moveProcessStep(index, -1)}>↑ 위로</button><button type="button" disabled={index === processSteps.length - 1} onClick={() => moveProcessStep(index, 1)}>↓ 아래로</button><button type="button" className={step.status === '취소' ? 'active' : ''} onClick={() => updateProcessStep(step.id, { status: step.status === '취소' ? '예정' : '취소' })}>{step.status === '취소' ? '취소 해제' : '이 단계 취소됨'}</button></div>
+          </div>}
+        </div>;
+      })}</div>
+      <div className="pstep-add"><span>단계 추가</span>{nextProcesses.filter((process) => process !== '없음' && !processSteps.some((step) => step.name.trim() === process)).map((process) => <button type="button" key={process} onClick={() => addProcessStep(process)}>+ {process}</button>)}<button type="button" className="custom" onClick={() => addProcessStep()}>+ 직접 입력</button></div>
       <label>공고 URL<input name="url" type="url" defaultValue={editingJob?.url || ''} placeholder="https://..." /></label><label>노션 URL<input name="notionUrl" type="url" defaultValue={editingJob?.notionUrl || ''} placeholder="https://www.notion.so/..." /></label>
       {isRejected(editStatus) && <label>불합격 사유<textarea name="rejectionReason" rows={3} defaultValue={editing?.rejectionReason || ''} placeholder="안내받은 사유나 돌아볼 점을 남겨 두세요. (선택)" /></label>}
       <label>메모<textarea name="memo" rows={4} defaultValue={editing?.memo || ''} placeholder="지원 과정에서 기억할 내용을 입력하세요." /></label>

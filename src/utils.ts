@@ -81,3 +81,41 @@ export function scheduleWorkspace(workspace: Workspace): Workspace {
     interviews: workspace.interviews.filter((item) => !rejectedJobs.some((job) => normalize(job.company) === normalize(item.company) && normalize(job.role) === normalize(item.role)))
   };
 }
+
+export type DocumentOutcome = 'not-submitted' | 'pending' | 'passed' | 'failed' | 'unrecorded';
+
+export const MILESTONE_STEP = 10;
+
+// 제출한 원서: 관심·지원 준비를 지나 전형 진행·결과 대기·불합격으로 넘어간 지원
+export function isSubmitted(application: Application): boolean {
+  return !['관심', '지원 준비'].includes(normalizedApplicationStatus(application.status));
+}
+
+// 서류 결과는 사용자가 직접 기록합니다. 기록 없이 불합격 처리된 지원은 합격률 계산에서 뺍니다.
+export function documentOutcome(application: Application): DocumentOutcome {
+  if (!isSubmitted(application)) return 'not-submitted';
+  if (application.documentResult === '합격') return 'passed';
+  if (application.documentResult === '불합격') return 'failed';
+  return isRejected(application.status) ? 'unrecorded' : 'pending';
+}
+
+export function allApplications(workspace: Pick<Workspace, 'applications' | 'archivedApplications'>): Application[] {
+  const seen = new Set<string>();
+  return [...workspace.applications, ...(workspace.archivedApplications || [])].filter((item) => !seen.has(item.id) && Boolean(seen.add(item.id)));
+}
+
+export function applicationStats(applications: Application[]) {
+  const outcomes = applications.map(documentOutcome);
+  const count = (outcome: DocumentOutcome) => outcomes.filter((item) => item === outcome).length;
+  const submitted = outcomes.length - count('not-submitted');
+  const passed = count('passed'), failed = count('failed');
+  const decided = passed + failed;
+  const nextMilestone = (Math.floor(submitted / MILESTONE_STEP) + 1) * MILESTONE_STEP;
+  return {
+    submitted, passed, failed, pending: count('pending'),
+    passRate: decided ? Math.round((passed / decided) * 100) : null,
+    milestone: Math.floor(submitted / MILESTONE_STEP) * MILESTONE_STEP,
+    nextMilestone,
+    milestoneProgress: Math.round(((submitted % MILESTONE_STEP) / MILESTONE_STEP) * 100)
+  };
+}
