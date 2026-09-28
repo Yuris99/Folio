@@ -11,6 +11,10 @@ import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, View, Wor
 import { CAREER_GRADES, JOB_PREFERENCE_CONFIG, getPriorityBreakdown, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
 import { isRejected, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
+const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
+const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
+const processStepClass = (status: ApplicationProcessStep['status']) => ({ '예정': 'planned', '진행 중': 'active', '완료': 'done', '취소': 'cancelled' })[status];
+
 export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -35,6 +39,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
   const [alwaysOpen, setAlwaysOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [expandedStepId, setExpandedStepId] = useState('');
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   const editingJob = editing ? getJob(workspace, editing) : undefined;
   const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
@@ -70,11 +75,14 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setAlwaysOpen(Boolean(application && getJob(workspace, application).alwaysOpen));
     setEditStatus(normalizedApplicationStatus(application?.status || '관심'));
     setEditingId(id || null);
+    setExpandedStepId('');
     setModalOpen(true);
   }
 
-  function addProcessStep() {
-    setProcessSteps((steps) => [...steps, { id: crypto.randomUUID(), name: '', date: todayDateTimeInputValue(), status: '예정' }]);
+  function addProcessStep(name = '') {
+    const id = crypto.randomUUID();
+    setProcessSteps((steps) => [...steps, { id, name, date: '', dateTbd: true, status: '예정' }]);
+    setExpandedStepId(id);
   }
 
   function updateProcessStep(id: string, patch: Partial<ApplicationProcessStep>) {
@@ -221,19 +229,34 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <div className="form-section-label">지원 일정</div>
       <label className="inline-check"><input type="checkbox" checked={alwaysOpen} onChange={(event) => setAlwaysOpen(event.target.checked)} /> 상시 채용 <small>마감일 없음 · 마감 우선순위 0점</small></label>
       <div className="form-grid two"><label>서류 접수 일시 (24시간)<DateTimeInput name="appliedAt" ariaLabel="서류 접수 일시" defaultValue={editing?.appliedAt || todayDateTimeInputValue()} /></label><label>서류 마감 일시 (24시간)<DateTimeInput name="deadline" ariaLabel="서류 마감 일시" defaultValue={editingJob?.deadline || todayDateTimeInputValue()} disabled={alwaysOpen} /></label></div>
-      <div className="form-section-label process-section-head"><span>채용 프로세스</span><button type="button" className="text-button" onClick={addProcessStep}>+ 단계 추가</button></div>
-      <p className="form-help">단계명은 직접 입력하거나 추천 항목에서 선택할 수 있습니다.</p>
+      <div className="form-section-label process-section-head"><span>채용 프로세스</span><small>{processSteps.length ? `${processSteps.filter((step) => step.status === '완료').length} / ${processSteps.length}단계 완료` : ''}</small></div>
+      <p className="form-help">상태 버튼을 누르면 예정 → 진행 중 → 완료 순으로 바뀝니다. 일정·할 일은 날짜를 눌러 펼치세요.</p>
       <datalist id="process-suggestions">{nextProcesses.map((process) => <option key={process} value={process} />)}</datalist>
-      <div className="process-step-list">{processSteps.map((step, index) => <div className="process-step-row" key={step.id}>
-        <span className="process-step-index">{index}</span>
-        <label>단계명<input aria-label={`${index}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="예: 실무진 커피챗" /></label>
-        <label>예정 {step.dateTbd ? '일정' : step.timeTbd ? '날짜' : '일시 (24시간)'}{step.dateTbd ? <span className="process-date-placeholder">아직 정해지지 않음</span> : step.timeTbd ? <DateInput aria-label={`${index}번째 예정 날짜`} type="date" value={step.date.slice(0, 10)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /> : <DateTimeInput ariaLabel={`${index}번째 예정 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} />}</label>
-        <label>진행 상태<select aria-label={`${index}번째 진행 상태`} value={step.status} onChange={(event) => updateProcessStep(step.id, { status: event.target.value as ApplicationProcessStep['status'] })}><option>예정</option><option>진행 중</option><option>완료</option><option>취소</option></select></label>
-        <div className="process-order-actions"><button type="button" disabled={index === 0} aria-label={`${step.name || `${index}번째 단계`} 위로 이동`} onClick={() => moveProcessStep(index, -1)}>↑</button><button type="button" disabled={index === processSteps.length - 1} aria-label={`${step.name || `${index}번째 단계`} 아래로 이동`} onClick={() => moveProcessStep(index, 1)}>↓</button><button type="button" className="process-remove" aria-label={`${index}번째 단계 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button></div>
-        <div className="process-date-options"><label><input type="checkbox" checked={Boolean(step.dateTbd)} onChange={(event) => updateProcessStep(step.id, { dateTbd: event.target.checked, timeTbd: event.target.checked ? false : step.timeTbd, date: event.target.checked ? '' : todayDateTimeInputValue() })} /> 날짜 미정</label><label><input type="checkbox" disabled={Boolean(step.dateTbd)} checked={!step.dateTbd && Boolean(step.timeTbd)} onChange={(event) => updateProcessStep(step.id, { timeTbd: event.target.checked, date: event.target.checked ? step.date.slice(0, 10) : step.date ? `${step.date.slice(0, 10)}T00:00` : todayDateTimeInputValue() })} /> 시간 미정</label></div>
-        <div className="process-todos"><div><strong>이 단계 할 일</strong><button type="button" onClick={() => addProcessTodo(step.id)}>+ 추가</button></div>{(step.todos || []).map((todo) => <label key={todo.id}><input type="checkbox" checked={todo.done} onChange={(event) => updateProcessTodo(step.id, todo.id, { done: event.target.checked })} /><input aria-label={`${step.name || `${index}번째 단계`} 할 일`} value={todo.text} onChange={(event) => updateProcessTodo(step.id, todo.id, { text: event.target.value })} placeholder="예: 예상 질문 정리" /><button type="button" aria-label="할 일 삭제" onClick={() => updateProcessStep(step.id, { todos: (step.todos || []).filter((item) => item.id !== todo.id) })}>×</button></label>)}{!(step.todos || []).length && <small>이 전형에서 준비할 일을 추가하세요.</small>}</div>
-      </div>)}</div>
-      {!processSteps.length && <button type="button" className="process-empty" onClick={addProcessStep}>+ 첫 프로세스 단계 추가</button>}
+      <div className="pstep-list">{processSteps.map((step, index) => {
+        const expanded = expandedStepId === step.id;
+        const linkedToDeadline = index === 0 && step.name.trim() === '서류 마감';
+        const todos = step.todos || [];
+        const openTodos = todos.filter((todo) => !todo.done).length;
+        const when = linkedToDeadline ? (alwaysOpen ? '상시 채용' : '마감 일시와 연동') : step.dateTbd || !step.date ? '날짜 미정' : step.timeTbd ? `${dateLabel(step.date.slice(0, 10))} · 시간 미정` : dateLabel(step.date);
+        const label = step.name || `${index + 1}번째 단계`;
+        return <div className={`pstep pstep-${processStepClass(step.status)} ${expanded ? 'expanded' : ''}`} key={step.id}>
+          <div className="pstep-main">
+            <button type="button" className="pstep-status" onClick={() => updateProcessStep(step.id, { status: nextStepStatus(step.status) })} aria-label={`${label} 상태 ${step.status}, 눌러서 변경`}>{step.status}</button>
+            <input className="pstep-name" aria-label={`${index + 1}번째 단계명`} list="process-suggestions" value={step.name} onChange={(event) => updateProcessStep(step.id, { name: event.target.value })} placeholder="단계명 (예: 1차 면접)" />
+            <button type="button" className="pstep-when" aria-expanded={expanded} onClick={() => setExpandedStepId(expanded ? '' : step.id)}><span>{when}</span>{openTodos > 0 && <em>할 일 {openTodos}</em>}<i className="pstep-chevron" aria-hidden="true" /></button>
+            <button type="button" className="pstep-remove" aria-label={`${label} 삭제`} onClick={() => setProcessSteps((steps) => steps.filter((item) => item.id !== step.id))}>×</button>
+          </div>
+          {expanded && <div className="pstep-detail">
+            {linkedToDeadline ? <p className="pstep-note">첫 단계 ‘서류 마감’은 위의 서류 마감 일시로 저장됩니다.</p> : <div className="pstep-date">
+              {step.dateTbd ? <span className="process-date-placeholder">아직 정해지지 않음</span> : step.timeTbd ? <DateInput aria-label={`${label} 날짜`} type="date" value={step.date.slice(0, 10)} onChange={(event) => updateProcessStep(step.id, { date: event.target.value })} /> : <DateTimeInput ariaLabel={`${label} 일시`} value={dateTimeInputValue(step.date)} onChange={(value) => updateProcessStep(step.id, { date: value })} />}
+              <div className="pstep-date-options"><label><input type="checkbox" checked={Boolean(step.dateTbd)} onChange={(event) => updateProcessStep(step.id, { dateTbd: event.target.checked, timeTbd: event.target.checked ? false : step.timeTbd, date: event.target.checked ? '' : todayDateTimeInputValue() })} /> 날짜 미정</label><label><input type="checkbox" disabled={Boolean(step.dateTbd)} checked={!step.dateTbd && Boolean(step.timeTbd)} onChange={(event) => updateProcessStep(step.id, { timeTbd: event.target.checked, date: event.target.checked ? step.date.slice(0, 10) : step.date ? `${step.date.slice(0, 10)}T00:00` : todayDateTimeInputValue() })} /> 시간 미정</label></div>
+            </div>}
+            <div className="pstep-todos"><strong>이 단계 할 일</strong>{todos.map((todo) => <label key={todo.id}><input type="checkbox" checked={todo.done} onChange={(event) => updateProcessTodo(step.id, todo.id, { done: event.target.checked })} /><input aria-label={`${label} 할 일`} value={todo.text} onChange={(event) => updateProcessTodo(step.id, todo.id, { text: event.target.value })} placeholder="예: 예상 질문 정리" /><button type="button" aria-label="할 일 삭제" onClick={() => updateProcessStep(step.id, { todos: todos.filter((item) => item.id !== todo.id) })}>×</button></label>)}<button type="button" className="text-button" onClick={() => addProcessTodo(step.id)}>+ 할 일 추가</button></div>
+            <div className="pstep-tools"><button type="button" disabled={index === 0} onClick={() => moveProcessStep(index, -1)}>↑ 위로</button><button type="button" disabled={index === processSteps.length - 1} onClick={() => moveProcessStep(index, 1)}>↓ 아래로</button><button type="button" className={step.status === '취소' ? 'active' : ''} onClick={() => updateProcessStep(step.id, { status: step.status === '취소' ? '예정' : '취소' })}>{step.status === '취소' ? '취소 해제' : '이 단계 취소됨'}</button></div>
+          </div>}
+        </div>;
+      })}</div>
+      <div className="pstep-add"><span>단계 추가</span>{nextProcesses.filter((process) => process !== '없음' && !processSteps.some((step) => step.name.trim() === process)).map((process) => <button type="button" key={process} onClick={() => addProcessStep(process)}>+ {process}</button>)}<button type="button" className="custom" onClick={() => addProcessStep()}>+ 직접 입력</button></div>
       <label>공고 URL<input name="url" type="url" defaultValue={editingJob?.url || ''} placeholder="https://..." /></label><label>노션 URL<input name="notionUrl" type="url" defaultValue={editingJob?.notionUrl || ''} placeholder="https://www.notion.so/..." /></label>
       {isRejected(editStatus) && <label>불합격 사유<textarea name="rejectionReason" rows={3} defaultValue={editing?.rejectionReason || ''} placeholder="안내받은 사유나 돌아볼 점을 남겨 두세요. (선택)" /></label>}
       <label>메모<textarea name="memo" rows={4} defaultValue={editing?.memo || ''} placeholder="지원 과정에서 기억할 내용을 입력하세요." /></label>

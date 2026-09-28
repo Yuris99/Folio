@@ -81,3 +81,45 @@ export function scheduleWorkspace(workspace: Workspace): Workspace {
     interviews: workspace.interviews.filter((item) => !rejectedJobs.some((job) => normalize(job.company) === normalize(item.company) && normalize(job.role) === normalize(item.role)))
   };
 }
+
+export type DocumentOutcome = 'not-submitted' | 'pending' | 'passed' | 'failed';
+
+export const MILESTONE_STEP = 10;
+
+const isDocumentStep = (name: string) => name.includes('서류');
+
+export function isSubmitted(application: Application): boolean {
+  return !['관심', '지원 준비'].includes(normalizedApplicationStatus(application.status));
+}
+
+// 서류 이후 단계가 진행되었거나 서류 결과가 완료로 표시되면 서류 합격으로 봅니다.
+export function documentOutcome(application: Application): DocumentOutcome {
+  if (!isSubmitted(application)) return 'not-submitted';
+  const steps = application.processSteps || [];
+  const rejected = isRejected(application.status);
+  const reachedNextStage = steps.some((step) => !isDocumentStep(step.name) && ['진행 중', '완료'].includes(step.status));
+  const documentResultPassed = !rejected && steps.some((step) => isDocumentStep(step.name) && /결과|합격/.test(step.name) && step.status === '완료');
+  if (reachedNextStage || documentResultPassed || ['합격', '처우 협의'].includes(application.status)) return 'passed';
+  return rejected ? 'failed' : 'pending';
+}
+
+export function allApplications(workspace: Pick<Workspace, 'applications' | 'archivedApplications'>): Application[] {
+  const seen = new Set<string>();
+  return [...workspace.applications, ...(workspace.archivedApplications || [])].filter((item) => !seen.has(item.id) && Boolean(seen.add(item.id)));
+}
+
+export function applicationStats(applications: Application[]) {
+  const outcomes = applications.map(documentOutcome);
+  const count = (outcome: DocumentOutcome) => outcomes.filter((item) => item === outcome).length;
+  const submitted = outcomes.length - count('not-submitted');
+  const passed = count('passed'), failed = count('failed');
+  const decided = passed + failed;
+  const nextMilestone = (Math.floor(submitted / MILESTONE_STEP) + 1) * MILESTONE_STEP;
+  return {
+    submitted, passed, failed, pending: count('pending'),
+    passRate: decided ? Math.round((passed / decided) * 100) : null,
+    milestone: Math.floor(submitted / MILESTONE_STEP) * MILESTONE_STEP,
+    nextMilestone,
+    milestoneProgress: Math.round(((submitted % MILESTONE_STEP) / MILESTONE_STEP) * 100)
+  };
+}

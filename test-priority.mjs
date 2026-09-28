@@ -63,3 +63,26 @@ const synced = await context.syncGoogleCalendar(user);
 assert(synced.removed === 3 && synced.total === 0, "previously synced rejected events removed");
 assert(requests.length === 3 && requests.every(item=>item.method === "DELETE"), "no rejected events recreated");
 console.log("PASS rejection filtering and Google Calendar cleanup");
+
+const { applicationStats, documentOutcome } = await import('./src/utils.ts');
+const step = (name, status) => ({ id: name, name, date: '', status });
+const statsFixture = [
+  { id: 's1', jobId: 'j1', status: '관심', next: '' },
+  { id: 's2', jobId: 'j2', status: '전형 진행', next: '', processSteps: [step('서류 제출', '완료'), step('1차 면접', '진행 중')] },
+  { id: 's3', jobId: 'j3', status: '불합격', next: '', processSteps: [step('서류 제출', '완료'), step('서류 결과', '완료')] },
+  { id: 's4', jobId: 'j4', status: '결과 대기', next: '', processSteps: [step('서류 제출', '완료'), step('서류 결과', '예정')] },
+  { id: 's5', jobId: 'j5', status: '전형 진행', next: '', processSteps: [step('서류 결과', '완료'), step('1차 면접', '예정')] },
+  { id: 's6', jobId: 'j6', status: '불합격', next: '', processSteps: [step('1차 면접', '완료')] }
+];
+assert(documentOutcome(statsFixture[0]) === 'not-submitted', 'interested application is not submitted');
+assert(documentOutcome(statsFixture[1]) === 'passed', 'reaching interview counts as document pass');
+assert(documentOutcome(statsFixture[2]) === 'failed', 'rejection before interview counts as document fail');
+assert(documentOutcome(statsFixture[3]) === 'pending', 'waiting for document result is pending');
+assert(documentOutcome(statsFixture[4]) === 'passed', 'completed document result counts as pass');
+assert(documentOutcome(statsFixture[5]) === 'passed', 'rejection after interview still passed documents');
+const summary = applicationStats(statsFixture);
+assert(summary.submitted === 5 && summary.passed === 3 && summary.failed === 1 && summary.pending === 1, 'document stats counts');
+assert(summary.passRate === 75, 'document pass rate excludes pending');
+assert(summary.milestone === 0 && summary.nextMilestone === 10 && summary.milestoneProgress === 50, 'milestone progress');
+assert(applicationStats(Array.from({ length: 23 }, (_, index) => ({ id: `m${index}`, jobId: 'j', status: '결과 대기', next: '' }))).milestone === 20, '10-application milestones');
+console.log('PASS document pass rate and milestones');
