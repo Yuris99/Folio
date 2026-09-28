@@ -2161,3 +2161,19 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .celebration-toast button { width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--faint); font-size: 18px; cursor: pointer; }
 @keyframes celebration-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .celebration-toast { animation: none; } }
+
+/* Manually recorded document (서류) result */
+.application-row .document-result-chip { width: auto; min-height: 0; height: 26px; margin: 0; padding: 0 10px; appearance: none; background-image: none; text-align: center; line-height: 24px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+.application-row .document-result-chip.doc-pass { border-color: #3f5a47; background: #29372e; color: #91c39f; }
+.application-row .document-result-chip.doc-fail { border-color: #5a3f3f; background: var(--warning-soft); color: var(--warning); }
+.document-result-field { min-width: 0; margin: 14px 0 0; padding: 0; border: 0; }
+.document-result-field legend { margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+.document-result-field legend small { margin-left: 6px; color: var(--faint); font-size: 11px; font-weight: 400; }
+.document-result-field > div { display: flex; gap: 6px; }
+.document-result-field label { position: relative; margin: 0; }
+.document-result-field input { position: absolute; opacity: 0; pointer-events: none; }
+.document-result-field span { display: inline-flex; align-items: center; min-height: 32px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+.document-result-field input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.document-result-field .doc-pending input:checked + span { border-color: var(--muted); color: var(--text); }
+.document-result-field .doc-pass input:checked + span { border-color: #3f5a47; background: #29372e; color: #91c39f; }
+.document-result-field .doc-fail input:checked + span { border-color: #5a3f3f; background: var(--warning-soft); color: var(--warning); }

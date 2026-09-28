@@ -188,6 +188,8 @@ export interface ProcessTodo {
   done: boolean;
 }
 
+export type DocumentResult = '' | '합격' | '불합격';
+
 export type CareerGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
 export interface Application {
@@ -201,6 +203,7 @@ export interface Application {
   processSteps?: ApplicationProcessStep[];
   memo?: string;
   rejectionReason?: string;
+  documentResult?: DocumentResult;
   considering?: boolean;
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
@@ -345,5 +348,6 @@ export interface ApplicationPayload {
   notionUrl?: string;
   memo: string;
   rejectionReason?: string;
+  documentResult?: DocumentResult;
   jobId?: string;
 }

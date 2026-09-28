@@ -82,25 +82,21 @@ export function scheduleWorkspace(workspace: Workspace): Workspace {
   };
 }
 
-export type DocumentOutcome = 'not-submitted' | 'pending' | 'passed' | 'failed';
+export type DocumentOutcome = 'not-submitted' | 'pending' | 'passed' | 'failed' | 'unrecorded';
 
 export const MILESTONE_STEP = 10;
 
-const isDocumentStep = (name: string) => name.includes('서류');
-
+// 제출한 원서: 관심·지원 준비를 지나 전형 진행·결과 대기·불합격으로 넘어간 지원
 export function isSubmitted(application: Application): boolean {
   return !['관심', '지원 준비'].includes(normalizedApplicationStatus(application.status));
 }
 
-// 서류 이후 단계가 진행되었거나 서류 결과가 완료로 표시되면 서류 합격으로 봅니다.
+// 서류 결과는 사용자가 직접 기록합니다. 기록 없이 불합격 처리된 지원은 합격률 계산에서 뺍니다.
 export function documentOutcome(application: Application): DocumentOutcome {
   if (!isSubmitted(application)) return 'not-submitted';
-  const steps = application.processSteps || [];
-  const rejected = isRejected(application.status);
-  const reachedNextStage = steps.some((step) => !isDocumentStep(step.name) && ['진행 중', '완료'].includes(step.status));
-  const documentResultPassed = !rejected && steps.some((step) => isDocumentStep(step.name) && /결과|합격/.test(step.name) && step.status === '완료');
-  if (reachedNextStage || documentResultPassed || ['합격', '처우 협의'].includes(application.status)) return 'passed';
-  return rejected ? 'failed' : 'pending';
+  if (application.documentResult === '합격') return 'passed';
+  if (application.documentResult === '불합격') return 'failed';
+  return isRejected(application.status) ? 'unrecorded' : 'pending';
 }
 
 export function allApplications(workspace: Pick<Workspace, 'applications' | 'archivedApplications'>): Application[] {
