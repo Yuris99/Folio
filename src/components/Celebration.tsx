@@ -63,7 +63,7 @@ function storeMilestone(key: string, value: number) {
 
 type Toast = { id: number; title: string; detail: string };
 
-// 원서 10개 단위 돌파와 이번 세션에서 새로 생긴 서류 합격을 축하합니다.
+// 원서 10개 단위 돌파와 이번 세션에서 새로 생긴 서류·단계별 합격을 축하합니다.
 export function Celebrations({ workspace, userId }: { workspace: Workspace; userId: string }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const passedRef = useRef<Set<string> | null>(null);
@@ -72,7 +72,13 @@ export function Celebrations({ workspace, userId }: { workspace: Workspace; user
   useEffect(() => {
     const applications = allApplications(workspace);
     const stats = applicationStats(applications);
-    const passedIds = new Set(applications.filter((item) => documentOutcome(item) === 'passed').map((item) => item.id));
+    // 서류 합격(doc:)과 단계별 합격(step:)을 한 집합으로 추적합니다.
+    const passes = new Map<string, { company: string; stage: string }>();
+    for (const item of applications) {
+      const company = getJob(workspace, item).company;
+      if (documentOutcome(item) === 'passed') passes.set(`doc:${item.id}`, { company, stage: '서류' });
+      for (const step of item.processSteps || []) if (step.result === '합격' && !step.name.includes('서류')) passes.set(`step:${item.id}:${step.id}`, { company, stage: step.name });
+    }
     const storageKey = `folio:milestone:${userId}`;
     const celebrate = (title: string, detail: string, amount?: number) => { setToast({ id: Date.now(), title, detail }); fireConfetti(amount); };
 
@@ -92,12 +98,13 @@ export function Celebrations({ workspace, userId }: { workspace: Workspace; user
     }
 
     const previous = passedRef.current;
-    passedRef.current = passedIds;
+    passedRef.current = new Set(passes.keys());
     if (!previous) return;
-    const newlyPassed = applications.filter((item) => passedIds.has(item.id) && !previous.has(item.id));
-    if (newlyPassed.length) {
-      const job = getJob(workspace, newlyPassed[0]);
-      celebrate(`${job.company} 서류 합격!`, stats.passRate === null ? '다음 전형도 화이팅!' : `현재 서류 합격률 ${stats.passRate}% · 다음 전형도 화이팅!`);
+    const newlyPassed = [...passes].find(([key]) => !previous.has(key));
+    if (newlyPassed) {
+      const [key, { company, stage }] = newlyPassed;
+      const detail = key.startsWith('doc:') && stats.passRate !== null ? `현재 서류 합격률 ${stats.passRate}% · 다음 전형도 화이팅!` : '다음 전형도 화이팅!';
+      celebrate(`${company} ${stage} 합격!`, detail);
     }
   }, [workspace, userId]);
 

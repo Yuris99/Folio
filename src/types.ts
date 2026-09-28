@@ -179,6 +179,7 @@ export interface ApplicationProcessStep {
   status: '예정' | '진행 중' | '완료' | '취소';
   dateTbd?: boolean;
   timeTbd?: boolean;
+  result?: DocumentResult;
   todos?: ProcessTodo[];
 }
 

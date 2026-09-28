@@ -2177,3 +2177,18 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
 .document-result-field .doc-pending input:checked + span { border-color: var(--muted); color: var(--text); }
 .document-result-field .doc-pass input:checked + span { border-color: #3f5a47; background: #29372e; color: #91c39f; }
 .document-result-field .doc-fail input:checked + span { border-color: #5a3f3f; background: var(--warning-soft); color: var(--warning); }
+
+/* Per-step pass/fail result */
+.pstep-main { grid-template-columns: 74px minmax(0, 1fr) 84px minmax(0, 170px) 32px; }
+.application-form .pstep-result { width: 100%; min-height: 0; height: 30px; margin: 0; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; background-image: none; appearance: none; color: var(--muted); font-size: 11px; font-weight: 600; text-align: center; cursor: pointer; }
+.application-form .pstep-result.doc-pass { border-color: #3f5a47; background: #29372e; color: #91c39f; }
+.application-form .pstep-result.doc-fail { border-color: #5a3f3f; background: var(--warning-soft); color: var(--warning); }
+.step-result-chain { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.step-result-chain i { padding: 1px 6px; border-radius: 8px; font-size: 10px; font-style: normal; }
+.step-result-chain .doc-pass { background: #29372e; color: #91c39f; }
+.step-result-chain .doc-fail { background: var(--warning-soft); color: var(--warning); }
+@media (max-width: 680px) {
+  .pstep-main { grid-template-columns: 68px minmax(0, 1fr) 32px; }
+  .pstep-result { grid-column: 1; grid-row: 2; }
+  .pstep-when { grid-column: 2 / -1; grid-row: 2; }
+}
