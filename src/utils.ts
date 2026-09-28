@@ -119,3 +119,32 @@ export function applicationStats(applications: Application[]) {
     milestoneProgress: Math.round(((submitted % MILESTONE_STEP) / MILESTONE_STEP) * 100)
   };
 }
+
+export function stageResultStats(applications: Application[]) {
+  const stages = new Map<string, { name: string; passed: number; failed: number }>();
+  for (const application of applications) for (const step of application.processSteps || []) {
+    if (!step.result) continue;
+    const name = step.name.trim();
+    const stage = stages.get(name) || { name, passed: 0, failed: 0 };
+    if (step.result === '합격') stage.passed += 1; else stage.failed += 1;
+    stages.set(name, stage);
+  }
+  const order = (name: string) => { const index = nextProcesses.indexOf(name); return index < 0 ? nextProcesses.length : index; };
+  return [...stages.values()].sort((a, b) => order(a.name) - order(b.name) || a.name.localeCompare(b.name, 'ko'));
+}
+
+// 최근 N주(월요일 시작) 동안 제출한 원서 수. 접수일이 없으면 등록일로 셉니다.
+export function weeklySubmissions(applications: Application[], weeks = 12, reference = new Date()) {
+  const start = new Date(reference); start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - (weeks - 1) * 7);
+  const buckets = Array.from({ length: weeks }, (_, index) => { const date = new Date(start); date.setDate(start.getDate() + index * 7); return { start: date, count: 0 }; });
+  for (const application of applications) {
+    if (!isSubmitted(application)) continue;
+    const value = application.appliedAt || application.createdAt;
+    if (!value) continue;
+    const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
+    const index = Math.floor((date.getTime() - start.getTime()) / (7 * 86400000));
+    if (index >= 0 && index < weeks) buckets[index].count += 1;
+  }
+  return buckets;
+}
