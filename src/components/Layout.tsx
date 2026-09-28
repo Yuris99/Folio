@@ -1,18 +1,20 @@
 import { useState, type ReactNode } from 'react';
 import type { User, View, Workspace } from '../types';
 
-const navItems: Array<{ view: View; icon: string; label: string; mobile?: boolean }> = [
-  { view: 'home', icon: '⌂', label: '홈', mobile: true },
-  { view: 'applications', icon: '▦', label: '지원 관리', mobile: true },
-  { view: 'stats', icon: '▥', label: '통계' },
+const navItems: Array<{ view: View; icon: string; label: string; mobile?: string }> = [
+  { view: 'home', icon: '⌂', label: '홈', mobile: '홈' },
+  { view: 'applications', icon: '▦', label: '지원 관리', mobile: '지원' },
+  { view: 'stats', icon: '▥', label: '통계', mobile: '통계' },
   { view: 'vault', icon: '▤', label: '통합 보관함' },
-  { view: 'calendar', icon: '◫', label: '일정', mobile: true },
-  { view: 'career', icon: '◇', label: '커리어', mobile: true },
-  { view: 'imports', icon: '⇩', label: 'AI 가져오기', mobile: true },
+  { view: 'calendar', icon: '◫', label: '일정', mobile: '일정' },
   { view: 'consultations', icon: '≡', label: '상담·Q&A' },
   { view: 'interviews', icon: '◉', label: '면접' },
-  { view: 'jobs', icon: '▤', label: '공고보관함' }
+  { view: 'jobs', icon: '▤', label: '공고보관함', mobile: '공고' },
+  { view: 'career', icon: '◇', label: '커리어' },
+  { view: 'imports', icon: '⇩', label: 'AI 가져오기' }
 ];
+// 모바일 하단 탭 순서
+const mobileOrder: View[] = ['home', 'applications', 'calendar', 'stats', 'jobs'];
 
 export function Layout({ view, navigate, user, workspace, syncState, error, onLogout, children }: {
   view: View;
@@ -49,7 +51,7 @@ export function Layout({ view, navigate, user, workspace, syncState, error, onLo
         <section className={`content ${view === 'home' ? 'home-view' : ''}`}>{children}</section>
       </main>
       <nav className="mobile-bottom-nav" aria-label="모바일 주요 메뉴">
-        {navItems.filter((item) => item.mobile).map((item) => <button key={item.view} className={`nav-item ${view === item.view ? 'active' : ''}`} onClick={() => move(item.view)}><span>{item.icon}</span><small>{item.label.replace(' 관리', '')}</small></button>)}
+        {mobileOrder.map((key) => navItems.find((item) => item.view === key)!).map((item) => <button key={item.view} className={`nav-item ${view === item.view ? 'active' : ''}`} onClick={() => move(item.view)}><span>{item.icon}</span><small>{item.mobile}</small></button>)}
       </nav>
       {menuOpen && <div className="mobile-menu-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}><section className="mobile-menu-sheet react-sheet"><div className="sheet-handle" /><div className="sheet-head"><button className="sheet-home" onClick={() => move('home')}><span className="brand-mark">F</span> 홈</button><button className="modal-close" onClick={() => setMenuOpen(false)}>×</button></div><nav>{navItems.map((item) => <button key={item.view} onClick={() => move(item.view)}><span>{item.icon}</span><div><strong>{item.label}</strong><small>{item.view === 'career' ? '이력서를 모아 LLM용 데이터로 정리' : '화면으로 이동'}</small></div><i>→</i></button>)}</nav></section></div>}
     </div>
