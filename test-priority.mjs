@@ -38,7 +38,8 @@ assert(empty.value === 65 && empty.missing.length === 5, 'unentered criteria cou
 const mixed = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', careerLevel:4, compensationLevel:3, passLevel:4, workLevel:1 }, job);
 assert(mixed.value === 70, 'weighted level calculation (25.5 + 13 + 13 + 17 + 1.5)');
 const urgent = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'D', careerLevel:1, compensationLevel:1, passLevel:1, workLevel:1 }, { ...job, deadline: new Date().toISOString().slice(0, 10) });
-assert(urgent.final === urgent.value && urgent.deadline === 15 && urgent.sortScore === urgent.value + 15, 'deadline bonus only affects sorting');
+assert(urgent.deadline === 15 && urgent.final === urgent.value + 15 && urgent.sortScore === urgent.final, 'deadline bonus is added to the displayed score and grade');
+assert(getPriorityLabel(getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'' }, { ...job, deadline: new Date().toISOString().slice(0, 10) }).final) === '적극 지원', 'urgent average job moves up one grade (65 + 15)');
 assert(urgent.sortScore < full.sortScore, 'deadline cannot lift a low-value job above a high-value one');
 const legacy = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', applicationFitScore:18, compensationScore:15, companyScore:5, locationScore:10, processScore:8 }, job);
 assert(legacy.levels.pass === 4 && legacy.levels.compensation === 5 && legacy.levels.career === 5 && legacy.levels.work === 5, 'legacy numeric scores migrate to levels');
