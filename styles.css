@@ -2702,3 +2702,48 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .reject-stage label.active { border-color: transparent; background: var(--fail-soft); color: var(--fail); font-weight: 600; }
 .reject-stage label:focus-within { outline: 2px solid rgba(238, 135, 146, .55); outline-offset: 2px; }
 .reject-stage small { display: block; margin-top: 8px; color: var(--faint); font-size: 12px; }
+
+/* ---------- 지원 우선순위 입력 ---------- */
+.prio-editor { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--field); }
+.prio-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.prio-summary > div { display: grid; gap: 2px; }
+.prio-title { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 14px; font-weight: 700; }
+.prio-summary small { color: var(--faint); font-size: 12px; }
+.prio-total { display: flex; align-items: baseline; gap: 4px; font-size: 26px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.prio-total small { color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.prio-total em { margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--fail-soft); color: var(--fail); font-size: 12px; font-style: normal; letter-spacing: 0; }
+.prio-total.priority-top { color: var(--accent-strong); }
+.prio-total.priority-active { color: var(--warning); }
+.prio-total.priority-review { color: var(--info); }
+.prio-row { display: grid; grid-template-columns: minmax(140px, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.prio-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.prio-head strong { font-size: 13.5px; }
+.prio-head em { padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-size: 11px; font-style: normal; font-weight: 600; }
+.prio-points { margin-left: auto; color: var(--text); font-size: 13px; font-weight: 700; }
+.prio-points small { color: var(--faint); font-weight: 500; }
+.prio-levels { display: flex; gap: 4px; }
+.prio-levels button { width: 34px; height: 32px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 700; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.prio-levels button:hover { border-color: #3d4a5e; color: var(--text); }
+.prio-levels button.active { border-color: transparent; background: var(--accent); color: #fff; }
+.prio-hint { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12.5px; }
+.prio-hint.empty { color: var(--faint); }
+.prio-info { position: relative; display: inline-grid; width: 18px; height: 18px; place-items: center; border-radius: 50%; color: var(--faint); cursor: help; font-size: 13px; font-weight: 400; }
+.prio-info:hover, .prio-info:focus { color: var(--text); outline: none; }
+.prio-tip { position: absolute; top: calc(100% + 8px); left: -8px; z-index: 30; width: min(340px, 78vw); padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: #0b1017; color: var(--muted); box-shadow: var(--shadow-pop); font-size: 12.5px; font-weight: 400; line-height: 1.55; text-align: left; white-space: normal; opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity .14s ease, transform .14s ease; }
+.prio-info:hover .prio-tip, .prio-info:focus .prio-tip, .prio-info:focus-within .prio-tip { opacity: 1; transform: translateY(0); }
+.prio-tip b { display: block; margin-bottom: 4px; color: var(--text); font-size: 13px; }
+.prio-tip p { margin: 0 0 6px; }
+.prio-tip ol { display: grid; gap: 3px; margin: 6px 0 0; padding: 0; list-style: none; }
+.prio-tip li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; }
+.prio-tip li b { display: inline; margin: 0; color: var(--accent-text); }
+.prio-ai { display: grid; gap: 8px; padding-top: 12px; }
+.prio-ai-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.prio-ai-message { margin: 0; color: var(--muted); font-size: 12.5px; }
+.prio-paste { display: grid; gap: 6px; justify-items: end; }
+.prio-paste textarea { min-height: 96px; margin: 0; font-size: 13px; }
+.app-card .priority-bonus { margin-left: 2px; color: var(--fail); font-size: 11px; font-style: normal; font-weight: 700; }
+@media (max-width: 680px) {
+  .prio-row { grid-template-columns: 1fr; }
+  .prio-levels { justify-content: space-between; }
+  .prio-levels button { flex: 1; }
+}

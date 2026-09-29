@@ -9,10 +9,11 @@ assert(applicationStatuses.includes('불합격'), 'rejected status is selectable
 assert(normalizedApplicationStatus('불합격') === '불합격', 'rejected status is preserved');
 assert(normalizedApplicationStatus('탈락') === '불합격', 'legacy rejected status is preserved');
 assert(statusClass('불합격') === 'closed', 'rejected status uses closed styling');
-assert(calculateDeadlineScore('2026-09-02', new Date('2026-09-02T09:00:00')) === 50, 'D-day score');
-assert(calculateDeadlineScore('2026-09-03', new Date('2026-09-02T09:00:00')) === 40, 'D-1 score');
-assert(calculateDeadlineScore('2026-09-05', new Date('2026-09-02T09:00:00')) === 15, 'D-3 score');
-assert(calculateDeadlineScore('2026-09-10', new Date('2026-09-02T09:00:00')) === 3, 'D-8 score');
+assert(calculateDeadlineScore('2026-09-02', new Date('2026-09-02T09:00:00')) === 15, 'D-day bonus');
+assert(calculateDeadlineScore('2026-09-03', new Date('2026-09-02T09:00:00')) === 15, 'D-1 bonus');
+assert(calculateDeadlineScore('2026-09-05', new Date('2026-09-02T09:00:00')) === 10, 'D-3 bonus');
+assert(calculateDeadlineScore('2026-09-09', new Date('2026-09-02T09:00:00')) === 5, 'D-7 bonus');
+assert(calculateDeadlineScore('2026-09-10', new Date('2026-09-02T09:00:00')) === 0, 'D-8 has no bonus');
 assert(daysUntil('2026-09-03T07:00', new Date('2026-09-02T09:00:00')) === 0, '22 hours remaining is D-DAY');
 assert(daysUntil('2026-09-03T23:00', new Date('2026-09-02T09:00:00')) === 1, '38 hours remaining is D-1');
 assert(daysUntil('2026-09-04T08:59', new Date('2026-09-02T09:00:00')) === 1, 'under 48 hours remaining is D-1');
@@ -28,9 +29,20 @@ const activeProcess = getPriorityBreakdown({ id:'a', jobId:'j', status:'전형 �
 assert(activeProcess.deadline === 0, 'active process excludes deadline score');
 assert(clampScore(120, 0, 100) === 100, 'upper clamp');
 assert(getPriorityLabel(85) === '최우선' && getPriorityLabel(84) === '적극 지원', 'priority threshold');
-const result = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', applicationFitScore:18, compensationScore:15, companyScore:5, locationScore:10, processScore:8, priorityAdjustment:10 }, { id:'j', company:'회사', role:'Backend', deadline:'', url:'', description:'', skills:[] });
-assert(result.final === 77, 'B-preference high-fit calculation');
-assert(!('adjustment' in result), 'manual adjustment excluded');
+const job = { id:'j', company:'회사', role:'Backend', deadline:'', url:'', description:'', skills:[] };
+// 지원 가치 = 커리어 30 + 직무선호 20 + 연봉 20 + 합격 20 + 근무 10, 단계 비율 5=100% 4=85% 3=65% 2=40% 1=15%
+const full = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'S', careerLevel:5, compensationLevel:5, passLevel:5, workLevel:5 }, job);
+assert(full.value === 100 && full.missing.length === 0, 'all top levels make 100');
+const empty = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'' }, job);
+assert(empty.value === 65 && empty.missing.length === 5, 'unentered criteria count as middle, not zero');
+const mixed = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', careerLevel:4, compensationLevel:3, passLevel:4, workLevel:1 }, job);
+assert(mixed.value === 70, 'weighted level calculation (25.5 + 13 + 13 + 17 + 1.5)');
+const urgent = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'D', careerLevel:1, compensationLevel:1, passLevel:1, workLevel:1 }, { ...job, deadline: new Date().toISOString().slice(0, 10) });
+assert(urgent.final === urgent.value && urgent.deadline === 15 && urgent.sortScore === urgent.value + 15, 'deadline bonus only affects sorting');
+assert(urgent.sortScore < full.sortScore, 'deadline cannot lift a low-value job above a high-value one');
+const legacy = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', applicationFitScore:18, compensationScore:15, companyScore:5, locationScore:10, processScore:8 }, job);
+assert(legacy.levels.pass === 4 && legacy.levels.compensation === 5 && legacy.levels.career === 5 && legacy.levels.work === 5, 'legacy numeric scores migrate to levels');
+assert(!('adjustment' in legacy), 'manual adjustment excluded');
 console.log('PASS priority calculation');
 
 assert(!matchesApplicationTab("불합격", "전체"), "rejected applications excluded from all tab");
@@ -131,3 +143,11 @@ const mergedRows = stageResultStats([
 assert(mergedRows.map((row) => `${row.name}:${row.passed}/${row.failed}`).join(',') === '1차 면접:1/1', 'stage statistics merge similar names and leave documents to the pass rate');
 assert(statsApplications({ applications: [{ id: 'active' }], archivedApplications: [{ id: 'archived' }] }).map((item) => item.id).join() === 'active', 'applications moved to the job vault are excluded from statistics');
 console.log('PASS well-known stage names and archived exclusion');
+
+const { buildPriorityPrompt, parsePriorityResult } = await import('./src/priority.ts');
+const prompt = buildPriorityPrompt({ company: '네이버', role: '백엔드', location: '성남', deadline: '2026-10-03', url: 'https://example.com', description: 'C++ 서버 개발' }, { location: '서울 양천구', skills: ['C++', 'Linux'] });
+assert(prompt.includes('커리어 가치 (30점)') && prompt.includes('직무선호도 (20점 · 내가 결정)') && prompt.includes('네이버') && prompt.includes('C++, Linux'), 'prompt includes criteria, job and profile');
+const parsed = parsePriorityResult('분석...\n```json\n{"career": 4, "preference_suggestion": "a", "compensation": null, "pass": "5", "work": 9, "check": "근무지 확인"}\n```');
+assert(parsed && parsed.levels.career === 4 && parsed.levels.compensation === undefined && parsed.levels.pass === 5 && parsed.levels.work === undefined && parsed.preferenceSuggestion === 'A' && parsed.check === '근무지 확인', 'AI result JSON parsed, invalid levels ignored');
+assert(parsePriorityResult('JSON 없음') === null, 'missing JSON reported');
+console.log('PASS priority prompt');

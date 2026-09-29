@@ -209,6 +209,12 @@ export interface Application {
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
+  // 우선순위 5단계 입력 (1~5, 비우면 보통으로 계산)
+  careerLevel?: number;
+  compensationLevel?: number;
+  passLevel?: number;
+  workLevel?: number;
+  // 예전 숫자 점수. 새 5단계 값이 없을 때만 옮겨서 씁니다.
   applicationFitScore?: number;
   compensationScore?: number;
   companyScore?: number;
@@ -339,6 +345,12 @@ export interface ApplicationPayload {
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
+  // 우선순위 5단계 입력 (1~5, 비우면 보통으로 계산)
+  careerLevel?: number;
+  compensationLevel?: number;
+  passLevel?: number;
+  workLevel?: number;
+  // 예전 숫자 점수. 새 5단계 값이 없을 때만 옮겨서 씁니다.
   applicationFitScore?: number;
   compensationScore?: number;
   companyScore?: number;
