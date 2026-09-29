@@ -11,7 +11,7 @@ export function normalizedApplicationStatus(status: string): string {
   return '전형 진행';
 }
 
-export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', 'AI 역량검사', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
+export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', 'AI 역량검사', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '채용검진', '최종 결과', '없음'];
 
 // '서류 마감' 단계는 공고 마감일과 같은 일정입니다. 일정에는 공고 마감 한 번만 보여 줍니다.
 export function duplicatesJobDeadline(step: Pick<ApplicationProcessStep, 'name' | 'date'>, job?: Pick<Job, 'deadline'>): boolean {
@@ -34,7 +34,7 @@ export function processStageGroup(application: Application): ProcessStageGroup {
   if (name.includes('면접') || /인터뷰|커피챗|PT|토론/i.test(name)) return '면접';
   if (/테스트|코테|인적성|적성|과제|시험|역량검사|역검|코딩/.test(name)) return '테스트';
   if (name.includes('서류')) return '서류 심사';
-  if (/처우|최종|오퍼|연봉|입사|합격 발표|결과/.test(name)) return '최종 조율';
+  if (/처우|최종|오퍼|연봉|입사|합격 발표|결과|검진|레퍼런스/.test(name)) return '최종 조율';
   return '기타';
 }
 
