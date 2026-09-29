@@ -2741,7 +2741,7 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .prio-ai-message { margin: 0; color: var(--muted); font-size: 12.5px; }
 .prio-paste { display: grid; gap: 6px; justify-items: end; }
 .prio-paste textarea { min-height: 96px; margin: 0; font-size: 13px; }
-.app-card .priority-bonus { margin-left: 2px; color: var(--fail); font-size: 11px; font-style: normal; font-weight: 700; }
+.app-card .priority-bonus { margin-left: 2px; color: var(--faint); font-size: 11px; font-style: normal; font-weight: 500; }
 @media (max-width: 680px) {
   .prio-row { grid-template-columns: 1fr; }
   .prio-levels { justify-content: space-between; }
