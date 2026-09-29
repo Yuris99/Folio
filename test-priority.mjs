@@ -110,6 +110,7 @@ console.log('PASS stage and weekly statistics');
 const stageOf = (steps) => processStageGroup({ id: 's', jobId: 'j', status: '전형 진행', next: '', processSteps: steps.map(([name, status], index) => ({ id: String(index), name, date: '', status })) });
 assert(stageOf([['서류 마감', '완료'], ['서류 결과', '예정']]) === '서류 심사', 'document review stage');
 assert(stageOf([['서류 결과', '완료'], ['코테', '예정']]) === '테스트', 'coding test grouped as test');
+assert(stageOf([['서류 결과', '완료'], ['AI 역량검사', '예정']]) === '테스트', 'AI competency test grouped as test');
 assert(stageOf([['인적성 검사', '완료'], ['최종 면접', '진행 중'], ['처우 협의', '예정']]) === '면접', 'in-progress step wins and final interview is an interview');
 assert(stageOf([['1차 면접', '완료'], ['처우 협의', '예정']]) === '최종 조율', 'offer stage');
 assert(stageOf([]) === '단계 미등록', 'no steps');

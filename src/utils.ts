@@ -11,7 +11,7 @@ export function normalizedApplicationStatus(status: string): string {
   return '전형 진행';
 }
 
-export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
+export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', 'AI 역량검사', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
 
 // '서류 마감' 단계는 공고 마감일과 같은 일정입니다. 일정에는 공고 마감 한 번만 보여 줍니다.
 export function duplicatesJobDeadline(step: Pick<ApplicationProcessStep, 'name' | 'date'>, job?: Pick<Job, 'deadline'>): boolean {
