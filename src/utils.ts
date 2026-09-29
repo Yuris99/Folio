@@ -55,6 +55,21 @@ export function currentProcessStep(application: Application): ApplicationProcess
   return steps.find((step) => step.status === '진행 중') || steps.find((step) => step.status === '예정');
 }
 
+export function applicationDeadlineForSort(application: Application, job: Job): number {
+  const status = normalizedApplicationStatus(application.status);
+  let date = '';
+  if (status === '지원 준비' && !job.alwaysOpen) date = job.deadline;
+  if (status === '전형 진행') {
+    const step = currentProcessStep(application);
+    date = application.processSteps?.length
+      ? step && !step.dateTbd ? step.date : ''
+      : application.nextDate || '';
+  }
+  if (!date) return Number.POSITIVE_INFINITY;
+  const timestamp = new Date(date.includes('T') ? date : `${date}T23:59:59`).getTime();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
 export const processStageGroups = ['서류 심사', '테스트', '면접', '최종 조율', '기타', '단계 미등록'] as const;
 export type ProcessStageGroup = typeof processStageGroups[number];
 

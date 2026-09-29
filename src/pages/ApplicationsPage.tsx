@@ -12,7 +12,7 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, DocumentResult, View, Workspace } from '../types';
 import { CAREER_GRADES, PRIORITY_CRITERIA, getPriorityBreakdown, priorityLevels, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
-import { statsApplications, applicationStats, currentProcessStep, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+import { statsApplications, applicationStats, applicationDeadlineForSort, currentProcessStep, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
 const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
@@ -39,7 +39,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [statusFilter, setStatusFilter] = useState(() => new URLSearchParams(window.location.search).get('status') || '전체');
   const [gradeFilter, setGradeFilter] = useState('전체');
   const [priorityFilter, setPriorityFilter] = useState('전체');
-  const [sortBy, setSortBy] = useState<'recent' | 'priority' | 'grade' | 'deadline' | 'company'>(() => { const value = new URLSearchParams(window.location.search).get('sort'); return ['recent', 'priority', 'grade', 'deadline', 'company'].includes(value || '') ? value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company' : 'priority'; });
+  const [sortBy, setSortBy] = useState<'recent' | 'priority' | 'grade' | 'deadline' | 'company'>(() => { const value = new URLSearchParams(window.location.search).get('sort'); return ['recent', 'priority', 'grade', 'deadline', 'company'].includes(value || '') ? value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company' : 'deadline'; });
   const [pinFirst, setPinFirst] = useState(true);
   const [consideringOnly, setConsideringOnly] = useState(false);
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
@@ -79,7 +79,11 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     if (sortBy === 'priority') { const score = getPriorityBreakdown(b, bJob).sortScore - getPriorityBreakdown(a, aJob).sortScore; if (score) return score; return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999'); }
     if (sortBy === 'grade') return (a.careerGrade ? CAREER_GRADES.indexOf(a.careerGrade) : 99) - (b.careerGrade ? CAREER_GRADES.indexOf(b.careerGrade) : 99);
     if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
-    if (sortBy === 'deadline') return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999');
+    if (sortBy === 'deadline') {
+      const aDeadline = applicationDeadlineForSort(a, aJob);
+      const bDeadline = applicationDeadlineForSort(b, bJob);
+      return aDeadline < bDeadline ? -1 : aDeadline > bDeadline ? 1 : 0;
+    }
     return (b.createdAt || '').localeCompare(a.createdAt || '');
   }), [workspace, query, statusFilter, stageFilter, gradeFilter, priorityFilter, sortBy, pinFirst, consideringOnly]);
 

@@ -1,5 +1,5 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
-import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
+import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, applicationDeadlineForSort, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
 
 function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
@@ -30,6 +30,13 @@ assert(activeProcess.deadline === 0, 'active process excludes deadline score');
 assert(clampScore(120, 0, 100) === 100, 'upper clamp');
 assert(getPriorityLabel(85) === '최우선' && getPriorityLabel(84) === '적극 지원', 'priority threshold');
 const job = { id:'j', company:'회사', role:'Backend', deadline:'', url:'', description:'', skills:[] };
+const deadlineJob = { ...job, deadline:'2099-06-10T18:00' };
+const preparing = { id:'preparing', jobId:'j', status:'지원 준비', next:'' };
+const interviewing = { id:'interviewing', jobId:'j', status:'전형 진행', next:'', processSteps:[{ id:'done', name:'서류 마감', date:'2099-06-01T18:00', status:'완료' }, { id:'next', name:'1차 면접', date:'2099-06-09T10:00', status:'예정' }] };
+assert(applicationDeadlineForSort(interviewing, deadlineJob) < applicationDeadlineForSort(preparing, deadlineJob), 'next interview is sorted against document deadline');
+assert(applicationDeadlineForSort({ ...interviewing, processSteps:[], nextDate:'2099-06-08T10:00' }, deadlineJob) < applicationDeadlineForSort(interviewing, deadlineJob), 'legacy next date is used when steps are absent');
+assert(applicationDeadlineForSort({ ...interviewing, processSteps:[{ ...interviewing.processSteps[1], dateTbd:true }] }, deadlineJob) === Infinity, 'undated next step is sorted last');
+assert(applicationDeadlineForSort(preparing, { ...deadlineJob, alwaysOpen:true }) === Infinity, 'always-open preparation has no deadline');
 // 지원 가치 = 커리어 30 + 직무선호 20 + 연봉 20 + 합격 20 + 근무 10, 단계 비율 5=100% 4=85% 3=65% 2=40% 1=15%
 const full = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'S', careerLevel:5, compensationLevel:5, passLevel:5, workLevel:5 }, job);
 assert(full.value === 100 && full.missing.length === 0, 'all top levels make 100');
