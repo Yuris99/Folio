@@ -11,7 +11,10 @@ export function normalizedApplicationStatus(status: string): string {
   return '전형 진행';
 }
 
-export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', 'AI 역량검사', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '채용검진', '최종 결과', '없음'];
+// '단계 추가' 버튼과 단계 이름 자동완성에 쓰는 목록
+export const nextProcesses = ['서류 마감', 'AI 역량검사', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '채용검진', '최종 결과', '없음'];
+// 통계 정렬 순서. 목록에서 뺀 예전 단계 이름도 제자리에 오도록 남겨 둡니다.
+const processOrder = ['서류 마감', '서류 제출', '서류 결과', ...nextProcesses.slice(1)];
 
 // '서류 마감' 단계는 공고 마감일과 같은 일정입니다. 일정에는 공고 마감 한 번만 보여 줍니다.
 export function duplicatesJobDeadline(step: Pick<ApplicationProcessStep, 'name' | 'date'>, job?: Pick<Job, 'deadline'>): boolean {
@@ -154,7 +157,7 @@ export function stageResultStats(applications: Application[]) {
     if (step.result === '합격') stage.passed += 1; else stage.failed += 1;
     stages.set(name, stage);
   }
-  const order = (name: string) => { const index = nextProcesses.indexOf(name); return index < 0 ? nextProcesses.length : index; };
+  const order = (name: string) => { const index = processOrder.indexOf(name); return index < 0 ? processOrder.length : index; };
   return [...stages.values()].sort((a, b) => order(a.name) - order(b.name) || a.name.localeCompare(b.name, 'ko'));
 }
 
