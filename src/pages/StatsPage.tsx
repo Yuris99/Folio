@@ -74,7 +74,7 @@ export function StatsPage({ workspace, navigate }: { workspace: Workspace; navig
       </article>
 
       <article className="card stats-card stats-wide">
-        <div className="section-head"><h2>전형 단계별 통과율</h2><small>비슷한 단계 이름은 하나로 묶어 셉니다</small></div>
+        <div className="section-head"><h2>전형 단계별 통과율</h2><small>서류 이후 전형 · 비슷한 단계 이름은 하나로 묶어 셉니다</small></div>
         {stages.length ? <div className="stats-stage-list">{stages.map((stage) => <div className="stats-stage" key={stage.name}>
           <strong>{stage.name}</strong>
           <ResultBar label={stage.name} passed={stage.passed} failed={stage.failed} />

@@ -128,6 +128,6 @@ const mergedRows = stageResultStats([
   { id: 'x', jobId: 'j', status: '불합격', next: '', processSteps: [{ id: '1', name: '서류 마감', date: '', status: '완료', result: '합격' }, { id: '2', name: '1차면접', date: '', status: '완료', result: '불합격' }] },
   { id: 'y', jobId: 'j', status: '전형 진행', next: '', processSteps: [{ id: '3', name: '서류 결과', date: '', status: '완료', result: '합격' }, { id: '4', name: '1차 면접', date: '', status: '완료', result: '합격' }] }
 ]);
-assert(mergedRows.map((row) => `${row.name}:${row.passed}/${row.failed}`).join(',') === '서류:2/0,1차 면접:1/1', 'stage statistics merge similar names');
+assert(mergedRows.map((row) => `${row.name}:${row.passed}/${row.failed}`).join(',') === '1차 면접:1/1', 'stage statistics merge similar names and leave documents to the pass rate');
 assert(statsApplications({ applications: [{ id: 'active' }], archivedApplications: [{ id: 'archived' }] }).map((item) => item.id).join() === 'active', 'applications moved to the job vault are excluded from statistics');
 console.log('PASS well-known stage names and archived exclusion');
