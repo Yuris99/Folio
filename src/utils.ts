@@ -1,4 +1,4 @@
-import type { Application, Job, Workspace } from './types';
+import type { Application, ApplicationProcessStep, Job, Workspace } from './types';
 
 export const applicationStatuses = ['관심', '지원 준비', '전형 진행', '결과 대기', '불합격'];
 
@@ -12,6 +12,31 @@ export function normalizedApplicationStatus(status: string): string {
 }
 
 export const nextProcesses = ['서류 마감', '서류 제출', '서류 결과', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '최종 결과', '없음'];
+
+// '서류 마감' 단계는 공고 마감일과 같은 일정입니다. 일정에는 공고 마감 한 번만 보여 줍니다.
+export function duplicatesJobDeadline(step: Pick<ApplicationProcessStep, 'name' | 'date'>, job?: Pick<Job, 'deadline'>): boolean {
+  return step.name.trim() === '서류 마감' && Boolean(job?.deadline) && step.date.slice(0, 10) === job!.deadline.slice(0, 10);
+}
+
+// 지금 진행 중이거나 다음에 올 전형 단계
+export function currentProcessStep(application: Application): ApplicationProcessStep | undefined {
+  const steps = application.processSteps || [];
+  return steps.find((step) => step.status === '진행 중') || steps.find((step) => step.status === '예정');
+}
+
+export const processStageGroups = ['서류 심사', '테스트', '면접', '최종 조율', '기타', '단계 미등록'] as const;
+export type ProcessStageGroup = typeof processStageGroups[number];
+
+// 회사마다 다른 단계 이름을 몇 개의 묶음으로 모읍니다. '최종 면접'은 면접, '코테'는 테스트로 묶입니다.
+export function processStageGroup(application: Application): ProcessStageGroup {
+  const name = currentProcessStep(application)?.name.trim() || application.nextProcess?.trim() || '';
+  if (!name || name === '없음') return '단계 미등록';
+  if (name.includes('면접') || /인터뷰|커피챗|PT|토론/i.test(name)) return '면접';
+  if (/테스트|코테|인적성|적성|과제|시험|역량검사|역검|코딩/.test(name)) return '테스트';
+  if (name.includes('서류')) return '서류 심사';
+  if (/처우|최종|오퍼|연봉|입사|합격 발표|결과/.test(name)) return '최종 조율';
+  return '기타';
+}
 
 export function dateLabel(value?: string): string {
   if (!value) return '미정';

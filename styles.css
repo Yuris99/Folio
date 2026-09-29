@@ -1560,50 +1560,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent-strong); 
   }
 }
 
-/* Give the calendar usable width on an 8:9 half-monitor viewport. */
+/* 반쪽 모니터에서도 사이드바는 모든 탭에서 같은 폭을 유지하고, 달력 칸만 낮춥니다. */
 @media (min-width: 681px) and (max-aspect-ratio: 5/4) {
-  .view-calendar .sidebar {
-    width: 82px;
-    padding-right: 10px;
-    padding-left: 10px;
-  }
-  .view-calendar .brand {
-    justify-content: center;
-    padding: 0;
-  }
-  .view-calendar .brand > span:last-child,
-  .view-calendar .nav-item:not(.active)::after,
-  .view-calendar .profile-card > div:last-child {
-    display: none;
-  }
-  .view-calendar .nav {
-    margin-top: 30px;
-  }
-  .view-calendar .nav-item {
-    justify-content: center;
-    gap: 0;
-    min-height: 46px;
-    padding: 9px 4px;
-    overflow: hidden;
-    font-size: 0;
-  }
-  .view-calendar .nav-item span {
-    width: auto;
-    font-size: 19px;
-  }
-  .view-calendar .profile-card {
-    justify-content: center;
-    padding-right: 0;
-    padding-left: 0;
-  }
-  .view-calendar .main {
-    width: calc(100% - 82px);
-    margin-left: 82px;
-  }
-  .view-calendar .content {
-    padding-right: 20px;
-    padding-left: 20px;
-  }
   .view-calendar .calendar-day {
     min-height: 84px;
   }
@@ -2474,9 +2432,6 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .app-card-title { min-width: 0; display: grid; gap: 1px; }
 .app-card-title strong { overflow: hidden; font-size: 15px; font-weight: 700; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
 .app-card-title small { overflow: hidden; color: var(--muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
-.app-card-links { display: flex; gap: 10px; margin-top: 3px; }
-.app-card-links a { display: inline-flex; align-items: center; gap: 3px; color: var(--faint); font-size: 12px; font-weight: 500; text-decoration: none; }
-.app-card-links a:hover { color: var(--accent-text); }
 
 .app-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .app-card .document-result-chip { width: auto; min-height: 0; height: 24px; margin: 0; padding: 0 22px 0 9px; border: 1px solid var(--line-strong); border-radius: 999px; background-color: transparent; background-position: right 7px center; background-size: 10px; color: var(--muted); font-size: 12px; font-weight: 600; line-height: 22px; box-shadow: none; }
@@ -2651,3 +2606,54 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .job-vault-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .job-vault-toolbar .application-search { grid-column: 1 / -1; }
 }
+
+/* ---------- Job links: 공고 원문 · 노션 (가장 자주 여는 링크) ---------- */
+.job-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.job-link { display: inline-flex; align-items: center; gap: 7px; min-width: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--panel-2); color: var(--text); font: inherit; text-decoration: none; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.job-link > span:not(.notion-mark) { min-width: 0; display: grid; }
+.job-link b { font-weight: 600; white-space: nowrap; }
+.job-link small { overflow: hidden; color: var(--faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.job-link i { margin-left: auto; color: var(--faint); font-style: normal; }
+.job-link .icon { color: var(--accent-strong); }
+.job-link:hover { border-color: #3d4a5e; background: var(--panel-hover); }
+.job-link:hover i { color: var(--text); }
+.notion-mark { width: 18px; height: 18px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 4px; background: #eceef2; color: #191919; font: 700 12px/1 Georgia, 'Times New Roman', serif; }
+.job-link.add { border-style: dashed; background: transparent; color: var(--muted); }
+.job-link.add .notion-mark { background: var(--line-strong); color: var(--muted); }
+.job-link.add:hover { color: var(--text); }
+.job-link.empty { border-style: dashed; background: transparent; color: var(--faint); cursor: default; }
+.job-link.empty .icon { color: var(--faint); }
+.job-links-md { margin-top: 8px; }
+.job-links-md .job-link { height: 32px; padding: 0 11px; font-size: 13px; }
+.job-links-lg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 4px 0 16px; }
+.job-links-lg .job-link { min-height: 60px; gap: 12px; padding: 10px 16px; border-radius: var(--radius); font-size: 15px; }
+.job-links-lg .notion-mark { width: 24px; height: 24px; font-size: 15px; }
+
+/* 전형 진행 단계 칩 */
+.app-stage-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; }
+.app-stage-chips button { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+.app-stage-chips button b { color: var(--text); font-weight: 700; }
+.app-stage-chips button:hover { border-color: var(--line-strong); color: var(--text); }
+.app-stage-chips button.active { border-color: transparent; background: var(--info-soft); color: var(--info); }
+.app-stage-chips button.active b { color: var(--info); }
+.app-card .status em { font-style: normal; font-weight: 500; opacity: .85; }
+
+/* 날짜만 줄이고 D-day는 항상 보이게 */
+.app-card-cell .cell-line { min-width: 0; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.app-card-cell .cell-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.app-card-cell .cell-line .dday { flex: 0 0 auto; margin-left: 0; }
+.app-card-cell > strong { overflow: visible; }
+@media (max-width: 680px) {
+  .job-links-lg { grid-template-columns: 1fr; }
+  .job-links-md .job-link { height: 34px; }
+}
+@media (max-width: 1180px) and (min-width: 681px) {
+  .app-overview { grid-template-columns: 1fr; }
+  .app-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; grid-template-areas: 'company company actions' 'badges badges badges' 'next date date'; }
+  .app-card-badges { justify-content: flex-start; }
+  .app-card-company .job-links { flex-wrap: nowrap; }
+}
+.app-card-company .job-links-md { flex-wrap: nowrap; }
+.job-page-editor .job-links-lg { margin: 0 42px 16px; }
+@media (min-width: 681px) and (max-width: 1200px) { .job-page-editor .job-links-lg { margin-right: 28px; margin-left: 28px; } }
+@media (max-width: 680px) { .job-page-editor .job-links-lg { margin: 0 16px 12px; } }
