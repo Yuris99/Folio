@@ -2786,3 +2786,20 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .app-card .priority-score b { font-size: 21px; }
 }
 @media (max-width: 1180px) { .app-card > .app-card-next, .app-card > .app-card-date { align-self: stretch; align-content: start; } }
+
+/* ---------- 카드 칸 너비 고정: 글자 길이와 관계없이 모든 카드의 세로줄을 맞춥니다 ---------- */
+.app-card { grid-template-columns: minmax(0, 1.4fr) 230px minmax(0, 1fr) minmax(0, 1fr) 176px; }
+.app-card > * { min-width: 0; }
+.app-card-title strong, .app-card-title small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-card-chips { flex-wrap: nowrap; overflow: hidden; }
+.app-card-chips .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-card-chips .career-grade { flex: 0 0 auto; }
+.app-card-cell > strong, .app-card-cell .cell-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-doc { display: block; margin-top: 4px; }
+.cell-doc .document-result-chip { height: 22px; line-height: 20px; font-size: 11.5px; }
+.app-card-actions { justify-content: flex-end; }
+@media (max-width: 1180px) and (min-width: 681px) {
+  .app-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 184px; }
+}
+/* 두 정보 칸은 줄 수가 달라도 제목 높이를 맞춥니다 */
+.app-card > .app-card-next, .app-card > .app-card-date { align-self: stretch; align-content: start; padding-top: 4px; }
