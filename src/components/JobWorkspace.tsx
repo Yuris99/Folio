@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent
 import { api } from '../api';
 import { DateTimeInput } from './DateTimeInput';
 import { JobLinks } from './JobLinks';
+import { autoSaveLabel, useAutoSave } from '../hooks/useAutoSave';
 import type { Mutation } from '../hooks/useFolio';
 import type { Attachment, Job, JobSubpage } from '../types';
 import { dateLabel } from '../utils';
@@ -149,6 +150,40 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   const html = activePage?.html ?? (activePage ? markdownToHtml(activePage.content) : rootHtml);
   const attachmentIds = activePage?.attachmentIds ?? rootAttachmentIds;
 
+  // 본문·메모 페이지는 입력을 멈추면 자동 저장합니다.
+  const pageDraft = useMemo(() => ({ pageContent: rootContent, pageHtml: rootHtml, pages, attachmentIds: rootAttachmentIds }), [rootContent, rootHtml, pages, rootAttachmentIds]);
+  const pageAutoSave = useAutoSave(pageDraft, (draft) => mutate('공고 페이지 저장', () => api.updateJob(job.id, draft)));
+
+  // 공고 편집 폼도 입력하는 즉시 반영합니다. 회사명·직무명이 비어 있으면 기다립니다.
+  const overviewFormRef = useRef<HTMLFormElement>(null);
+  const [overviewDraft, setOverviewDraft] = useState<Partial<Job> | null>(null);
+  const overviewAutoSave = useAutoSave(overviewDraft, async (draft) => {
+    if (!draft) return;
+    const scheduleChanged = draft.deadline !== job.deadline || draft.alwaysOpen !== Boolean(job.alwaysOpen);
+    await mutate('공고 정보 저장', () => api.updateJob(job.id, draft));
+    if (scheduleChanged) await api.syncGoogleCalendar().catch(() => undefined);
+  }, { enabled: overviewEditing && Boolean(overviewDraft?.company && overviewDraft?.role) });
+  function readOverview() {
+    const form = overviewFormRef.current;
+    if (!form) return;
+    const data = new FormData(form);
+    setOverviewDraft({
+      company: String(data.get('company')).trim(),
+      role: String(data.get('role')).trim(),
+      location: String(data.get('location')).trim(),
+      deadline: alwaysOpen ? '' : String(data.get('deadline') || ''),
+      alwaysOpen,
+      url: String(data.get('url')).trim(),
+      notionUrl: String(data.get('notionUrl') || '').trim(),
+      description: String(data.get('description')).trim()
+    });
+  }
+  useEffect(() => { if (overviewEditing) readOverview(); }, [alwaysOpen]);
+  function openOverviewEditor() {
+    setOverviewDraft(null);
+    setOverviewEditing(true);
+  }
+
   useLayoutEffect(() => {
     const editor = editorRef.current;
     if (!editor || document.activeElement !== editor) return;
@@ -180,24 +215,9 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
     setActiveId(page.id);
   }
 
-  async function save() {
-    await mutate('공고 페이지 저장', () => api.updateJob(job.id, { pageContent: rootContent, pageHtml: rootHtml, pages, attachmentIds: rootAttachmentIds }));
-  }
-
-  async function saveOverview(event: FormEvent<HTMLFormElement>) {
+  async function finishOverview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    await mutate('공고 현황 수정', () => api.updateJob(job.id, {
-      company: String(data.get('company')).trim(),
-      role: String(data.get('role')).trim(),
-      location: String(data.get('location')).trim(),
-      deadline: alwaysOpen ? '' : String(data.get('deadline')),
-      alwaysOpen,
-      url: String(data.get('url')).trim(),
-      notionUrl: String(data.get('notionUrl') || '').trim(),
-      description: String(data.get('description')).trim()
-    }));
-    await api.syncGoogleCalendar().catch(() => undefined);
+    await overviewAutoSave.flush();
     setOverviewEditing(false);
   }
 
@@ -317,15 +337,15 @@ export function JobWorkspace({ job, attachments, mutate, onBack, onCreateApplica
   return <div className="job-workspace">
     <aside className="job-page-tree"><button className="text-button" onClick={onBack}>← 공고 목록</button><div className={`job-tree-item root ${activeId === 'root' ? 'active' : ''}`}><button onClick={() => setActiveId('root')}><span>{job.company[0]}</span>{job.company}</button><button onClick={() => createSubpage('root')}>+</button></div><PageTree pages={pages} activeId={activeId} onSelect={setActiveId} onAdd={createSubpage} /><button className="job-add-page" onClick={() => createSubpage()}>+ 새 페이지</button></aside>
     <main className="job-page-editor">
-      <div className="job-page-toolbar"><div><span className="eyebrow">{activeId === 'root' ? 'JOB OVERVIEW' : 'NOTE PAGE'}</span>{activeId === 'root' ? <><h1>{job.company} · {job.role}</h1><p>{job.alwaysOpen ? '상시 채용' : `${dateLabel(job.deadline)} 마감`}</p></> : <input className="job-page-title" value={activePage?.title || ''} onChange={(event) => setPages((items) => updatePage(items, activeId, { title: event.target.value }))} />}</div><div>{activeId === 'root' ? <><button className="button small" onClick={() => void save()}>페이지 저장</button><button className="button small" onClick={() => setOverviewEditing((value) => !value)}>{overviewEditing ? '편집 닫기' : '공고 편집'}</button><button className="button primary small" onClick={() => createSubpage('root')}>+ 메모 페이지</button></> : <><button className="button small" onClick={toggleMarkdownMode}>{markdownMode ? '시각적 편집' : 'Markdown'}</button><button className="button primary small" onClick={() => void save()}>저장</button></>}</div></div>
-      {activeId === 'root' && !overviewEditing && <JobLinks job={job} size="lg" onAddNotion={() => setOverviewEditing(true)} />}
+      <div className="job-page-toolbar"><div><span className="eyebrow">{activeId === 'root' ? 'JOB OVERVIEW' : 'NOTE PAGE'}</span>{activeId === 'root' ? <><h1>{job.company} · {job.role}</h1><p>{job.alwaysOpen ? '상시 채용' : `${dateLabel(job.deadline)} 마감`}</p></> : <input className="job-page-title" value={activePage?.title || ''} onChange={(event) => setPages((items) => updatePage(items, activeId, { title: event.target.value }))} />}</div><div>{activeId === 'root' ? <><span className={`autosave-state ${overviewEditing ? overviewAutoSave.state : pageAutoSave.state}`}>{autoSaveLabel(overviewEditing ? overviewAutoSave.state : pageAutoSave.state)}</span><button className="button small" onClick={() => overviewEditing ? void overviewFormRef.current?.requestSubmit() : openOverviewEditor()}>{overviewEditing ? '편집 완료' : '공고 편집'}</button><button className="button primary small" onClick={() => createSubpage('root')}>+ 메모 페이지</button></> : <><button className="button small" onClick={toggleMarkdownMode}>{markdownMode ? '시각적 편집' : 'Markdown'}</button><span className={`autosave-state ${pageAutoSave.state}`}>{autoSaveLabel(pageAutoSave.state)}</span></>}</div></div>
+      {activeId === 'root' && !overviewEditing && <JobLinks job={job} size="lg" onAddNotion={openOverviewEditor} />}
       <div className="job-editor-actions"><label className="button small file-button">파일 업로드<input hidden multiple type="file" accept="application/pdf,image/*" onChange={(event) => void chooseFile(event)} /></label>{activeId !== 'root' && <><button className="text-button danger-text" onClick={() => { if (window.confirm('이 페이지와 하위 페이지를 삭제할까요?')) { setPages((items) => removePage(items, activeId)); setActiveId('root'); } }}>페이지 삭제</button><button className="text-button" onClick={() => createSubpage(activeId)}>+ 하위 페이지</button></>}</div>
-      {activeId === 'root' ? overviewEditing ? <form className="job-overview-edit" onSubmit={saveOverview}>
+      {activeId === 'root' ? overviewEditing ? <form ref={overviewFormRef} className="job-overview-edit" onSubmit={(event) => void finishOverview(event)} onChange={readOverview}>
         <div className="form-grid two"><label>회사명<input required name="company" defaultValue={job.company} /></label><label>직무명<input required name="role" defaultValue={job.role} /></label></div>
         <label>근무지역<input name="location" defaultValue={job.location || ''} placeholder="예: 서울 강남구 · 주 2회 재택" /></label>
         <label className="inline-check"><input type="checkbox" checked={alwaysOpen} onChange={(event) => setAlwaysOpen(event.target.checked)} /> 상시 채용 <small>마감일 없음 · 마감 우선순위 0점</small></label><div className="form-grid two"><label>마감 일시<DateTimeInput name="deadline" ariaLabel="공고 마감 일시" defaultValue={job.deadline} disabled={alwaysOpen} /></label><label>공고 URL<input name="url" type="url" defaultValue={job.url} placeholder="https://..." /></label><label>노션 URL<input name="notionUrl" type="url" defaultValue={job.notionUrl || ''} placeholder="https://www.notion.so/..." /></label></div>
         <label>공고 내용<textarea name="description" rows={14} defaultValue={job.description} /></label>
-        <div className="job-overview-edit-actions"><button type="button" className="button ghost" onClick={() => setOverviewEditing(false)}>취소</button><button className="button primary">변경사항 저장</button></div>
+        <div className="job-overview-edit-actions"><span className={`autosave-state ${overviewAutoSave.state}`}>{overviewDraft && !(overviewDraft.company && overviewDraft.role) ? '회사명과 직무명을 입력하면 저장돼요' : autoSaveLabel(overviewAutoSave.state)}</span><button className="button primary">완료</button></div>
       </form> : <section className="job-overview" tabIndex={0} onPaste={(event) => void pasteImage(event)}>
         <article className="job-overview-section"><div className="section-head"><h2>공고 내용</h2>{job.url && <a href={job.url} target="_blank" rel="noreferrer">원문 열기 ↗</a>}</div><p>{job.description || '저장된 공고 내용이 없습니다.'}</p></article>
         {!!job.skills.length && <article className="job-overview-section"><h2>핵심 키워드</h2><div className="tag-row">{job.skills.map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></article>}
