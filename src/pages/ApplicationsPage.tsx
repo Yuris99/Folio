@@ -11,7 +11,7 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, DocumentResult, View, Workspace } from '../types';
 import { CAREER_GRADES, JOB_PREFERENCE_CONFIG, getPriorityBreakdown, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
-import { allApplications, applicationStats, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+import { statsApplications, applicationStats, currentProcessStep, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
 const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
@@ -28,7 +28,8 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [rejectId, setRejectId] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [rejectSaving, setRejectSaving] = useState(false);
-  const [rejectedAtDocuments, setRejectedAtDocuments] = useState(true);
+  // 불합격한 단계: 'documents'(서류) · 단계 id · ''(기록 안 함)
+  const [rejectStage, setRejectStage] = useState('');
   const [calendarWarning, setCalendarWarning] = useState('');
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(Date.now()), 30_000);
@@ -46,8 +47,8 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [expandedStepId, setExpandedStepId] = useState('');
   const [documentResult, setDocumentResult] = useState<DocumentResult>('');
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
-  // 서합율: 서류 결과를 기록한 원서 중 합격 비율. 보관된 지원까지 포함합니다.
-  const docStats = useMemo(() => applicationStats(allApplications(workspace)), [workspace]);
+  // 서합율: 서류 결과를 기록한 원서 중 합격 비율. 공고보관함으로 옮긴 지원은 뺍니다.
+  const docStats = useMemo(() => applicationStats(statsApplications(workspace)), [workspace]);
   const docDecided = docStats.passed + docStats.failed;
   const statusCounts = useMemo(() => Object.fromEntries(applicationStatuses.map((status) => [status, workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length])), [workspace.applications]);
   const activeFilterCount = [gradeFilter !== '전체', priorityFilter !== '전체', consideringOnly].filter(Boolean).length;
@@ -178,7 +179,31 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const application = workspace.applications.find((item) => item.id === id);
     setRejectId(id);
     setRejectReason(application?.rejectionReason || '');
-    setRejectedAtDocuments(application?.documentResult !== '합격');
+    const current = application ? currentProcessStep(application) : undefined;
+    setRejectStage(application?.documentResult !== '합격' ? 'documents' : current && !current.name.includes('서류') ? current.id : '');
+  }
+
+  // 서류가 아닌, 취소되지 않은 단계만 '어느 단계에서 떨어졌나요?' 선택지로 보여 줍니다.
+  const rejectApplication = rejectId ? workspace.applications.find((item) => item.id === rejectId) : undefined;
+  const rejectStageOptions = [
+    { value: 'documents', label: '서류' },
+    ...(rejectApplication?.processSteps || []).filter((step) => step.status !== '취소' && !step.name.includes('서류') && step.name.trim()).map((step) => ({ value: step.id, label: step.name })),
+    { value: '', label: '기록 안 함' }
+  ];
+
+  // 고른 단계에 불합격, 그 앞 단계 중 결과가 비어 있는 곳에는 합격을 기록합니다.
+  function rejectionResult(application: typeof rejectApplication): Pick<ApplicationPayload, 'documentResult' | 'processSteps'> {
+    const steps = application?.processSteps || [];
+    if (rejectStage === 'documents') {
+      const documentIndex = steps.map((step) => step.status !== '취소' && step.name.includes('서류')).lastIndexOf(true);
+      return { documentResult: '불합격', processSteps: steps.map((step, index) => index === documentIndex ? { ...step, result: '불합격', status: '완료' } : step) };
+    }
+    const failedIndex = steps.findIndex((step) => step.id === rejectStage);
+    if (failedIndex < 0) return { documentResult: application?.documentResult || '', processSteps: steps };
+    return {
+      documentResult: '합격',
+      processSteps: steps.map((step, index) => index === failedIndex ? { ...step, result: '불합격', status: '완료' } : index < failedIndex && step.status !== '취소' && !step.result ? { ...step, result: '합격', status: '완료' } : step)
+    };
   }
 
   async function changeApplicationStatus(id: string, status: string) {
@@ -190,7 +215,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   async function saveRejection() {
     setRejectSaving(true);
     try {
-      await mutate('불합격 사유 저장', () => api.updateApplication(rejectId, { status: '불합격', rejectionReason: rejectReason.trim(), documentResult: rejectedAtDocuments ? '불합격' : '합격' }));
+      await mutate('불합격 사유 저장', () => api.updateApplication(rejectId, { status: '불합격', rejectionReason: rejectReason.trim(), ...rejectionResult(rejectApplication) }));
       setRejectId('');
       await syncCalendarAfterStatusChange();
     } catch { /* The mutation error is shown by the layout; keep the memo open. */ }
@@ -206,7 +231,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   return <>
     <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
     {calendarWarning && <p className="calendar-sync-state error" role="status">{calendarWarning}</p>}
-    {rejectId && <Modal title="불합격 사유" kicker="APPLICATION RESULT" onClose={() => { if (!rejectSaving) setRejectId(''); }}><form onSubmit={(event) => { event.preventDefault(); void saveRejection(); }}><label>사유 메모 (선택)<textarea autoFocus rows={5} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="안내받은 사유나 다음 지원에 참고할 내용을 적어 주세요." /></label><label className="inline-check"><input type="checkbox" checked={rejectedAtDocuments} onChange={(event) => setRejectedAtDocuments(event.target.checked)} /> 서류 단계에서 불합격 <small>해제하면 서류는 합격한 것으로 기록돼요.</small></label><p className="empty-note">불합격 탭에만 표시되며 관련 일정과 할 일은 숨겨집니다.</p><div className="modal-actions"><button type="button" className="button ghost" disabled={rejectSaving} onClick={() => setRejectId('')}>취소</button><button className="button primary" disabled={rejectSaving}>{rejectSaving ? '저장 중…' : '불합격으로 저장'}</button></div></form></Modal>}
+    {rejectId && <Modal title="불합격 사유" kicker="APPLICATION RESULT" onClose={() => { if (!rejectSaving) setRejectId(''); }}><form onSubmit={(event) => { event.preventDefault(); void saveRejection(); }}><label>사유 메모 (선택)<textarea autoFocus rows={5} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="안내받은 사유나 다음 지원에 참고할 내용을 적어 주세요." /></label><fieldset className="reject-stage"><legend>어느 단계에서 불합격했나요?</legend><div>{rejectStageOptions.map((option) => <label key={option.value || 'none'} className={rejectStage === option.value ? 'active' : ''}><input type="radio" name="rejectStage" checked={rejectStage === option.value} onChange={() => setRejectStage(option.value)} />{option.label}</label>)}</div><small>{rejectStage ? '고른 단계에 불합격, 그 앞 단계에는 합격이 기록돼 통계에 반영돼요.' : '단계별 통과율에는 반영되지 않아요.'}</small></fieldset><p className="empty-note">불합격 탭에만 표시되며 관련 일정과 할 일은 숨겨집니다.</p><div className="modal-actions"><button type="button" className="button ghost" disabled={rejectSaving} onClick={() => setRejectId('')}>취소</button><button className="button primary" disabled={rejectSaving}>{rejectSaving ? '저장 중…' : '불합격으로 저장'}</button></div></form></Modal>}
     <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><div className="view-actions-buttons"><button className="button ghost" onClick={() => navigate('jobs')}>공고보관함</button><button className="button primary" onClick={() => open()}><Icon name="plus" size={16} />지원 추가</button></div></div>
     <section className="app-overview" aria-label="지원 요약">
       <button type="button" className="app-pass-rate" onClick={() => navigate('stats')} title="통계에서 자세히 보기">

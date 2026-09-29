@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { EmptyState, PageHead } from '../components/Common';
 import { CAREER_GRADES } from '../priority';
 import type { View, Workspace } from '../types';
-import { allApplications, applicationStats, applicationStatuses, documentOutcome, getJob, isRejected, isSubmitted, normalizedApplicationStatus, stageResultStats, weeklySubmissions } from '../utils';
+import { statsApplications, applicationStats, applicationStatuses, documentOutcome, getJob, isRejected, isSubmitted, normalizedApplicationStatus, stageResultStats, weeklySubmissions } from '../utils';
 
 const percent = (part: number, whole: number) => whole ? Math.round((part / whole) * 100) : 0;
 const monthDay = (date: Date) => `${date.getMonth() + 1}/${date.getDate()}`;
@@ -17,7 +17,7 @@ function ResultBar({ passed, failed, pending = 0, label }: { passed: number; fai
 }
 
 export function StatsPage({ workspace, navigate }: { workspace: Workspace; navigate: (view: View) => void }) {
-  const applications = useMemo(() => allApplications(workspace), [workspace]);
+  const applications = useMemo(() => statsApplications(workspace), [workspace]);
   const summary = useMemo(() => applicationStats(applications), [applications]);
   const weekly = useMemo(() => weeklySubmissions(applications), [applications]);
   const stages = useMemo(() => stageResultStats(applications), [applications]);
@@ -74,12 +74,12 @@ export function StatsPage({ workspace, navigate }: { workspace: Workspace; navig
       </article>
 
       <article className="card stats-card stats-wide">
-        <div className="section-head"><h2>전형 단계별 통과율</h2><small>단계마다 기록한 합격·불합격 기준</small></div>
+        <div className="section-head"><h2>전형 단계별 통과율</h2><small>비슷한 단계 이름은 하나로 묶어 셉니다</small></div>
         {stages.length ? <div className="stats-stage-list">{stages.map((stage) => <div className="stats-stage" key={stage.name}>
           <strong>{stage.name}</strong>
           <ResultBar label={stage.name} passed={stage.passed} failed={stage.failed} />
           <span className="stats-stage-num"><b>{percent(stage.passed, stage.passed + stage.failed)}%</b><small>{stage.passed} / {stage.passed + stage.failed}</small></span>
-        </div>)}<ul className="stats-legend"><li><i className="seg-pass" />합격</li><li><i className="seg-fail" />불합격</li></ul></div> : <p className="empty-note">아직 단계별 결과가 없어요. 지원 수정 창의 채용 프로세스에서 단계마다 합격·불합격을 골라 주세요.</p>}
+        </div>)}<ul className="stats-legend"><li><i className="seg-pass" />합격</li><li><i className="seg-fail" />불합격</li></ul></div> : <p className="empty-note">아직 단계별 결과가 없어요. 지원 수정 창에서 단계마다 합격·불합격을 고르거나, 불합격 처리할 때 떨어진 단계를 골라 주세요.</p>}
       </article>
 
       <article className="card stats-card">

@@ -2691,3 +2691,14 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .autosave-state.error::before { background: var(--fail); }
 .job-page-toolbar > div:last-child { align-items: center; }
 .job-overview-edit-actions { align-items: center; justify-content: space-between; }
+
+/* 불합격 단계 선택 */
+.reject-stage { margin: 16px 0 0; padding: 0; border: 0; }
+.reject-stage legend { margin-bottom: 8px; color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.reject-stage > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.reject-stage label { min-height: 32px; display: inline-flex; align-items: center; margin: 0; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--muted); cursor: pointer; font-size: 13px; }
+.reject-stage label input { position: absolute; opacity: 0; pointer-events: none; }
+.reject-stage label:hover { color: var(--text); }
+.reject-stage label.active { border-color: transparent; background: var(--fail-soft); color: var(--fail); font-weight: 600; }
+.reject-stage label:focus-within { outline: 2px solid rgba(238, 135, 146, .55); outline-offset: 2px; }
+.reject-stage small { display: block; margin-top: 8px; color: var(--faint); font-size: 12px; }

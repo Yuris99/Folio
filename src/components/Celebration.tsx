@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Workspace } from '../types';
-import { allApplications, applicationStats, documentOutcome, getJob } from '../utils';
+import { statsApplications, applicationStats, documentOutcome, getJob } from '../utils';
 
 const COLORS = ['#c47a81', '#f2c6a0', '#91c39f', '#8fb4ff', '#f3e39b', '#d8a6ff'];
 
@@ -70,7 +70,7 @@ export function Celebrations({ workspace, userId }: { workspace: Workspace; user
   const milestoneRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const applications = allApplications(workspace);
+    const applications = statsApplications(workspace);
     const stats = applicationStats(applications);
     // 서류 합격(doc:)과 단계별 합격(step:)을 한 집합으로 추적합니다.
     const passes = new Map<string, { company: string; stage: string }>();
