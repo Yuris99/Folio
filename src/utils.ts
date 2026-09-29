@@ -12,9 +12,37 @@ export function normalizedApplicationStatus(status: string): string {
 }
 
 // '단계 추가' 버튼과 단계 이름 자동완성에 쓰는 목록
-export const nextProcesses = ['서류 마감', 'AI 역량검사', '인적성 검사', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '채용검진', '최종 결과', '없음'];
-// 통계 정렬 순서. 목록에서 뺀 예전 단계 이름도 제자리에 오도록 남겨 둡니다.
-const processOrder = ['서류 마감', '서류 제출', '서류 결과', ...nextProcesses.slice(1)];
+export const nextProcesses = ['서류 마감', 'AI 역량검사', '인적성 검사', '필기 시험', '코딩 테스트', '1차 면접', '2차 면접', '최종 면접', '처우 협의', '채용검진', '최종 결과', '없음'];
+
+// 통계에서 쓰는 잘 알려진 단계 이름과 순서
+const wellKnownStages = ['서류', 'AI 역량검사', '인적성', '필기', '코딩 테스트', '과제', '1차 면접', '2차 면접', '3차 면접', '면접', '임원 면접', '최종 면접', '처우 협의', '채용검진', '최종 결과'];
+
+// 회사마다 다르게 적은 단계 이름을 잘 알려진 이름으로 모읍니다. 띄어쓰기·대소문자는 무시합니다.
+// 예: '1차면접'·'1차 실무 면접' → '1차 면접', 'SKCT'·'인적성 검사' → '인적성', 'AI 면접'·'역검' → 'AI 역량검사'
+export function canonicalStageName(name: string): string {
+  const raw = name.trim().replace(/\s+/g, ' ');
+  const key = raw.replace(/\s+/g, '').toLowerCase();
+  if (!key) return raw;
+  if (key.includes('서류')) return '서류';
+  if (/ai역량|역량검사|역검|ai면접|ai인터뷰|잡다|jobda/.test(key)) return 'AI 역량검사';
+  if (/인적성|적성|gsat|skct|sk?cat|hmat|lgway|dcat/.test(key)) return '인적성';
+  if (/코딩|코테|알고리즘/.test(key)) return '코딩 테스트';
+  if (/필기|전공시험|직무시험|논술/.test(key)) return '필기';
+  if (key.includes('과제')) return '과제';
+  if (key.includes('면접') || key.includes('인터뷰')) {
+    if (key.includes('최종')) return '최종 면접';
+    if (/1차|일차/.test(key)) return '1차 면접';
+    if (/2차|이차/.test(key)) return '2차 면접';
+    if (/3차|삼차/.test(key)) return '3차 면접';
+    if (/임원|대표|ceo/.test(key)) return '임원 면접';
+    if (/실무|기술|직무/.test(key)) return '1차 면접';
+    return '면접';
+  }
+  if (/처우|연봉|오퍼/.test(key)) return '처우 협의';
+  if (key.includes('검진')) return '채용검진';
+  if (key === '최종결과' || key === '최종합격') return '최종 결과';
+  return raw;
+}
 
 // '서류 마감' 단계는 공고 마감일과 같은 일정입니다. 일정에는 공고 마감 한 번만 보여 줍니다.
 export function duplicatesJobDeadline(step: Pick<ApplicationProcessStep, 'name' | 'date'>, job?: Pick<Job, 'deadline'>): boolean {
@@ -127,9 +155,9 @@ export function documentOutcome(application: Application): DocumentOutcome {
   return isRejected(application.status) ? 'unrecorded' : 'pending';
 }
 
-export function allApplications(workspace: Pick<Workspace, 'applications' | 'archivedApplications'>): Application[] {
-  const seen = new Set<string>();
-  return [...workspace.applications, ...(workspace.archivedApplications || [])].filter((item) => !seen.has(item.id) && Boolean(seen.add(item.id)));
+// 통계에 쓰는 지원 목록. '공고보관함으로 이동'한 지원은 지원을 접은 것이라 빼고, 불합격 탭의 지원은 포함합니다.
+export function statsApplications(workspace: Pick<Workspace, 'applications'>): Application[] {
+  return workspace.applications;
 }
 
 export function applicationStats(applications: Application[]) {
@@ -152,12 +180,12 @@ export function stageResultStats(applications: Application[]) {
   const stages = new Map<string, { name: string; passed: number; failed: number }>();
   for (const application of applications) for (const step of application.processSteps || []) {
     if (!step.result) continue;
-    const name = step.name.trim();
+    const name = canonicalStageName(step.name);
     const stage = stages.get(name) || { name, passed: 0, failed: 0 };
     if (step.result === '합격') stage.passed += 1; else stage.failed += 1;
     stages.set(name, stage);
   }
-  const order = (name: string) => { const index = processOrder.indexOf(name); return index < 0 ? processOrder.length : index; };
+  const order = (name: string) => { const index = wellKnownStages.indexOf(name); return index < 0 ? wellKnownStages.length : index; };
   return [...stages.values()].sort((a, b) => order(a.name) - order(b.name) || a.name.localeCompare(b.name, 'ko'));
 }
 

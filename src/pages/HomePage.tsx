@@ -6,7 +6,7 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
-import { allApplications, applicationStats, scheduleWorkspace, dateLabel, daysUntil, duplicatesJobDeadline, normalizedApplicationStatus } from '../utils';
+import { statsApplications, applicationStats, scheduleWorkspace, dateLabel, daysUntil, duplicatesJobDeadline, normalizedApplicationStatus } from '../utils';
 
 export function HomePage({ workspace: fullWorkspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const workspace = useMemo(() => scheduleWorkspace(fullWorkspace), [fullWorkspace]);
@@ -36,7 +36,7 @@ export function HomePage({ workspace: fullWorkspace, navigate, mutate }: { works
   const totalTodoCount = workspace.tasks.length + processTodos.length;
   const completedTodoCount = workspace.tasks.filter((item) => item.done).length + processTodos.filter((item) => item.done).length;
   const completed = Math.round(completedTodoCount / (totalTodoCount || 1) * 100);
-  const stats = useMemo(() => applicationStats(allApplications(fullWorkspace)), [fullWorkspace]);
+  const stats = useMemo(() => applicationStats(statsApplications(fullWorkspace)), [fullWorkspace]);
   const hasProfile = workspace.careerFacts.some((fact) => fact.status === 'verified');
 
   async function addTask(event: FormEvent<HTMLFormElement>) {

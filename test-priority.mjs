@@ -90,7 +90,7 @@ assert(summary.milestone === 0 && summary.nextMilestone === 10 && summary.milest
 assert(applicationStats(Array.from({ length: 23 }, (_, index) => ({ id: `m${index}`, jobId: 'j', status: '결과 대기', next: '' }))).milestone === 20, '10-application milestones');
 console.log('PASS document pass rate and milestones');
 
-const { stageResultStats, weeklySubmissions } = await import('./src/utils.ts');
+const { stageResultStats, weeklySubmissions, canonicalStageName, statsApplications } = await import('./src/utils.ts');
 const stageFixture = [
   { id: 'a', jobId: 'j', status: '전형 진행', next: '', processSteps: [{ id: '1', name: '1차 면접', date: '', status: '완료', result: '합격' }, { id: '2', name: '코딩 테스트', date: '', status: '완료', result: '불합격' }] },
   { id: 'b', jobId: 'j', status: '불합격', next: '', processSteps: [{ id: '3', name: '1차 면접', date: '', status: '완료', result: '불합격' }, { id: '4', name: '커피챗', date: '', status: '완료', result: '합격' }] }
@@ -116,3 +116,18 @@ assert(stageOf([['1차 면접', '완료'], ['처우 협의', '예정']]) === '�
 assert(stageOf([['최종 면접', '완료'], ['채용검진', '예정']]) === '최종 조율', 'medical check grouped as final stage');
 assert(stageOf([]) === '단계 미등록', 'no steps');
 console.log('PASS process stage groups');
+
+const canonical = (name) => canonicalStageName(name);
+assert(canonical('1차면접') === '1차 면접' && canonical('1차 실무 면접') === '1차 면접' && canonical('실무면접') === '1차 면접', 'first interview variants merge');
+assert(canonical('2차 임원면접') === '2차 면접' && canonical('임원 면접') === '임원 면접' && canonical('최종면접') === '최종 면접', 'numbered interviews win over executive label');
+assert(canonical('인적성 검사') === '인적성' && canonical('SKCT') === '인적성' && canonical('GSAT') === '인적성', 'aptitude test variants merge');
+assert(canonical('AI 역량검사') === 'AI 역량검사' && canonical('AI면접') === 'AI 역량검사' && canonical('역검') === 'AI 역량검사', 'AI competency variants merge');
+assert(canonical('필기 시험') === '필기' && canonical('코테') === '코딩 테스트' && canonical('서류 마감') === '서류' && canonical('채용검진') === '채용검진', 'other well-known stages');
+assert(canonical('커피 챗') === '커피 챗', 'unknown stage keeps its name');
+const mergedRows = stageResultStats([
+  { id: 'x', jobId: 'j', status: '불합격', next: '', processSteps: [{ id: '1', name: '서류 마감', date: '', status: '완료', result: '합격' }, { id: '2', name: '1차면접', date: '', status: '완료', result: '불합격' }] },
+  { id: 'y', jobId: 'j', status: '전형 진행', next: '', processSteps: [{ id: '3', name: '서류 결과', date: '', status: '완료', result: '합격' }, { id: '4', name: '1차 면접', date: '', status: '완료', result: '합격' }] }
+]);
+assert(mergedRows.map((row) => `${row.name}:${row.passed}/${row.failed}`).join(',') === '서류:2/0,1차 면접:1/1', 'stage statistics merge similar names');
+assert(statsApplications({ applications: [{ id: 'active' }], archivedApplications: [{ id: 'archived' }] }).map((item) => item.id).join() === 'active', 'applications moved to the job vault are excluded from statistics');
+console.log('PASS well-known stage names and archived exclusion');
