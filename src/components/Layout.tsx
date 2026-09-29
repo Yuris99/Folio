@@ -45,7 +45,7 @@ export function Layout({ view, navigate, user, workspace, syncState, error, onLo
         <nav className="nav" aria-label="주요 메뉴">
           {navGroups.map((group) => <div className="nav-group" key={group.label || 'main'}>
             {group.label && <p className="nav-group-label">{group.label}</p>}
-            {group.items.map((item) => <button key={item.view} className={`nav-item ${view === item.view ? 'active' : ''}`} aria-current={view === item.view ? 'page' : undefined} onClick={() => move(item.view)}><span><Icon name={item.icon} /></span>{item.label}</button>)}
+            {group.items.map((item) => <button key={item.view} className={`nav-item ${view === item.view ? 'active' : ''}`} aria-current={view === item.view ? 'page' : undefined} title={item.label} onClick={() => move(item.view)}><span><Icon name={item.icon} /></span><em className="nav-label">{item.label}</em></button>)}
           </div>)}
         </nav>
         <div className="sidebar-bottom"><button className="profile-card profile-button" onClick={() => move('career')}><div className="avatar">{profileName[0] || '나'}</div><div><strong>{profileName}</strong><small>{workspace.profile.role || '희망 직무'}</small></div></button></div>
