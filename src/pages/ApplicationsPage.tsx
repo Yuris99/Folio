@@ -5,11 +5,12 @@ import { EmptyState, PageHead, SupportTabs } from '../components/Common';
 import { Modal } from '../components/Modal';
 import { DateTimeInput } from '../components/DateTimeInput';
 import { DeadlineCountdown } from '../components/DeadlineCountdown';
+import { Icon } from '../components/Icon';
 import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, DocumentResult, View, Workspace } from '../types';
 import { CAREER_GRADES, JOB_PREFERENCE_CONFIG, getPriorityBreakdown, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
-import { isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+import { allApplications, applicationStats, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
 const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
@@ -44,6 +45,11 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [expandedStepId, setExpandedStepId] = useState('');
   const [documentResult, setDocumentResult] = useState<DocumentResult>('');
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
+  // 서합율: 서류 결과를 기록한 원서 중 합격 비율. 보관된 지원까지 포함합니다.
+  const docStats = useMemo(() => applicationStats(allApplications(workspace)), [workspace]);
+  const docDecided = docStats.passed + docStats.failed;
+  const statusCounts = useMemo(() => Object.fromEntries(applicationStatuses.map((status) => [status, workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length])), [workspace.applications]);
+  const activeFilterCount = [gradeFilter !== '전체', priorityFilter !== '전체', consideringOnly].filter(Boolean).length;
   const editingJob = editing ? getJob(workspace, editing) : undefined;
   const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
     const job = getJob(workspace, application);
@@ -188,22 +194,35 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   }
 
   return <>
-    <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." actions={<button className="button" onClick={() => navigate('jobs')}>공고보관함 →</button>} />
+    <PageHead kicker="APPLICATIONS" title="지원 관리" description="작성 중인 서류부터 종료된 지원까지 모두 기록합니다." />
     {calendarWarning && <p className="calendar-sync-state error" role="status">{calendarWarning}</p>}
     {rejectId && <Modal title="불합격 사유" kicker="APPLICATION RESULT" onClose={() => { if (!rejectSaving) setRejectId(''); }}><form onSubmit={(event) => { event.preventDefault(); void saveRejection(); }}><label>사유 메모 (선택)<textarea autoFocus rows={5} value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="안내받은 사유나 다음 지원에 참고할 내용을 적어 주세요." /></label><label className="inline-check"><input type="checkbox" checked={rejectedAtDocuments} onChange={(event) => setRejectedAtDocuments(event.target.checked)} /> 서류 단계에서 불합격 <small>해제하면 서류는 합격한 것으로 기록돼요.</small></label><p className="empty-note">불합격 탭에만 표시되며 관련 일정과 할 일은 숨겨집니다.</p><div className="modal-actions"><button type="button" className="button ghost" disabled={rejectSaving} onClick={() => setRejectId('')}>취소</button><button className="button primary" disabled={rejectSaving}>{rejectSaving ? '저장 중…' : '불합격으로 저장'}</button></div></form></Modal>}
-    <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><button className="button primary" onClick={() => open()}>+ 지원 추가</button></div>
-    <div className="application-summary">{applicationStatuses.map((status) => <button type="button" className={`${statusFilter === status ? 'active' : ''} ${status === '불합격' ? 'rejected-tab' : ''}`} aria-pressed={statusFilter === status} key={status} onClick={() => changeStatusFilter(statusFilter === status ? '전체' : status)}><b>{workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length}</b>{status}</button>)}</div>
-    <button type="button" className={`mobile-application-filter-toggle ${mobileFiltersOpen ? 'active' : ''}`} onClick={() => setMobileFiltersOpen((open) => !open)}><span>검색·필터</span><small>{mobileFiltersOpen ? '접기' : '열기'}</small></button>
-    <div className={`application-toolbar ${mobileFiltersOpen ? 'mobile-expanded' : ''}`}>
-      <label className="application-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>
-      <select value={statusFilter} onChange={(event) => changeStatusFilter(event.target.value)} aria-label="지원 상태 필터"><option>전체</option>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select>
-      <select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)} aria-label="직무선호도 필터"><option>전체</option>{CAREER_GRADES.map((grade) => <option key={grade}>{grade}</option>)}</select>
-      <select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} aria-label="우선순위 필터"><option>전체</option>{['최우선','적극 지원','지원 검토','후순위','낮음'].map((label) => <option key={label}>{label}</option>)}</select>
-      <select className="application-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">지원 우선순위 높은 순</option><option value="grade">직무선호도 순</option><option value="deadline">마감 임박순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
-      {sortBy !== 'deadline' && <button className={`pin-filter pin-priority ${pinFirst ? 'active' : ''}`} aria-pressed={pinFirst} onClick={() => setPinFirst((value) => !value)}><span>★ 상단 우선</span><span className="pin-priority-state">{pinFirst ? 'ON' : 'OFF'}</span></button>}
-      <button className={`pin-filter considering-filter ${consideringOnly ? 'active' : ''}`} onClick={() => setConsideringOnly((value) => !value)}>고민 중만</button>
+    <div className="view-actions"><SupportTabs active="applications" navigate={navigate} /><div className="view-actions-buttons"><button className="button ghost" onClick={() => navigate('jobs')}>공고보관함</button><button className="button primary" onClick={() => open()}><Icon name="plus" size={16} />지원 추가</button></div></div>
+    <section className="app-overview" aria-label="지원 요약">
+      <button type="button" className="app-pass-rate" onClick={() => navigate('stats')} title="통계에서 자세히 보기">
+        <span className="app-pass-label">서류 합격률</span>
+        <strong>{docStats.passRate === null ? '–' : docStats.passRate}<small>{docStats.passRate === null ? '' : '%'}</small></strong>
+        <span className="app-pass-bar" aria-hidden="true">{docStats.passed > 0 && <i className="pass" style={{ flexGrow: docStats.passed }} />}{docStats.failed > 0 && <i className="fail" style={{ flexGrow: docStats.failed }} />}{docStats.pending > 0 && <i className="pending" style={{ flexGrow: docStats.pending }} />}</span>
+        <span className="app-pass-detail">{docStats.submitted ? <>제출 {docStats.submitted} · <em className="pass">합격 {docStats.passed}</em> · <em className="fail">탈락 {docStats.failed}</em> · 대기 {docStats.pending}</> : '원서를 제출하면 계산돼요'}</span>
+        {docDecided === 0 && docStats.submitted > 0 && <span className="app-pass-hint">서류 결과를 기록하면 계산돼요</span>}
+      </button>
+      <div className="app-status-tabs" role="tablist" aria-label="지원 상태">
+        {['전체', ...applicationStatuses].map((status) => <button type="button" role="tab" aria-selected={statusFilter === status} className={`${statusFilter === status ? 'active' : ''} ${status === '불합격' ? 'rejected' : ''}`} key={status} onClick={() => changeStatusFilter(status)}><b>{status === '전체' ? workspace.applications.length : statusCounts[status]}</b><span>{status}</span></button>)}
+      </div>
+    </section>
+    <div className="app-toolbar">
+      <label className="app-search"><Icon name="search" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>
+      <select className="app-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">우선순위순</option><option value="deadline">마감 임박순</option><option value="grade">직무선호도순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
+      <button type="button" className={`app-filter-toggle ${mobileFiltersOpen || activeFilterCount ? 'active' : ''}`} aria-expanded={mobileFiltersOpen} onClick={() => setMobileFiltersOpen((value) => !value)}><Icon name="sliders" size={16} />필터{activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button>
     </div>
-    <div className="application-list">
+    {mobileFiltersOpen && <div className="app-filter-panel">
+      <label>직무선호도<select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option>전체</option>{CAREER_GRADES.map((grade) => <option key={grade}>{grade}</option>)}</select></label>
+      <label>우선순위<select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option>전체</option>{['최우선', '적극 지원', '지원 검토', '후순위', '낮음'].map((label) => <option key={label}>{label}</option>)}</select></label>
+      <label className="inline-check"><input type="checkbox" checked={consideringOnly} onChange={(event) => setConsideringOnly(event.target.checked)} />고민 중인 공고만</label>
+      {sortBy !== 'deadline' && <label className="inline-check"><input type="checkbox" checked={pinFirst} onChange={(event) => setPinFirst(event.target.checked)} />고정한 지원 먼저</label>}
+      {activeFilterCount > 0 && <button type="button" className="text-button" onClick={() => { setGradeFilter('전체'); setPriorityFilter('전체'); setConsideringOnly(false); }}>필터 초기화</button>}
+    </div>}
+    <div className="app-list">
       {visibleApplications.map((application) => {
         const job = getJob(workspace, application);
         const breakdown = getPriorityBreakdown(application, job), priorityLabel = getPriorityLabel(breakdown.final), closed = isClosedApplication(application.status);
@@ -222,12 +241,30 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             : activeProcessDate ? dateLabel(activeProcessDate) : '';
         const processDays = activeProcessDate ? daysUntil(activeProcessDate, new Date(currentTime)) : null;
         const scoreTitle = `직무선호도 ${application.careerGrade || '미입력'} ${breakdown.career}/30 · 지원적합성 ${breakdown.fit}/25 · 연봉/보상 ${breakdown.compensation}/15 · 지역 ${breakdown.location}/10 · 전형 ${breakdown.process}/10 · 회사 ${breakdown.company}/5 · 마감 ${breakdown.deadline}/50`;
-        return <article className={`application-row application-row-clickable priority-card-${priorityClass(breakdown.final)} ${closed ? 'application-closed' : ''}`} key={application.id} role="button" tabIndex={0} onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, select, input, textarea, label')) setWorkspaceJobId(job.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setWorkspaceJobId(job.id); } }}>
-          <div className="app-company"><div className="company-logo">{job.company[0]}</div><div><strong>{job.company}</strong><small>{job.role}{job.location ? ` · ${job.location}` : ''}</small>{job.url ? <a className="app-page-link" href={job.url} target="_blank" rel="noreferrer">공고 홈페이지 ↗</a> : <span className="app-page-link disabled">공고 링크 없음</span>}{job.notionUrl ? <a className="app-page-link" href={job.notionUrl} target="_blank" rel="noreferrer">노션 바로가기 ↗</a> : <span className="app-page-link disabled">노션 링크 미등록</span>}</div></div>
-          <div className="app-status-stack"><span className={`status status-${statusClass(application.status)}`}>{normalizedApplicationStatus(application.status)}</span>{application.considering && <span className="considering-badge">고민 중</span>}{isSubmitted(application) && <select className={`document-result-chip doc-${documentResultClass(application.documentResult)}`} value={application.documentResult || ''} onChange={(event) => void mutate('서류 결과 기록', () => api.updateApplication(application.id, { documentResult: event.target.value as DocumentResult })).catch(() => undefined)} aria-label={`${job.company} 서류 결과`} title="서류 결과를 직접 기록하면 홈의 서류 합격률에 반영돼요."><option value="">서류 대기</option><option value="합격">서류 합격</option><option value="불합격">서류 탈락</option></select>}<span className={`career-grade grade-${application.careerGrade || 'none'}`}>{application.careerGrade || '–'}</span><span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b> · {priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span></div>
-          {isRejected(application.status) ? <div className="app-rejection-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 메모 수정</button></div> : <><span className="app-next"><small>다음 프로세스</small><strong>{activeProcessStep?.name || application.nextProcess || application.next || '미정'}</strong>{activeProcessDateLabel && <em>{activeProcessDateLabel}</em>}</span>
-          {normalizedStatus === '전형 진행' ? <span className="app-date app-process-progress"><small>전형 진행률</small>{processStepsForProgress.length ? <><span><b>{completedSteps}</b> / {processStepsForProgress.length}단계</span><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span>{processStepsForProgress.some((step) => step.result) && <span className="step-result-chain">{processStepsForProgress.filter((step) => step.result).map((step) => <i key={step.id} className={`doc-${documentResultClass(step.result)}`}>{step.name} {step.result === '합격' ? '✓' : '✕'}</i>)}</span>}</> : <span>단계 미등록</span>}{processDays !== null && <em className="deadline-count">{processDays === 0 ? 'D-DAY' : processDays > 0 ? `D-${processDays}` : '일정 경과'}</em>}</span> : <span className={`app-date ${deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? 'deadline-urgent' : ''}`}><small>{deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0 ? '마감 임박' : '접수 / 마감'}</small><span><i>접수</i>{dateLabel(application.appliedAt)}</span><span><i>마감</i>{job.alwaysOpen ? '상시' : job.deadline ? dateLabel(job.deadline) : '미정'}</span>{!job.alwaysOpen && deadlineDays !== null && <em className="deadline-count">{deadlineDays === 0 ? 'D-DAY' : deadlineDays > 0 ? `D-${deadlineDays}` : '마감'}</em>}<DeadlineCountdown deadline={job.deadline} compact /></span>}</>}
-          <div className="app-controls"><select value={normalizedApplicationStatus(application.status)} onChange={(event) => void changeApplicationStatus(application.id, event.target.value).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`pin-button ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}>★</button><button className="row-menu" onClick={() => open(application.id)} aria-label="지원 수정">✎</button></div>
+        const nextLabel = activeProcessStep?.name || application.nextProcess || application.next || '미정';
+        const urgentDeadline = deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0;
+        return <article className={`app-card priority-card-${priorityClass(breakdown.final)} ${closed ? 'is-closed' : ''} ${application.pinned ? 'is-pinned' : ''}`} key={application.id} role="button" tabIndex={0} onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, select, input, textarea, label')) setWorkspaceJobId(job.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setWorkspaceJobId(job.id); } }}>
+          <div className="app-card-company">
+            <div className="company-logo">{job.company[0]}</div>
+            <div className="app-card-title">
+              <strong>{job.company}{application.considering && <span className="considering-badge">고민 중</span>}</strong>
+              <small>{job.role}{job.location ? ` · ${job.location}` : ''}</small>
+              {(job.url || job.notionUrl) && <span className="app-card-links">{job.url && <a href={job.url} target="_blank" rel="noreferrer"><Icon name="link" size={12} />공고</a>}{job.notionUrl && <a href={job.notionUrl} target="_blank" rel="noreferrer"><Icon name="link" size={12} />노션</a>}</span>}
+            </div>
+          </div>
+          <div className="app-card-badges">
+            <span className={`status status-${statusClass(application.status)}`}>{normalizedStatus}</span>
+            {isSubmitted(application) && <select className={`document-result-chip doc-${documentResultClass(application.documentResult)}`} value={application.documentResult || ''} onChange={(event) => void mutate('서류 결과 기록', () => api.updateApplication(application.id, { documentResult: event.target.value as DocumentResult })).catch(() => undefined)} aria-label={`${job.company} 서류 결과`} title="서류 결과를 기록하면 서류 합격률에 반영돼요."><option value="">서류 대기</option><option value="합격">서류 합격</option><option value="불합격">서류 탈락</option></select>}
+            <span className={`career-grade grade-${application.careerGrade || 'none'}`} title="직무선호도">{application.careerGrade || '–'}</span>
+            <span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b>{priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span>
+          </div>
+          {isRejected(application.status) ? <div className="app-card-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 수정</button></div> : <>
+            <div className="app-card-cell app-card-next"><small>다음 단계</small><strong>{nextLabel}</strong>{activeProcessDateLabel && <span>{activeProcessDateLabel}{processDays !== null && processDays >= 0 && <em className="dday">{processDays === 0 ? 'D-DAY' : `D-${processDays}`}</em>}</span>}</div>
+            {normalizedStatus === '전형 진행'
+              ? <div className="app-card-cell app-card-date"><small>전형 진행률</small>{processStepsForProgress.length ? <><strong>{completedSteps} / {processStepsForProgress.length}단계</strong><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span>{processStepsForProgress.some((step) => step.result) && <span className="step-result-chain">{processStepsForProgress.filter((step) => step.result).map((step) => <i key={step.id} className={`doc-${documentResultClass(step.result)}`}>{step.name} {step.result === '합격' ? '✓' : '✕'}</i>)}</span>}</> : <strong className="muted-value">단계 미등록</strong>}</div>
+              : <div className={`app-card-cell app-card-date ${urgentDeadline ? 'is-urgent' : ''}`}><small>{urgentDeadline ? '마감 임박' : '마감'}</small><strong>{job.alwaysOpen ? '상시 채용' : job.deadline ? dateLabel(job.deadline) : '미정'}{!job.alwaysOpen && deadlineDays !== null && <em className="dday">{deadlineDays === 0 ? 'D-DAY' : deadlineDays > 0 ? `D-${deadlineDays}` : '마감'}</em>}</strong><span>접수 {dateLabel(application.appliedAt)}</span><DeadlineCountdown deadline={job.deadline} compact /></div>}
+          </>}
+          <div className="app-card-actions"><select value={normalizedStatus} onChange={(event) => void changeApplicationStatus(application.id, event.target.value).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`icon-btn pin ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}><Icon name="star" size={15} /></button><button className="icon-btn" onClick={() => open(application.id)} aria-label="지원 수정" title="수정"><Icon name="edit" size={15} /></button></div>
         </article>;
       })}
       {!workspace.applications.length && <EmptyState title="아직 등록한 지원이 없습니다." description="회사와 직무, 현재 상태를 입력하면 지원 과정을 한곳에서 추적할 수 있습니다." action={<button className="button primary" onClick={() => open()}>첫 지원 추가</button>} />}

@@ -46,10 +46,11 @@ export const api = {
   session: () => request<User>('/auth/session'),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   bootstrap: () => request<Workspace>('/bootstrap'),
-  calendarStatus: () => request<{ connected: boolean; lastSyncedAt: string }>('/calendar/status'),
+  calendarStatus: () => request<{ connected: boolean; lastSyncedAt: string; configured?: boolean }>('/calendar/status'),
   connectGoogleCalendar() {
-    const returnTo = encodeURIComponent(window.location.href.split('#')[0]);
-    window.location.assign(`${apiBaseUrl}/calendar/connect?returnTo=${returnTo}`);
+    const url = new URL(window.location.href.split('#')[0]);
+    url.searchParams.delete('calendar');
+    window.location.assign(`${apiBaseUrl}/calendar/connect?returnTo=${encodeURIComponent(url.href)}`);
   },
   syncGoogleCalendar: () => request<{ created: number; updated: number; removed: number; failed: number; skipped: number; total: number; lastSyncedAt: string; failures: string[] }>('/calendar/sync', { method: 'POST' }, 60_000),
   disconnectGoogleCalendar: () => request<void>('/calendar/disconnect', { method: 'POST' }),
