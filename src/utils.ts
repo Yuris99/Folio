@@ -176,11 +176,13 @@ export function applicationStats(applications: Application[]) {
   };
 }
 
+// 서류 다음 전형들의 통과율. 서류는 서류 합격률(applicationStats)에서 따로 집계하므로 뺍니다.
 export function stageResultStats(applications: Application[]) {
   const stages = new Map<string, { name: string; passed: number; failed: number }>();
   for (const application of applications) for (const step of application.processSteps || []) {
     if (!step.result) continue;
     const name = canonicalStageName(step.name);
+    if (name === '서류') continue;
     const stage = stages.get(name) || { name, passed: 0, failed: 0 };
     if (step.result === '합격') stage.passed += 1; else stage.failed += 1;
     stages.set(name, stage);
