@@ -2419,7 +2419,7 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .app-filter-panel .inline-check { margin: 0; min-height: 34px; color: var(--text); font-size: 13px; }
 
 .app-list { display: grid; gap: 8px; }
-.app-card { position: relative; display: grid; grid-template-columns: minmax(180px, 1.4fr) 250px minmax(130px, 1fr) minmax(140px, 1fr) 176px; align-items: center; gap: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.app-card { position: relative; display: grid; grid-template-columns: minmax(180px, 1.4fr) 250px minmax(130px, 1fr) minmax(190px, 1fr) 176px; align-items: center; gap: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
 .app-card:hover { border-color: var(--line-strong); background: var(--panel-hover); }
 .app-card:focus-visible { outline: 2px solid rgba(238, 135, 146, .55); outline-offset: 2px; }
 .app-card::before { content: ''; position: absolute; top: 14px; bottom: 14px; left: -1px; width: 3px; border-radius: 0 3px 3px 0; background: transparent; }
@@ -2433,7 +2433,12 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .app-card-title strong { overflow: hidden; font-size: 15px; font-weight: 700; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
 .app-card-title small { overflow: hidden; color: var(--muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 
-.app-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.app-card-badges { width: 100%; max-width: 250px; display: grid; grid-template-columns: minmax(0, 1fr) 26px; align-items: center; gap: 6px 8px; }
+.app-card-badges .priority-tooltip-wrap { min-width: 0; width: 100%; justify-items: stretch; }
+.app-card-badges .career-grade { width: 26px; height: 26px; }
+.app-card-status-row { grid-column: 1 / -1; min-width: 0; height: 24px; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.app-card-status-row .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+.app-card-status-row .document-result-chip { flex: 0 0 auto; }
 .app-card .document-result-chip { width: auto; min-height: 0; height: 24px; margin: 0; padding: 0 22px 0 9px; border: 1px solid var(--line-strong); border-radius: 999px; background-color: transparent; background-position: right 7px center; background-size: 10px; color: var(--muted); font-size: 12px; font-weight: 600; line-height: 22px; box-shadow: none; }
 .app-card .document-result-chip.doc-pass { border-color: transparent; background-color: var(--pass-soft); color: var(--pass); }
 .app-card .document-result-chip.doc-fail { border-color: transparent; background-color: var(--fail-soft); color: var(--fail); }
@@ -2453,8 +2458,11 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .app-card-cell.is-urgent > small, .app-card-cell.is-urgent .dday { color: var(--fail); }
 .app-card-cell .process-progress-track { width: 100%; max-width: 180px; height: 4px; display: block; margin-top: 5px; overflow: hidden; border-radius: 99px; background: var(--panel-2); }
 .app-card-cell .process-progress-track i { height: 100%; display: block; border-radius: inherit; background: var(--info); }
+.app-card-progress { min-width: 0; width: 100%; display: grid; grid-template-columns: auto minmax(24px, 1fr); align-items: center; gap: 8px; white-space: nowrap; }
+.app-card-progress .process-progress-track { margin-top: 0; }
 .app-card-cell .deadline-timer { margin-top: 2px; }
-.app-card .step-result-chain i { font-size: 11px; }
+.app-card .step-result-chain { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+.app-card .step-result-chain i { flex: 0 0 auto; font-size: 11px; }
 .app-card .step-result-chain .doc-pass { background: var(--pass-soft); color: var(--pass); }
 .app-card .step-result-chain .doc-fail { background: var(--fail-soft); color: var(--fail); }
 .app-card-reason { grid-column: 3 / 5; min-width: 0; }
@@ -2538,6 +2546,8 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .app-card > .app-card-cell { padding-top: 10px; border-top: 1px solid var(--line); }
   .app-card-reason { grid-column: 1 / -1; }
   .app-card-cell > strong { font-size: 13px; }
+  .app-card-date .cell-line { display: grid; gap: 2px; white-space: normal; }
+  .app-card-date .cell-text { overflow: visible; text-overflow: clip; }
   .company-logo { width: 34px; height: 34px; border-radius: 9px; }
   .notice { margin-top: 0; }
 }
@@ -2748,8 +2758,9 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .prio-levels button { flex: 1; }
 }
 
-/* 우선순위 점수·등급: 카드에서 가장 먼저 보이도록 크게 */
-.app-card .priority-score { height: 32px; gap: 6px; padding: 0 12px 0 10px; font-size: 13px; font-weight: 600; }
-.app-card .priority-score b { font-size: 19px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
-.app-card .priority-score .priority-bonus { margin-left: 0; font-size: 11.5px; }
+/* 우선순위 점수와 등급은 카드 너비와 문구 길이에 관계없이 한 줄로 표시 */
+.app-card .priority-score { width: 100%; height: 38px; min-width: 0; display: flex; justify-content: space-between; gap: 8px; padding: 0 11px; white-space: nowrap; }
+.app-card .priority-score b { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 2px; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1; }
+.app-card .priority-score b small { font-size: 11px; font-weight: 600; letter-spacing: 0; }
+.app-card .priority-score > span { min-width: 0; overflow: hidden; font-size: 12px; font-weight: 700; text-overflow: ellipsis; }
 .app-card .priority-score.priority-later, .app-card .priority-score.priority-low { color: var(--muted); }
