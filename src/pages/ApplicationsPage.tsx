@@ -7,10 +7,11 @@ import { DateTimeInput } from '../components/DateTimeInput';
 import { DeadlineCountdown } from '../components/DeadlineCountdown';
 import { Icon } from '../components/Icon';
 import { JobLinks } from '../components/JobLinks';
+import { PriorityEditor, type PriorityInput } from '../components/PriorityEditor';
 import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
-import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, DocumentResult, View, Workspace } from '../types';
-import { CAREER_GRADES, JOB_PREFERENCE_CONFIG, getPriorityBreakdown, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
+import type { ApplicationPayload, ApplicationProcessStep, DocumentResult, View, Workspace } from '../types';
+import { CAREER_GRADES, PRIORITY_CRITERIA, getPriorityBreakdown, priorityLevels, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
 import { statsApplications, applicationStats, currentProcessStep, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
@@ -46,6 +47,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [expandedStepId, setExpandedStepId] = useState('');
   const [documentResult, setDocumentResult] = useState<DocumentResult>('');
+  const [priorityInput, setPriorityInput] = useState<PriorityInput>({ careerGrade: '', careerLevel: 0, compensationLevel: 0, passLevel: 0, workLevel: 0 });
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   // 서합율: 서류 결과를 기록한 원서 중 합격 비율. 공고보관함으로 옮긴 지원은 뺍니다.
   const docStats = useMemo(() => applicationStats(statsApplications(workspace)), [workspace]);
@@ -74,7 +76,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     if (closedOrder) return closedOrder;
     if (sortBy !== 'deadline' && pinFirst && Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
     const aJob = getJob(workspace, a); const bJob = getJob(workspace, b);
-    if (sortBy === 'priority') { const score = getPriorityBreakdown(b, bJob).final - getPriorityBreakdown(a, aJob).final; if (score) return score; return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999'); }
+    if (sortBy === 'priority') { const score = getPriorityBreakdown(b, bJob).sortScore - getPriorityBreakdown(a, aJob).sortScore; if (score) return score; return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999'); }
     if (sortBy === 'grade') return (a.careerGrade ? CAREER_GRADES.indexOf(a.careerGrade) : 99) - (b.careerGrade ? CAREER_GRADES.indexOf(b.careerGrade) : 99);
     if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
     if (sortBy === 'deadline') return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999');
@@ -97,6 +99,9 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setEditingId(id || null);
     setExpandedStepId('');
     setDocumentResult(application?.documentResult || '');
+    // 예전 숫자 점수는 5단계로 옮겨 보여 주고, 저장하면 새 값으로 기록됩니다.
+    const levels = application ? priorityLevels(application) : undefined;
+    setPriorityInput({ careerGrade: application?.careerGrade || '', careerLevel: levels?.career || 0, compensationLevel: levels?.compensation || 0, passLevel: levels?.pass || 0, workLevel: levels?.work || 0 });
     setModalOpen(true);
   }
 
@@ -143,8 +148,10 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const payload: ApplicationPayload = {
       company: String(data.get('company')), role: String(data.get('role')), location: String(data.get('location')), status: String(data.get('status')),
       considering: data.get('considering') === 'on',
-      careerGrade: String(data.get('careerGrade')) as CareerGrade,
-      applicationFitScore: Number(data.get('applicationFitScore') || 0), compensationScore: Number(data.get('compensationScore') || 0), companyScore: Number(data.get('companyScore') || 0), locationScore: Number(data.get('locationScore') || 0), processScore: Number(data.get('processScore') || 0),
+      careerGrade: priorityInput.careerGrade || undefined,
+      careerLevel: priorityInput.careerLevel, compensationLevel: priorityInput.compensationLevel, passLevel: priorityInput.passLevel, workLevel: priorityInput.workLevel,
+      // 예전 숫자 점수는 비워서 새 5단계 값만 쓰게 합니다.
+      applicationFitScore: 0, compensationScore: 0, companyScore: 0, locationScore: 0, processScore: 0,
       appliedAt: String(data.get('appliedAt')), deadline, alwaysOpen,
       nextProcess: nextStep?.name || '', nextDate: nextStep?.date || '', processSteps: savedSteps,
       next: nextStep?.name || '', url: String(data.get('url')), notionUrl: String(data.get('notionUrl') || '').trim(), memo: String(data.get('memo')), documentResult: isSubmitted({ id: '', jobId: '', next: '', status: String(data.get('status')) }) ? documentResult : editing?.documentResult || '', rejectionReason: String(data.get('rejectionReason') ?? editing?.rejectionReason ?? '')
@@ -279,7 +286,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             ? `${dateLabel(activeProcessDate)} · 시간 미정`
             : activeProcessDate ? dateLabel(activeProcessDate) : '';
         const processDays = activeProcessDate ? daysUntil(activeProcessDate, new Date(currentTime)) : null;
-        const scoreTitle = `직무선호도 ${application.careerGrade || '미입력'} ${breakdown.career}/30 · 지원적합성 ${breakdown.fit}/25 · 연봉/보상 ${breakdown.compensation}/15 · 지역 ${breakdown.location}/10 · 전형 ${breakdown.process}/10 · 회사 ${breakdown.company}/5 · 마감 ${breakdown.deadline}/50`;
+        const scoreTitle = `${PRIORITY_CRITERIA.map((criterion) => `${criterion.label} ${breakdown.points[criterion.key]}/${criterion.weight}${breakdown.levels[criterion.key] ? '' : '(미입력)'}`).join(' · ')}${breakdown.deadline ? ` · 마감 보너스 +${breakdown.deadline}` : ''}`;
         const nextLabel = activeProcessStep?.name || application.nextProcess || application.next || '미정';
         const urgentDeadline = deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0;
         return <article className={`app-card priority-card-${priorityClass(breakdown.final)} ${closed ? 'is-closed' : ''} ${application.pinned ? 'is-pinned' : ''}`} key={application.id} role="button" tabIndex={0} onClick={(event) => { if (!(event.target as HTMLElement).closest('button, a, select, input, textarea, label')) setWorkspaceJobId(job.id); }} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setWorkspaceJobId(job.id); } }}>
@@ -295,7 +302,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             <span className={`status status-${statusClass(application.status)}`}>{normalizedStatus}{normalizedStatus === '전형 진행' && !['기타', '단계 미등록'].includes(processStageGroup(application)) && <em> · {processStageGroup(application)}</em>}</span>
             {isSubmitted(application) && <select className={`document-result-chip doc-${documentResultClass(application.documentResult)}`} value={application.documentResult || ''} onChange={(event) => void mutate('서류 결과 기록', () => api.updateApplication(application.id, { documentResult: event.target.value as DocumentResult })).catch(() => undefined)} aria-label={`${job.company} 서류 결과`} title="서류 결과를 기록하면 서류 합격률에 반영돼요."><option value="">서류 대기</option><option value="합격">서류 합격</option><option value="불합격">서류 탈락</option></select>}
             <span className={`career-grade grade-${application.careerGrade || 'none'}`} title="직무선호도">{application.careerGrade || '–'}</span>
-            <span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b>{priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span>
+            <span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b>{priorityLabel}{breakdown.deadline > 0 && <i className="priority-bonus">+{breakdown.deadline}</i>}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 가치 {breakdown.final}점 · {priorityLabel}{breakdown.deadline ? ` · 마감 +${breakdown.deadline}` : ''}</strong>{scoreTitle}</span></span>
           </div>
           {isRejected(application.status) ? <div className="app-card-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 수정</button></div> : <>
             <div className="app-card-cell app-card-next"><small>다음 단계</small><strong>{nextLabel}</strong>{activeProcessDateLabel && <span className="cell-line"><span className="cell-text">{activeProcessDateLabel}</span>{processDays !== null && processDays >= 0 && <em className="dday">{processDays === 0 ? 'D-DAY' : `D-${processDays}`}</em>}</span>}</div>
@@ -317,10 +324,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       <label>현재 상태<select name="status" value={editStatus} onChange={(event) => setEditStatus(event.target.value)}>{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
       {isSubmitted({ id: '', jobId: '', next: '', status: editStatus }) && <fieldset className="document-result-field"><legend>서류 결과 <small>발표가 나면 직접 기록하세요 · ‘서류’ 단계 결과와 연동돼요</small></legend><div>{([['', '대기'], ['합격', '합격'], ['불합격', '탈락']] as const).map(([value, label]) => <label key={value} className={`doc-${documentResultClass(value)}`}><input type="radio" name="documentResult" value={value} checked={documentResult === value} onChange={() => setDocumentResult(value)} /><span>{label}</span></label>)}</div></fieldset>}
       <label className="inline-check considering-check"><input type="checkbox" name="considering" defaultChecked={Boolean(editing?.considering)} /> 지원 여부 고민 중 <small>아직 지원할지 결정하지 않은 공고로 표시합니다.</small></label>
-      <fieldset className="job-preference-field"><legend>직무선호도 <span className="preference-info" tabIndex={0}>ⓘ<span className="preference-guide overall" role="tooltip"><strong>직무선호도란?</strong><p>합격 가능성이나 회사 수준이 아니라 “내가 이 일을 얼마나 하고 싶은가”만 평가합니다.</p>{CAREER_GRADES.map((grade) => <span key={grade}><b>{grade}</b>{JOB_PREFERENCE_CONFIG[grade].label}</span>)}</span></span></legend><div className="preference-options"><label className="preference-option none"><input type="radio" name="careerGrade" value="" defaultChecked={!editing?.careerGrade} /><span>미입력</span></label>{CAREER_GRADES.map((grade) => { const config = JOB_PREFERENCE_CONFIG[grade]; return <label className={`preference-option grade-${grade}`} key={grade}><input type="radio" name="careerGrade" value={grade} defaultChecked={editing?.careerGrade === grade} /><span>{grade}</span><span className="preference-guide" role="tooltip"><strong>{grade} · {config.label}</strong><p>{config.description}</p><small>{config.score}점</small></span></label>; })}</div></fieldset>
-      <div className="form-section-label">지원 우선순위 점수</div>
-      <p className="form-help">직무선호도와 아래 평가값, 마감일을 합산해 100점 만점으로 자동 계산합니다.</p>
-      <div className="priority-input-grid"><label>지원 적합성 <small>필수조건·기술·경험</small><input type="number" name="applicationFitScore" min="0" max="25" defaultValue={editing?.applicationFitScore ?? 0} /></label><label>연봉/보상 <small>급여·복지·보상</small><input type="number" name="compensationScore" min="0" max="15" defaultValue={editing?.compensationScore ?? 0} /></label><label>지역 선호도 <small>통근 또는 이사</small><input type="number" name="locationScore" min="0" max="10" defaultValue={editing?.locationScore ?? 0} /></label><label>전형 적합도 <small>강점·준비 비용</small><input type="number" name="processScore" min="0" max="10" defaultValue={editing?.processScore ?? 0} /></label><label>회사 매력도 <small>안정성·경력 가치</small><input type="number" name="companyScore" min="0" max="5" defaultValue={Math.min(editing?.companyScore ?? 0, 5)} /></label></div>
+      <PriorityEditor value={priorityInput} onChange={setPriorityInput} job={{ deadline: editingJob?.deadline || '', alwaysOpen }} status={editStatus} profile={workspace.profile} description={editingJob?.description} />
       <div className="form-section-label">지원 일정</div>
       <label className="inline-check"><input type="checkbox" checked={alwaysOpen} onChange={(event) => setAlwaysOpen(event.target.checked)} /> 상시 채용 <small>마감일 없음 · 마감 우선순위 0점</small></label>
       <div className="form-grid two"><label>서류 접수 일시 (24시간)<DateTimeInput name="appliedAt" ariaLabel="서류 접수 일시" defaultValue={editing?.appliedAt || todayDateTimeInputValue()} /></label><label>서류 마감 일시 (24시간)<DateTimeInput name="deadline" ariaLabel="서류 마감 일시" defaultValue={editingJob?.deadline || todayDateTimeInputValue()} disabled={alwaysOpen} /></label></div>
