@@ -2,7 +2,8 @@ import type { Application, CareerGrade, Job, Profile } from './types';
 
 // ---------------------------------------------------------------------------
 // 지원 우선순위 = 지원 가치(100점) + 마감 보너스(최대 15점)
-// 등급(최우선~낮음)은 지원 가치만으로 정하고, 정렬할 때만 마감 보너스를 더합니다.
+// 화면의 점수·등급·정렬은 모두 합계(지원 가치 + 마감 보너스)를 씁니다.
+// 마감 보너스는 최대 15점이라 등급을 한 칸 정도만 올립니다.
 // 원칙: 내 선호(직무선호도)는 내가 정하고, 객관적인 항목은 근거를 보고 매깁니다.
 // ---------------------------------------------------------------------------
 
@@ -143,8 +144,8 @@ export function getPriorityBreakdown(application: Application, job: Job) {
   const value = clampScore(Math.round(Object.values(raw).reduce((sum, point) => sum + point, 0)), 0, 100);
   const deadlineEligible = ['관심', '지원 준비', '작성 중', '서류 준비'].includes(application.status);
   const deadline = job.alwaysOpen || !deadlineEligible ? 0 : calculateDeadlineScore(job.deadline);
-  // final: 등급을 정하는 지원 가치(100점). sortScore: 마감 보너스를 더한 정렬용 점수.
-  return { levels, points, missing, value, deadline, final: value, sortScore: value + deadline };
+  // value: 지원 가치(100점). final·sortScore: 마감 보너스를 더한 점수로 등급과 정렬에 씁니다.
+  return { levels, points, missing, value, deadline, final: value + deadline, sortScore: value + deadline };
 }
 
 export function getPriorityLabel(score: number): '최우선' | '적극 지원' | '지원 검토' | '후순위' | '낮음' {
@@ -216,7 +217,7 @@ ${criteria}
 
 점수: 항목 배점 × 단계 비율(5=100%, 4=85%, 3=65%, 2=40%, 1=15%). 비운 항목은 3단계로 계산.
 등급: ${PRIORITY_THRESHOLDS.TOP}+ 최우선 · ${PRIORITY_THRESHOLDS.ACTIVE}+ 적극 지원 · ${PRIORITY_THRESHOLDS.REVIEW}+ 지원 검토 · ${PRIORITY_THRESHOLDS.LATER}+ 후순위 · 그 아래 낮음
-마감 보너스(정렬용, 점수와 별도): ${DEADLINE_BONUS_RULES.map((rule) => `${rule.label} +${rule.bonus}`).join(' · ')}
+마감 보너스(앱이 자동으로 더함, 평가할 필요 없음): ${DEADLINE_BONUS_RULES.map((rule) => `${rule.label} +${rule.bonus}`).join(' · ')}
 
 ## 공고
 - 회사: ${job.company}

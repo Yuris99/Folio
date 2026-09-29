@@ -65,8 +65,8 @@ export function PriorityEditor({ value, onChange, job, status, profile, descript
 
   return <section className="prio-editor">
     <div className="prio-summary">
-      <div><span className="prio-title">지원 우선순위<Tip><b>계산 방법</b><p>지원 가치 100점 = 항목 배점 × 단계 비율(5=100%, 4=85%, 3=65%, 2=40%, 1=15%). 비운 항목은 3단계로 계산해요.</p><p>등급: {PRIORITY_THRESHOLDS.TOP}+ 최우선 · {PRIORITY_THRESHOLDS.ACTIVE}+ 적극 지원 · {PRIORITY_THRESHOLDS.REVIEW}+ 지원 검토 · {PRIORITY_THRESHOLDS.LATER}+ 후순위</p><p>마감 보너스는 등급과 별개로 정렬에만 더해요: {DEADLINE_BONUS_RULES.map((rule) => `${rule.label} +${rule.bonus}`).join(' · ')}</p></Tip></span><small>{breakdown.missing.length ? `미입력 ${breakdown.missing.length}개는 보통으로 계산` : '모든 항목 입력됨'}</small></div>
-      <strong className={`prio-total priority-${priorityClass(breakdown.value)}`}>{breakdown.sortScore}<small>점 · {getPriorityLabel(breakdown.value)}</small>{breakdown.deadline > 0 && <em>가치 {breakdown.value} + 마감 {breakdown.deadline}</em>}</strong>
+      <div><span className="prio-title">지원 우선순위<Tip><b>계산 방법</b><p>지원 가치 100점 = 항목 배점 × 단계 비율(5=100%, 4=85%, 3=65%, 2=40%, 1=15%). 비운 항목은 3단계로 계산해요.</p><p>등급: {PRIORITY_THRESHOLDS.TOP}+ 최우선 · {PRIORITY_THRESHOLDS.ACTIVE}+ 적극 지원 · {PRIORITY_THRESHOLDS.REVIEW}+ 지원 검토 · {PRIORITY_THRESHOLDS.LATER}+ 후순위</p><p>등급과 정렬은 지원 가치에 마감 보너스를 더한 점수로 정해요: {DEADLINE_BONUS_RULES.map((rule) => `${rule.label} +${rule.bonus}`).join(' · ')}</p></Tip></span><small>{breakdown.missing.length ? `미입력 ${breakdown.missing.length}개는 보통으로 계산` : '모든 항목 입력됨'}</small></div>
+      <strong className={`prio-total priority-${priorityClass(breakdown.final)}`}>{breakdown.final}<small>점 · {getPriorityLabel(breakdown.final)}</small>{breakdown.deadline > 0 && <em>가치 {breakdown.value} + 마감 {breakdown.deadline}</em>}</strong>
     </div>
     {PRIORITY_CRITERIA.map((criterion) => {
       const current = levelOf(criterion.key);
