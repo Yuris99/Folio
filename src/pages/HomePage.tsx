@@ -6,7 +6,7 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
-import { allApplications, applicationStats, scheduleWorkspace, dateLabel, daysUntil, normalizedApplicationStatus } from '../utils';
+import { allApplications, applicationStats, scheduleWorkspace, dateLabel, daysUntil, duplicatesJobDeadline, normalizedApplicationStatus } from '../utils';
 
 export function HomePage({ workspace: fullWorkspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const workspace = useMemo(() => scheduleWorkspace(fullWorkspace), [fullWorkspace]);
@@ -22,7 +22,7 @@ export function HomePage({ workspace: fullWorkspace, navigate, mutate }: { works
   const allEvents = [
     ...workspace.jobs.filter((job) => job.deadline && trackedJobIds.has(job.id)).map((job) => ({ date: job.deadline, title: `${job.company} 지원 마감`, detail: job.role, type: 'deadline', jobId: job.id })),
     ...workspace.interviews.filter((item) => item.date).map((item) => { const job = workspace.jobs.find((jobItem) => jobItem.company === item.company && jobItem.role === item.role); return { date: item.date, title: `${item.company} ${item.type}`, detail: item.role, type: 'interview', jobId: job?.id || '' }; }),
-    ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '', type: 'process', jobId: job?.id || '' })); })
+    ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status) && !duplicatesJobDeadline(step, job)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '', type: 'process', jobId: job?.id || '' })); })
   ].sort((a, b) => a.date.localeCompare(b.date));
   const events = allEvents.filter((item) => daysUntil(item.date) >= 0).slice(0, 5);
   const urgentDeadlines = workspace.jobs.filter((job) => job.deadline && workspace.applications.some((application) => application.jobId === job.id && ['관심', '지원 준비'].includes(normalizedApplicationStatus(application.status))) && daysUntil(job.deadline) >= 0 && daysUntil(job.deadline) <= 7).sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 4);

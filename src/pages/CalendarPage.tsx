@@ -5,7 +5,7 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import { Modal } from '../components/Modal';
 import type { Mutation } from '../hooks/useFolio';
 import type { View, Workspace } from '../types';
-import { scheduleWorkspace, dateLabel, daysUntil } from '../utils';
+import { scheduleWorkspace, dateLabel, daysUntil, duplicatesJobDeadline } from '../utils';
 
 type CalendarEvent = { date: string; title: string; detail: string; type: 'deadline' | 'interview' | 'process'; jobId: string };
 const eventLabels = { deadline: '공고 마감', interview: '면접', process: '전형' } as const;
@@ -43,7 +43,7 @@ export function CalendarPage({ workspace: fullWorkspace, navigate, mutate }: { w
     return ([
     ...workspace.jobs.filter((job) => job.deadline && trackedJobIds.has(job.id)).map((job) => ({ date: job.deadline, title: `${job.company} 지원 마감`, detail: job.role, type: 'deadline', jobId: job.id })),
     ...workspace.interviews.filter((item) => item.date).map((item) => { const job = workspace.jobs.find((jobItem) => jobItem.company === item.company && jobItem.role === item.role); return { date: item.date, title: `${item.company} ${item.type}`, detail: item.role, type: 'interview', jobId: job?.id || '' }; }),
-    ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '', type: 'process', jobId: job?.id || '' })); })
+    ...workspace.applications.flatMap((application) => { const job = workspace.jobs.find((item) => item.id === application.jobId); return (application.processSteps || []).filter((step) => step.date && !['완료', '취소'].includes(step.status) && !duplicatesJobDeadline(step, job)).map((step) => ({ date: step.date, title: `${job?.company || '지원'} ${step.name}`, detail: job?.role || '', type: 'process', jobId: job?.id || '' })); })
   ] as CalendarEvent[]).sort((a, b) => a.date.localeCompare(b.date));
   }, [workspace]);
   const visibleEvents = useMemo(() => events.filter((event) => {

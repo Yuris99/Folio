@@ -1,5 +1,5 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
-import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, normalizedApplicationStatus, statusClass, daysUntil } from './src/utils.ts';
+import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
 
 function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
@@ -58,6 +58,9 @@ const context = { calendarAccessToken:async()=>"test-token", now:()=>"2099-01-01
 runInNewContext(calendarCode, context);
 const built = context.folioCalendarEvents(scheduleFixture);
 assert(built.events.length === 1 && built.events[0].key === "interview:visible", "Google calendar excludes rejected deadline, process and interview");
+const deadlineFixture = { applications: [{id:"b",jobId:"k",status:"지원 준비",processSteps:[{id:"doc",name:"서류 마감",date:"2099-02-01T18:00",status:"예정"},{id:"moved",name:"서류 마감",date:"2099-02-05",status:"예정"},{id:"int",name:"1차 면접",date:"2099-02-10T14:00",status:"예정"}]}], archivedApplications: [], jobs:[{id:"k",company:"회사",role:"개발자",deadline:"2099-02-01T18:00"}], interviews:[], tasks:[] };
+const deadlineKeys = context.folioCalendarEvents(deadlineFixture).events.map((item) => item.key).sort();
+assert(JSON.stringify(deadlineKeys) === JSON.stringify(["job:k","process:b:int","process:b:moved"]), "document deadline step is not duplicated when it matches the job deadline");
 const user = {workspace:{...scheduleFixture,interviews:[scheduleFixture.interviews[0]]},googleCalendar:{eventIds:{"job:j":"deadline-event","process:a:step":"process-event","interview:hidden":"interview-event"}}};
 const synced = await context.syncGoogleCalendar(user);
 assert(synced.removed === 3 && synced.total === 0, "previously synced rejected events removed");
@@ -103,3 +106,11 @@ const weekly = weeklySubmissions([
 ], 4, new Date('2026-09-30T12:00:00'));
 assert(weekly.length === 4 && weekly[3].count === 1 && weekly[2].count === 1 && weekly[0].count === 0, 'weekly submissions bucket by Monday week, skip unsubmitted and old');
 console.log('PASS stage and weekly statistics');
+
+const stageOf = (steps) => processStageGroup({ id: 's', jobId: 'j', status: '전형 진행', next: '', processSteps: steps.map(([name, status], index) => ({ id: String(index), name, date: '', status })) });
+assert(stageOf([['서류 마감', '완료'], ['서류 결과', '예정']]) === '서류 심사', 'document review stage');
+assert(stageOf([['서류 결과', '완료'], ['코테', '예정']]) === '테스트', 'coding test grouped as test');
+assert(stageOf([['인적성 검사', '완료'], ['최종 면접', '진행 중'], ['처우 협의', '예정']]) === '면접', 'in-progress step wins and final interview is an interview');
+assert(stageOf([['1차 면접', '완료'], ['처우 협의', '예정']]) === '최종 조율', 'offer stage');
+assert(stageOf([]) === '단계 미등록', 'no steps');
+console.log('PASS process stage groups');

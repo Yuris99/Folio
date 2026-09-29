@@ -293,13 +293,16 @@ function scheduleWorkspace(workspace){
   return {...workspace,applications:(workspace.applications||[]).filter(item=>!rejected(item.status)&&!rejectedIds.has(item.jobId)),jobs:(workspace.jobs||[]).filter(job=>!rejectedIds.has(job.id)),interviews:(workspace.interviews||[]).filter(item=>!rejectedJobs.some(job=>normalize(job.company)===normalize(item.company)&&normalize(job.role)===normalize(item.role)))};
 }
 
+// '서류 마감' 단계는 공고 마감 일정과 같으므로 한 번만 만듭니다. (src/utils.ts duplicatesJobDeadline과 같은 규칙)
+function duplicatesJobDeadline(step,job){return String(step.name||'').trim()==='서류 마감'&&Boolean(job?.deadline)&&String(step.date||'').slice(0,10)===job.deadline.slice(0,10);}
+
 function folioCalendarEvents(workspace){
   workspace=scheduleWorkspace(workspace);
   const result=[],invalid=[],trackedJobIds=new Set((workspace.applications||[]).map(item=>item.jobId));
   const add=(key,summary,description,value)=>{const time=calendarTime(value);if(time)result.push({key,summary,description,...time});else invalid.push(key);};
   for(const job of workspace.jobs||[])if(job.deadline&&trackedJobIds.has(job.id))add(`job:${job.id}`,`[Folio] ${job.company} 지원 마감`,[job.role,job.url].filter(Boolean).join('\n'),job.deadline);
   for(const item of workspace.interviews||[])if(item.date)add(`interview:${item.id}`,`[Folio] ${item.company} ${item.type}`,[item.role,item.memo].filter(Boolean).join('\n'),item.date);
-  for(const application of workspace.applications||[]){const job=(workspace.jobs||[]).find(item=>item.id===application.jobId);for(const step of application.processSteps||[])if(step.date&&!['완료','취소'].includes(step.status))add(`process:${application.id}:${step.id}`,`[Folio] ${job?.company||'지원'} ${step.name}`,job?.role||'',step.date);}
+  for(const application of workspace.applications||[]){const job=(workspace.jobs||[]).find(item=>item.id===application.jobId);for(const step of application.processSteps||[])if(step.date&&!['완료','취소'].includes(step.status)&&!duplicatesJobDeadline(step,job))add(`process:${application.id}:${step.id}`,`[Folio] ${job?.company||'지원'} ${step.name}`,job?.role||'',step.date);}
   return {events:result,invalid};
 }
 

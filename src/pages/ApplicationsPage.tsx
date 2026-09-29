@@ -6,11 +6,12 @@ import { Modal } from '../components/Modal';
 import { DateTimeInput } from '../components/DateTimeInput';
 import { DeadlineCountdown } from '../components/DeadlineCountdown';
 import { Icon } from '../components/Icon';
+import { JobLinks } from '../components/JobLinks';
 import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, CareerGrade, DocumentResult, View, Workspace } from '../types';
 import { CAREER_GRADES, JOB_PREFERENCE_CONFIG, getPriorityBreakdown, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
-import { allApplications, applicationStats, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+import { allApplications, applicationStats, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
 const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
@@ -50,6 +51,13 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const docDecided = docStats.passed + docStats.failed;
   const statusCounts = useMemo(() => Object.fromEntries(applicationStatuses.map((status) => [status, workspace.applications.filter((item) => normalizedApplicationStatus(item.status) === status).length])), [workspace.applications]);
   const activeFilterCount = [gradeFilter !== '전체', priorityFilter !== '전체', consideringOnly].filter(Boolean).length;
+  // 전형 진행은 상태를 늘리지 않고, 지금 단계 이름으로 묶어서 한 번 더 거릅니다.
+  const [stageFilter, setStageFilter] = useState<ProcessStageGroup | ''>('');
+  const stageCounts = useMemo(() => {
+    const counts = new Map<ProcessStageGroup, number>();
+    for (const application of workspace.applications) if (normalizedApplicationStatus(application.status) === '전형 진행') { const group = processStageGroup(application); counts.set(group, (counts.get(group) || 0) + 1); }
+    return processStageGroups.filter((group) => counts.get(group)).map((group) => ({ group, count: counts.get(group)! }));
+  }, [workspace.applications]);
   const editingJob = editing ? getJob(workspace, editing) : undefined;
   const visibleApplications = useMemo(() => workspace.applications.filter((application) => {
     const job = getJob(workspace, application);
@@ -58,7 +66,8 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     const priority = getPriorityLabel(getPriorityBreakdown(application, job).final);
     const matchesGrade = gradeFilter === '전체' || application.careerGrade === gradeFilter;
     const matchesPriority = priorityFilter === '전체' || priority === priorityFilter;
-    return matchesQuery && matchesStatus && matchesGrade && matchesPriority && (!consideringOnly || application.considering);
+    const matchesStage = statusFilter !== '전형 진행' || !stageFilter || processStageGroup(application) === stageFilter;
+    return matchesQuery && matchesStatus && matchesStage && matchesGrade && matchesPriority && (!consideringOnly || application.considering);
   }).sort((a, b) => {
     const closedOrder = Number(isClosedApplication(a.status)) - Number(isClosedApplication(b.status));
     if (closedOrder) return closedOrder;
@@ -69,10 +78,11 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
     if (sortBy === 'deadline') return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999');
     return (b.createdAt || '').localeCompare(a.createdAt || '');
-  }), [workspace, query, statusFilter, gradeFilter, priorityFilter, sortBy, pinFirst, consideringOnly]);
+  }), [workspace, query, statusFilter, stageFilter, gradeFilter, priorityFilter, sortBy, pinFirst, consideringOnly]);
 
   function changeStatusFilter(status: string) {
     setStatusFilter(status);
+    setStageFilter('');
     if (status === '지원 준비') setSortBy('deadline');
   }
 
@@ -210,6 +220,10 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
         {['전체', ...applicationStatuses].map((status) => <button type="button" role="tab" aria-selected={statusFilter === status} className={`${statusFilter === status ? 'active' : ''} ${status === '불합격' ? 'rejected' : ''}`} key={status} onClick={() => changeStatusFilter(status)}><b>{status === '전체' ? workspace.applications.length : statusCounts[status]}</b><span>{status}</span></button>)}
       </div>
     </section>
+    {statusFilter === '전형 진행' && stageCounts.length > 1 && <div className="app-stage-chips" role="group" aria-label="전형 단계">
+      <button type="button" className={!stageFilter ? 'active' : ''} onClick={() => setStageFilter('')}>전체 <b>{statusCounts['전형 진행']}</b></button>
+      {stageCounts.map(({ group, count }) => <button type="button" key={group} className={stageFilter === group ? 'active' : ''} onClick={() => setStageFilter(stageFilter === group ? '' : group)}>{group} <b>{count}</b></button>)}
+    </div>}
     <div className="app-toolbar">
       <label className="app-search"><Icon name="search" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>
       <select className="app-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">우선순위순</option><option value="deadline">마감 임박순</option><option value="grade">직무선호도순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
@@ -249,20 +263,20 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             <div className="app-card-title">
               <strong>{job.company}{application.considering && <span className="considering-badge">고민 중</span>}</strong>
               <small>{job.role}{job.location ? ` · ${job.location}` : ''}</small>
-              {(job.url || job.notionUrl) && <span className="app-card-links">{job.url && <a href={job.url} target="_blank" rel="noreferrer"><Icon name="link" size={12} />공고</a>}{job.notionUrl && <a href={job.notionUrl} target="_blank" rel="noreferrer"><Icon name="link" size={12} />노션</a>}</span>}
+              <JobLinks job={job} onAddNotion={() => open(application.id)} />
             </div>
           </div>
           <div className="app-card-badges">
-            <span className={`status status-${statusClass(application.status)}`}>{normalizedStatus}</span>
+            <span className={`status status-${statusClass(application.status)}`}>{normalizedStatus}{normalizedStatus === '전형 진행' && !['기타', '단계 미등록'].includes(processStageGroup(application)) && <em> · {processStageGroup(application)}</em>}</span>
             {isSubmitted(application) && <select className={`document-result-chip doc-${documentResultClass(application.documentResult)}`} value={application.documentResult || ''} onChange={(event) => void mutate('서류 결과 기록', () => api.updateApplication(application.id, { documentResult: event.target.value as DocumentResult })).catch(() => undefined)} aria-label={`${job.company} 서류 결과`} title="서류 결과를 기록하면 서류 합격률에 반영돼요."><option value="">서류 대기</option><option value="합격">서류 합격</option><option value="불합격">서류 탈락</option></select>}
             <span className={`career-grade grade-${application.careerGrade || 'none'}`} title="직무선호도">{application.careerGrade || '–'}</span>
             <span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b>{priorityLabel}</button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>지원 우선순위 {breakdown.final}점 · {priorityLabel}</strong>{scoreTitle}</span></span>
           </div>
           {isRejected(application.status) ? <div className="app-card-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 수정</button></div> : <>
-            <div className="app-card-cell app-card-next"><small>다음 단계</small><strong>{nextLabel}</strong>{activeProcessDateLabel && <span>{activeProcessDateLabel}{processDays !== null && processDays >= 0 && <em className="dday">{processDays === 0 ? 'D-DAY' : `D-${processDays}`}</em>}</span>}</div>
+            <div className="app-card-cell app-card-next"><small>다음 단계</small><strong>{nextLabel}</strong>{activeProcessDateLabel && <span className="cell-line"><span className="cell-text">{activeProcessDateLabel}</span>{processDays !== null && processDays >= 0 && <em className="dday">{processDays === 0 ? 'D-DAY' : `D-${processDays}`}</em>}</span>}</div>
             {normalizedStatus === '전형 진행'
               ? <div className="app-card-cell app-card-date"><small>전형 진행률</small>{processStepsForProgress.length ? <><strong>{completedSteps} / {processStepsForProgress.length}단계</strong><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span>{processStepsForProgress.some((step) => step.result) && <span className="step-result-chain">{processStepsForProgress.filter((step) => step.result).map((step) => <i key={step.id} className={`doc-${documentResultClass(step.result)}`}>{step.name} {step.result === '합격' ? '✓' : '✕'}</i>)}</span>}</> : <strong className="muted-value">단계 미등록</strong>}</div>
-              : <div className={`app-card-cell app-card-date ${urgentDeadline ? 'is-urgent' : ''}`}><small>{urgentDeadline ? '마감 임박' : '마감'}</small><strong>{job.alwaysOpen ? '상시 채용' : job.deadline ? dateLabel(job.deadline) : '미정'}{!job.alwaysOpen && deadlineDays !== null && <em className="dday">{deadlineDays === 0 ? 'D-DAY' : deadlineDays > 0 ? `D-${deadlineDays}` : '마감'}</em>}</strong><span>접수 {dateLabel(application.appliedAt)}</span><DeadlineCountdown deadline={job.deadline} compact /></div>}
+              : <div className={`app-card-cell app-card-date ${urgentDeadline ? 'is-urgent' : ''}`}><small>{urgentDeadline ? '마감 임박' : '마감'}</small><strong className="cell-line"><span className="cell-text">{job.alwaysOpen ? '상시 채용' : job.deadline ? dateLabel(job.deadline) : '미정'}</span>{!job.alwaysOpen && deadlineDays !== null && <em className="dday">{deadlineDays === 0 ? 'D-DAY' : deadlineDays > 0 ? `D-${deadlineDays}` : '마감'}</em>}</strong><span>접수 {dateLabel(application.appliedAt)}</span><DeadlineCountdown deadline={job.deadline} compact /></div>}
           </>}
           <div className="app-card-actions"><select value={normalizedStatus} onChange={(event) => void changeApplicationStatus(application.id, event.target.value).catch(() => undefined)} aria-label="상태 변경">{applicationStatuses.map((status) => <option key={status}>{status}</option>)}</select><button className={`icon-btn pin ${application.pinned ? 'active' : ''}`} onClick={() => void mutate(application.pinned ? '상단 고정 해제' : '상단 고정', () => api.updateApplication(application.id, { pinned: !application.pinned })).catch(() => undefined)} aria-label={application.pinned ? '상단 고정 해제' : '상단 고정'} title={application.pinned ? '상단 고정 해제' : '상단에 고정'}><Icon name="star" size={15} /></button><button className="icon-btn" onClick={() => open(application.id)} aria-label="지원 수정" title="수정"><Icon name="edit" size={15} /></button></div>
         </article>;
