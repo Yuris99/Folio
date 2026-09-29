@@ -213,18 +213,36 @@ async function googleStart(req,res,url) {
   const params=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:googleRedirectUri(req),response_type:'code',scope:'openid email profile',state,code_challenge:challenge,code_challenge_method:'S256',prompt:'select_account'});
   res.writeHead(302,{Location:`https://accounts.google.com/o/oauth2/v2/auth?${params}`}); res.end();
 }
+// 캘린더 연결 결과는 JSON 대신 원래 화면으로 돌려보내고 ?calendar=<결과> 로 알려 줍니다.
+function redirectWithCalendarResult(res,returnTo,result){
+  let location=returnTo;
+  try{const url=new URL(returnTo);url.searchParams.set('calendar',result);location=url.href;}catch{}
+  res.writeHead(302,{Location:location});res.end();
+}
 async function googleCallback(req,res,url) {
   const state=url.searchParams.get('state'), code=url.searchParams.get('code'), pending=oauthStates.get(state); oauthStates.delete(state);
-  if(!pending || pending.expiresAt<Date.now() || !code) return fail(res,400,'유효하지 않은 로그인 요청입니다.','INVALID_OAUTH_STATE');
+  const calendar=pending?.kind==='calendar';
+  if(!pending || pending.expiresAt<Date.now()) return fail(res,400,'유효하지 않은 로그인 요청입니다. 다시 시도해 주세요.','INVALID_OAUTH_STATE');
+  if(url.searchParams.get('error')||!code){
+    if(calendar)return redirectWithCalendarResult(res,pending.returnTo,url.searchParams.get('error')==='access_denied'?'denied':'failed');
+    return fail(res,400,'Google 로그인이 취소되었습니다.','OAUTH_CANCELLED');
+  }
   const tokenRes=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,code,code_verifier:pending.verifier,grant_type:'authorization_code',redirect_uri:googleRedirectUri(req)})});
-  if(!tokenRes.ok) return fail(res,502,'Google 토큰 교환에 실패했습니다.','GOOGLE_TOKEN_FAILED');
+  if(!tokenRes.ok){
+    console.error('Google token exchange failed',tokenRes.status,await tokenRes.text().catch(()=>''));
+    if(calendar)return redirectWithCalendarResult(res,pending.returnTo,'failed');
+    return fail(res,502,'Google 토큰 교환에 실패했습니다.','GOOGLE_TOKEN_FAILED');
+  }
   const tokens=await tokenRes.json();
-  if(pending.kind==='calendar'){
+  if(calendar){
     const user=db.users[pending.userId];
     if(!user)return fail(res,401,'로그인 세션을 찾을 수 없습니다.','UNAUTHENTICATED');
-    user.googleCalendar={...(user.googleCalendar||{}),refreshToken:tokens.refresh_token||user.googleCalendar?.refreshToken||'',connectedAt:now(),eventIds:user.googleCalendar?.eventIds||{}};
-    if(!user.googleCalendar.refreshToken)return fail(res,400,'Google Calendar 장기 연결 권한을 받지 못했습니다. 다시 연결해 주세요.','CALENDAR_REFRESH_TOKEN_MISSING');
-    saveDb();res.writeHead(302,{Location:pending.returnTo});return res.end();
+    // 세분화된 동의 화면에서 캘린더 체크박스를 끄면 토큰은 오지만 권한이 없습니다.
+    if(!String(tokens.scope||'').split(' ').includes(CALENDAR_SCOPE))return redirectWithCalendarResult(res,pending.returnTo,'scope');
+    const refreshToken=tokens.refresh_token||user.googleCalendar?.refreshToken||'';
+    if(!refreshToken)return redirectWithCalendarResult(res,pending.returnTo,'failed');
+    user.googleCalendar={...(user.googleCalendar||{}),refreshToken,connectedAt:now(),eventIds:user.googleCalendar?.eventIds||{}};
+    saveDb();return redirectWithCalendarResult(res,pending.returnTo,'connected');
   }
   const infoRes=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${tokens.access_token}`}});
   if(!infoRes.ok) return fail(res,502,'Google 사용자 정보를 가져오지 못했습니다.','GOOGLE_PROFILE_FAILED');
@@ -234,19 +252,31 @@ async function googleCallback(req,res,url) {
   res.writeHead(302,{Location:pending.returnTo,'Set-Cookie':sessionCookie(session)}); res.end();
 }
 
+const CALENDAR_SCOPE='https://www.googleapis.com/auth/calendar.events';
 async function googleCalendarStart(req,res,url,user){
-  if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET)return fail(res,503,'Google OAuth 환경 변수가 설정되지 않았습니다.','GOOGLE_AUTH_NOT_CONFIGURED');
+  const returnTo=safeReturnTo(url.searchParams.get('returnTo'),req);
+  if(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET)return redirectWithCalendarResult(res,returnTo,'not-configured');
   const state=crypto.randomBytes(24).toString('base64url'),verifier=crypto.randomBytes(48).toString('base64url');
   const challenge=crypto.createHash('sha256').update(verifier).digest('base64url');
-  oauthStates.set(state,{kind:'calendar',userId:user.id,returnTo:safeReturnTo(url.searchParams.get('returnTo'),req),verifier,expiresAt:Date.now()+10*60_000});
-  const params=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:googleRedirectUri(req),response_type:'code',scope:'https://www.googleapis.com/auth/calendar.events',state,code_challenge:challenge,code_challenge_method:'S256',access_type:'offline',prompt:'consent',include_granted_scopes:'true'});
+  oauthStates.set(state,{kind:'calendar',userId:user.id,returnTo,verifier,expiresAt:Date.now()+10*60_000});
+  // 로그인한 계정을 미리 골라 두어 다른 계정에 연결되는 실수를 줄입니다.
+  const params=new URLSearchParams({client_id:GOOGLE_CLIENT_ID,redirect_uri:googleRedirectUri(req),response_type:'code',scope:CALENDAR_SCOPE,state,code_challenge:challenge,code_challenge_method:'S256',access_type:'offline',prompt:'consent',include_granted_scopes:'true'});
+  if(user.email&&!user.email.endsWith('@folio.local'))params.set('login_hint',user.email);
   res.writeHead(302,{Location:`https://accounts.google.com/o/oauth2/v2/auth?${params}`});res.end();
 }
 
 async function calendarAccessToken(user){
   const refreshToken=user.googleCalendar?.refreshToken;if(!refreshToken)throw new Error('CALENDAR_NOT_CONNECTED');
   const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:GOOGLE_CLIENT_ID,client_secret:GOOGLE_CLIENT_SECRET,refresh_token:refreshToken,grant_type:'refresh_token'})});
-  if(!response.ok){const error=new Error('CALENDAR_TOKEN_FAILED');error.status=response.status;throw error;}return (await response.json()).access_token;
+  if(!response.ok){
+    const body=await response.json().catch(()=>null);
+    // invalid_grant: 권한 철회 또는 테스트 모드 앱의 7일 만료. 끊긴 연결을 '연결됨'으로 남겨 두지 않습니다.
+    if(body?.error==='invalid_grant'){delete user.googleCalendar.refreshToken;saveDb();}
+    const error=new Error('CALENDAR_TOKEN_FAILED');error.status=response.status;error.reason=body?.error;throw error;
+  }
+  const tokens=await response.json();
+  if(tokens.scope&&!String(tokens.scope).split(' ').includes(CALENDAR_SCOPE)){delete user.googleCalendar.refreshToken;saveDb();throw new Error('CALENDAR_SCOPE_MISSING');}
+  return tokens.access_token;
 }
 
 function calendarTime(value){
@@ -288,7 +318,22 @@ async function syncGoogleCalendar(user){
       if(!response.ok){failed++;failures.push(`${key}:${await googleCalendarFailure(response)}`);}
     }catch(error){failed++;failures.push(`${key}:network`);}
   }));
-  connection.eventIds=eventIds;connection.lastSyncedAt=now();saveDb();return {created,updated,removed,failed,skipped:built.invalid.length,total:events.length,lastSyncedAt:connection.lastSyncedAt,failures:failures.slice(0,10)};
+  connection.eventIds=eventIds;connection.lastSyncedAt=now();saveDb();
+  // 모든 요청이 같은 이유로 실패하면 개별 일정이 아니라 설정 문제입니다.
+  if(events.length&&failed===events.length&&failures.every(item=>/accessNotConfigured|SERVICE_DISABLED/.test(item)))throw new Error('CALENDAR_API_DISABLED');
+  if(events.length&&failed===events.length&&failures.every(item=>/insufficientPermissions|PERMISSION_DENIED|ACCESS_TOKEN_SCOPE_INSUFFICIENT/.test(item))){delete connection.refreshToken;saveDb();throw new Error('CALENDAR_SCOPE_MISSING');}
+  return {created,updated,removed,failed,skipped:built.invalid.length,total:events.length,lastSyncedAt:connection.lastSyncedAt,failures:failures.slice(0,10)};
+}
+
+function calendarSyncFailure(res,user,error){
+  const known={
+    CALENDAR_NOT_CONNECTED:[401,'Google Calendar가 연결되어 있지 않습니다. 먼저 연결해 주세요.'],
+    CALENDAR_TOKEN_FAILED:[401,'Google Calendar 연결이 만료되었습니다. 다시 연결해 주세요.'],
+    CALENDAR_SCOPE_MISSING:[403,'캘린더 일정 권한이 허용되지 않았습니다. 다시 연결하면서 캘린더 일정 권한 항목을 체크해 주세요.'],
+    CALENDAR_API_DISABLED:[502,'Google Cloud 프로젝트에서 Google Calendar API가 꺼져 있습니다. API 라이브러리에서 사용 설정해 주세요.']
+  }[error?.message];
+  const [status,message]=known||[502,'Google Calendar 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.'];
+  return fail(res,status,message,error?.message||'CALENDAR_SYNC_FAILED',{connected:Boolean(user.googleCalendar?.refreshToken),reason:error?.reason||error?.message||'UNKNOWN',status:error?.status});
 }
 
 function extractResponseText(result) {
@@ -367,9 +412,9 @@ async function api(req,res,url) {
   if(!Array.isArray(w.consultations))w.consultations=[];
   const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap'){if(completePastProcessSteps(w))saveDb();return ok(res,w);}
-  if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||''});
+  if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||'',configured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET)});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
-  if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);const reconnect=['CALENDAR_NOT_CONNECTED','CALENDAR_TOKEN_FAILED'].includes(error?.message);return fail(res,reconnect?401:502,reconnect?'Google Calendar 연결이 만료되었습니다. 연결을 해제한 뒤 다시 연결해 주세요.':'Google Calendar 동기화에 실패했습니다. 잠시 후 다시 시도해 주세요.','CALENDAR_SYNC_FAILED',{reason:error?.message||'UNKNOWN',status:error?.status});}}
+  if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return calendarSyncFailure(res,user,error);}}
   if(method==='POST'&&route==='/api/v1/calendar/disconnect'){delete user.googleCalendar;saveDb();res.writeHead(204);return res.end();}
   if(method==='GET'&&route==='/api/v1/account/export')return send(res,200,{data:exportWorkspace(user)},{'Content-Disposition':`attachment; filename="folio-export-${new Date().toISOString().slice(0,10)}.json"`,'Cache-Control':'no-store'});
   let fileMatch=route.match(/^\/api\/v1\/files\/([^/]+)$/);
