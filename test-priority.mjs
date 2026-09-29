@@ -113,5 +113,6 @@ assert(stageOf([['서류 결과', '완료'], ['코테', '예정']]) === '테스�
 assert(stageOf([['서류 결과', '완료'], ['AI 역량검사', '예정']]) === '테스트', 'AI competency test grouped as test');
 assert(stageOf([['인적성 검사', '완료'], ['최종 면접', '진행 중'], ['처우 협의', '예정']]) === '면접', 'in-progress step wins and final interview is an interview');
 assert(stageOf([['1차 면접', '완료'], ['처우 협의', '예정']]) === '최종 조율', 'offer stage');
+assert(stageOf([['최종 면접', '완료'], ['채용검진', '예정']]) === '최종 조율', 'medical check grouped as final stage');
 assert(stageOf([]) === '단계 미등록', 'no steps');
 console.log('PASS process stage groups');
