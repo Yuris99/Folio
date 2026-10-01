@@ -2788,7 +2788,9 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 @media (max-width: 1180px) { .app-card > .app-card-next, .app-card > .app-card-date { align-self: stretch; align-content: start; } }
 
 /* ---------- 카드 칸 너비 고정: 글자 길이와 관계없이 모든 카드의 세로줄을 맞춥니다 ---------- */
-.app-card { grid-template-columns: minmax(0, 1.4fr) 230px minmax(0, 1fr) minmax(0, 1fr) 176px; }
+@media (min-width: 1181px) {
+  .app-card { grid-template-columns: minmax(0, 1.4fr) 230px minmax(0, 1fr) minmax(0, 1fr) 176px; }
+}
 .app-card > * { min-width: 0; }
 .app-card-title strong, .app-card-title small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-card-chips { flex-wrap: nowrap; overflow: hidden; }
@@ -2803,3 +2805,20 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 }
 /* 두 정보 칸은 줄 수가 달라도 제목 높이를 맞춥니다 */
 .app-card > .app-card-next, .app-card > .app-card-date { align-self: stretch; align-content: start; padding-top: 4px; }
+
+/* Keep compact cards within the viewport even with long titles and dates. */
+@media (max-width: 680px) {
+  .app-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .app-card-actions { justify-self: end; }
+  .app-card-company .job-links-md { flex-wrap: wrap; }
+  .app-card-chips { flex-wrap: wrap; overflow: visible; }
+  .app-card-cell .cell-line { display: flex; flex-wrap: wrap; white-space: normal; }
+  .app-card-cell > strong, .app-card-cell .cell-text { white-space: normal; overflow-wrap: anywhere; }
+  .app-card > .app-card-next, .app-card > .app-card-date { padding-top: 10px; }
+  .view-actions { flex-wrap: wrap; }
+  .view-actions .section-tabs { max-width: 100%; overflow-x: auto; }
+}
+@media (max-width: 380px) {
+  .app-card { grid-template-areas: 'company company' 'actions actions' 'badges badges' 'next next' 'date date'; }
+  .app-card-actions { justify-self: stretch; }
+}
