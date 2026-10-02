@@ -389,7 +389,7 @@ export interface DiscoveryState {
 }
 export interface DiscoveryStatus extends DiscoveryState {
   sources: Array<{ id: 'inthiswork' | 'saramin'; name: string; ready: boolean; note: string }>;
-  mcp: { configured: boolean; endpoint: string; connected: boolean; subscriptions: number; pendingDeliveries: number; lastDeliveredAt: string; failures: string[] };
+  mcp: { allowed: boolean; configured: boolean; endpoint: string; connected: boolean; subscriptions: number; pendingDeliveries: number; lastDeliveredAt: string; failures: string[] };
 }
 
 export interface VaultNote {

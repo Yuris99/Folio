@@ -107,13 +107,13 @@ test('outbound requests reject private, metadata and encoded local addresses', a
 });
 
 test('MCP OAuth, account isolation, signed events, retry, persistence and revoke', async () => {
-  const w = workspace(), user = { id: 'u1', workspace: w }, other = { id: 'u2', workspace: workspace() }, db = { users: { u1: user, u2: other } };
+  const w = workspace(), user = { id: 'u1', email: 'owner@example.com', workspace: w }, other = { id: 'u2', email: 'other@example.com', workspace: workspace() }, blocked = { id: 'u3', email: 'blocked@example.com', workspace: workspace() }, db = { users: { u1: user, u2: other, u3: blocked } };
   const item = d.mergePosting(d.ensureDiscovery(w).items, d.parseInthiswork([post()], categories)[0]).item;
   const requests = []; let deliveryStatus = 502;
   const publicOrigin = 'https://mcp.folio.example', endpoint = `${publicOrigin}/api/v1/mcp`, appOrigin = 'https://folio.example';
   const callback = 'https://chatgpt.com/connector_platform_oauth_redirect';
   const send = (res, status, value, headers = {}) => { res.writeHead(status, { 'Content-Type': 'application/json', ...headers }); res.end(JSON.stringify(value)); };
-  const options = { getDb: () => db, save() {}, send, appOrigin, publicOrigin, enabled: true, request: async (url, opts) => {
+  const options = { getDb: () => db, save() {}, send, appOrigin, publicOrigin, enabled: true, allowedEmails: [' OWNER@EXAMPLE.COM ', other.email], request: async (url, opts) => {
     requests.push({ url, ...opts }); const value = JSON.parse(opts.body);
     return { status: value.type === 'verification' ? 200 : deliveryStatus, body: JSON.stringify(value.type === 'verification' ? { challenge: value.challenge } : {}) };
   } };
@@ -146,6 +146,10 @@ test('MCP OAuth, account isolation, signed events, retry, persistence and revoke
     assert.equal(unauthenticated.res.status, 401); assert.match(unauthenticated.res.headers.get('www-authenticate'), /resource_metadata/);
     const invalidClient = await request('/api/v1/mcp/oauth/register', 'POST', { redirect_uris: ['https://attacker.example/callback'] }); assert.equal(invalidClient.res.status, 400);
     const metadata = await request('/.well-known/oauth-authorization-server'); assert.deepEqual(metadata.data.code_challenge_methods_supported, ['S256']);
+    assert.equal(mcp.status(user).allowed, true);
+    assert.equal(mcp.status(blocked).allowed, false);
+    assert.equal(mcp.status(blocked).endpoint, '');
+    await assert.rejects(link(blocked), /ACCOUNT_NOT_ALLOWED/);
     const first = await link(user), second = await link(other);
     assert.equal((await rpc(first.access_token, 'server/discover')).result.supportedVersions[0], '2026-07-28');
     assert.equal((await rpc(first.access_token, 'tools/list')).result.tools.length, 4);
@@ -171,5 +175,22 @@ test('MCP OAuth, account isolation, signed events, retry, persistence and revoke
     assert.equal((await request('/api/v1/mcp', 'POST', { jsonrpc: '2.0', id: 2, method: 'tools/list' }, first.access_token)).res.status, 401);
     assert.equal((await rpc(second.access_token, 'tools/list')).result.tools.length, 4);
     assert.equal(JSON.stringify(w).includes('whsec_'), false);
+    const otherSubscription = await rpc(second.access_token, 'events/subscribe', { name: 'jobs.discovered', arguments: {}, delivery: { mode: 'webhook', url: 'https://receiver.example/callback', secret } });
+    assert.ok(otherSubscription.result.id);
+    mcp.enqueue(other, ['other-posting']); assert.equal(db.mcp.outbox.length, 1);
+    mcp = createMcpService({ ...options, allowedEmails: [user.email] });
+    assert.equal(mcp.status(other).allowed, false);
+    assert.equal(mcp.status(other).connected, false);
+    assert.throws(() => mcp.consent(other, 'old-request', { approve: true }), /ACCOUNT_NOT_ALLOWED/);
+    assert.equal((await request('/api/v1/mcp', 'POST', { jsonrpc: '2.0', id: 3, method: 'tools/list' }, second.access_token)).res.status, 401);
+    assert.equal((await request('/api/v1/mcp/oauth/token', 'POST', { ...refresh, client_id: second.clientId, refresh_token: second.refresh_token })).data.error, 'invalid_grant');
+    const requestCount = requests.length;
+    mcp.enqueue(other, ['another-posting']); assert.equal(db.mcp.outbox.length, 1);
+    await mcp.flush(); assert.equal(db.mcp.outbox.length, 0); assert.equal(requests.length, requestCount);
+    mcp.prune(); assert.equal(Object.values(db.mcp.tokens).some(token => token.userId === other.id), false);
+    assert.equal(Object.values(db.mcp.subscriptions).some(sub => sub.userId === other.id), false);
+    mcp = createMcpService({ ...options, allowedEmails: [] });
+    assert.equal(mcp.status(user).configured, false);
+    assert.equal((await request('/.well-known/oauth-authorization-server')).res.status, 503);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

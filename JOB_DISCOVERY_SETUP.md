@@ -31,11 +31,14 @@ NAS의 `.env`에 아래 값을 설정한다. `APP_ORIGIN`은 프론트엔드, `F
 ```env
 APP_ORIGIN=https://folio.yuris.io
 FOLIO_MCP_ENABLED=true
+FOLIO_MCP_ALLOWED_EMAILS=본인의_Folio_Google_로그인_이메일
 FOLIO_PUBLIC_API_ORIGIN=https://folio-backend.yuris.io
 FOLIO_MCP_REDIRECT_URIS=https://chatgpt.com/connector_platform_oauth_redirect
 ```
 
 `compose.nas.yaml`이 이 값들을 컨테이너에 전달한다. 서버를 재시작한 뒤 **수집 설정 → ChatGPT 자동 분석 → 연결 방법**에서 실제 연결 주소를 복사한다.
+
+자동 분석은 허용 목록에 있는 Folio 계정만 연결할 수 있다. 목록이 비면 MCP는 활성화되지 않는다. 허용되지 않은 계정에는 연결 UI를 표시하지 않으며 OAuth 승인, 기존 토큰과 갱신 토큰, 이벤트 전달도 거부한다. 이메일은 서버 환경 변수에만 두고 저장소에 입력하지 않는다.
 
 ChatGPT 개발자 모드에서 다음 서버를 OAuth로 연결한다.
 
@@ -72,4 +75,5 @@ OAuth는 DCR, 인증 코드, S256 PKCE, 1시간 액세스 토큰과 30일 회전
 - 실제 인디스워크 공개 REST로 분류와 최신 공고 본문을 읽는 검증.
 - 실제 최신 150건 응답에서 중복 제거 후 149건을 확인했다(텍스트 본문 79건, 이미지 중심 70건). 기존 공고 재확인 요청은 HTTP 429를 관찰했으며, 이 경우 최신 수집 결과를 보존하고 다음 실행에서 재시도하도록 처리했다.
 - 격리된 테스트 계정의 Chrome 렌더링: 320px/390px 모바일과 1440px 데스크톱에서 추천 목록의 가로 넘침 없음, 모바일 설정창 너비 확인.
-- 운영 배포와 실제 사람인 키/ChatGPT 계정 연결은 미확인.
+- 운영 웹과 NAS에 배포하고 버전 일치 및 인디스워크 첫 수집 150건을 확인했다. 현재 저장된 직무 키워드의 일치 공고는 0건이며 6시간마다 자동 수집을 활성화했다.
+- 허용 계정 외 OAuth 승인·기존 토큰·갱신·대기 중 이벤트 차단, 빈 허용 목록의 비활성화를 테스트했다. 실제 사람인 키와 ChatGPT 계정의 분석 저장 왕복은 아직 미확인.

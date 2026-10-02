@@ -20,6 +20,7 @@ services:
       OPENAI_MODEL: "${OPENAI_MODEL:-gpt-5.4-mini}"
       SARAMIN_ACCESS_KEY: "${SARAMIN_ACCESS_KEY:-}"
       FOLIO_MCP_ENABLED: "${FOLIO_MCP_ENABLED:-false}"
+      FOLIO_MCP_ALLOWED_EMAILS: "${FOLIO_MCP_ALLOWED_EMAILS:-}"
       FOLIO_PUBLIC_API_ORIGIN: "${FOLIO_PUBLIC_API_ORIGIN:-}"
       FOLIO_MCP_REDIRECT_URIS: "${FOLIO_MCP_REDIRECT_URIS:-https://chatgpt.com/connector_platform_oauth_redirect}"
     volumes:

@@ -136,6 +136,7 @@ assertDataDirectoryWritable();
 let db = loadDb();
 const mcp = createMcpService({ getDb: () => db, save: saveDb, send, appOrigin: APP_ORIGIN,
   publicOrigin: process.env.FOLIO_PUBLIC_API_ORIGIN || '', enabled: process.env.FOLIO_MCP_ENABLED === 'true',
+  allowedEmails: (process.env.FOLIO_MCP_ALLOWED_EMAILS || '').split(',').map(value => value.trim()).filter(Boolean),
   redirectUris: process.env.FOLIO_MCP_REDIRECT_URIS ? process.env.FOLIO_MCP_REDIRECT_URIS.split(',').map(x => x.trim()).filter(Boolean) : undefined });
 const jobDiscovery = discovery.createDiscoveryService({ getDb: () => db, save: saveDb, saraminKey: process.env.SARAMIN_ACCESS_KEY || '',
   onDiscovered: (user, ids) => mcp.enqueue(user, ids) });
@@ -427,7 +428,7 @@ async function api(req,res,url) {
   if(method==='GET'&&route==='/api/v1/bootstrap'){if(completePastProcessSteps(w))saveDb();return ok(res,{...w,discovery:{...discoveryState,items:discoveryState.items.map(item=>discovery.postingView(w,item))}});}
   if(method==='GET'&&route==='/api/v1/discovery/status')return ok(res,{...discoveryState,items:discoveryState.items.map(item=>discovery.postingView(w,item)),sources:jobDiscovery.sourceCatalog(),mcp:mcp.status(user)});
   const mcpConsent=route.match(/^\/api\/v1\/mcp\/authorization\/([A-Za-z0-9_-]+)$/);
-  if(mcpConsent&&method==='GET'){try{return ok(res,mcp.consentInfo(user,mcpConsent[1]));}catch{return fail(res,400,'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.','AUTHORIZATION_EXPIRED');}}
+  if(mcpConsent&&method==='GET'){try{return ok(res,mcp.consentInfo(user,mcpConsent[1]));}catch(error){return error.message==='ACCOUNT_NOT_ALLOWED'?fail(res,403,'이 계정에는 ChatGPT 연결이 허용되지 않습니다.','ACCOUNT_NOT_ALLOWED'):fail(res,400,'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.','AUTHORIZATION_EXPIRED');}}
   if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||'',configured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET)});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
   if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return calendarSyncFailure(res,user,error);}}
@@ -465,6 +466,7 @@ async function api(req,res,url) {
       }
     }catch(error){
       const messages={DISCOVERY_RUNNING:'이미 공고를 수집하고 있습니다.',DISCOVERY_COOLDOWN:'반복 수집은 2분 뒤에 다시 시도해 주세요.',DISCOVERY_SOURCE_REQUIRED:'수집할 사이트를 선택해 주세요.',INVALID_POSTING:'공고 제목과 올바른 URL을 입력해 주세요.',STALE_ANALYSIS:'공고 또는 커리어가 변경되었습니다. 분석 입력을 다시 복사해 주세요.',INSUFFICIENT_ANALYSIS_DATA:'본문 또는 확인 완료된 커리어가 부족한 공고는 score를 null로 작성해 주세요.',INVALID_ANALYSIS_EVIDENCE:'공고 인용과 확인 완료된 커리어 항목 ID를 다시 확인해 주세요.',INVALID_ANALYSIS_SOURCE:'출처는 분석 입력에 있는 공고 URL을 사용해 주세요.',AUTHORIZATION_EXPIRED:'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.'};
+      if(error.message==='ACCOUNT_NOT_ALLOWED')return fail(res,403,'이 계정에는 ChatGPT 연결이 허용되지 않습니다.',error.message);
       return fail(res,['DISCOVERY_RUNNING','DISCOVERY_COOLDOWN','STALE_ANALYSIS'].includes(error.message)?409:400,messages[error.message]||'입력 형식을 확인해 주세요.',error.message);
     }
   }
