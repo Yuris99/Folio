@@ -8,6 +8,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
     { view: 'home', icon: 'home', label: '홈', mobile: '홈' }
   ] },
   { label: '지원', items: [
+    { view: 'recommendations', icon: 'search', label: '추천 공고' },
     { view: 'applications', icon: 'briefcase', label: '지원 관리', mobile: '지원' },
     { view: 'calendar', icon: 'calendar', label: '일정', mobile: '일정' },
     { view: 'jobs', icon: 'bookmark', label: '공고보관함', mobile: '공고' },

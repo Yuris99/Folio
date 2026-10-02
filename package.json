@@ -8,8 +8,8 @@
     "dev": "vite",
     "dev:api": "node server.js",
     "preview": "vite preview",
-    "test": "node --no-warnings --experimental-strip-types test-priority.mjs && node test-server.js",
-    "check": "tsc -b --pretty false && node --check server.js && node --check preflight.js",
+    "test": "node --no-warnings --experimental-strip-types test-priority.mjs && node test-server.js && node --test test-discovery.js",
+    "check": "tsc -b --pretty false && node --check server.js && node --check preflight.js && node --check lib/job-discovery.js && node --check lib/folio-mcp.js && node --check lib/public-http.js",
     "preflight": "node preflight.js",
     "preflight:production": "node preflight.js --production"
   },

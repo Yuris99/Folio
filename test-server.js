@@ -7,7 +7,8 @@ const path = require('path');
 const port = 4187;
 const base = `http://localhost:${port}`;
 const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(),'folio-test-'));
-const server = spawn(process.execPath, ['server.js'], { cwd:__dirname, env:{...process.env,PORT:String(port),NODE_ENV:'development',FOLIO_DATA_DIR:testDataDir,GOOGLE_CLIENT_ID:'',GOOGLE_CLIENT_SECRET:'',AI_PROVIDER:'openai',GEMINI_API_KEY:'',OPENAI_API_KEY:''}, stdio:['ignore','pipe','pipe'] });
+const testRelease = '0123456789abcdef0123456789abcdef01234567';
+const server = spawn(process.execPath, ['server.js'], { cwd:__dirname, env:{...process.env,PORT:String(port),NODE_ENV:'development',FOLIO_DATA_DIR:testDataDir,FOLIO_RELEASE:testRelease,GOOGLE_CLIENT_ID:'',GOOGLE_CLIENT_SECRET:'',AI_PROVIDER:'openai',GEMINI_API_KEY:'',OPENAI_API_KEY:''}, stdio:['ignore','pipe','pipe'] });
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function stopServer(){
@@ -32,6 +33,7 @@ async function json(path, options={}, cookie='') {
     const health=await json('/api/v1/health');
     assert.equal(health.response.status,200);
     assert.equal(health.data.data.status,'ok');
+    assert.equal(health.data.data.release,testRelease);
     assert.equal(health.response.headers.get('x-content-type-options'),'nosniff');
     assert.equal(health.response.headers.get('x-frame-options'),'DENY');
     assert.match(health.response.headers.get('content-security-policy'),/frame-ancestors 'none'/);
@@ -53,6 +55,41 @@ async function json(path, options={}, cookie='') {
 
     const bootstrap=await json('/api/v1/bootstrap',{},cookie);
     assert.equal(bootstrap.response.status,200);
+    const initialDiscovery=await json('/api/v1/discovery/status',{},cookie);
+    assert.equal(initialDiscovery.data.data.preferences.enabled,false);
+    assert.equal(initialDiscovery.data.data.mcp.configured,false);
+    const preferences=await json('/api/v1/discovery/preferences',{method:'PUT',body:JSON.stringify({keywords:['Java'],sources:['inthiswork'],enabled:false,intervalHours:6})},cookie);
+    assert.deepEqual(preferences.data.data.keywords,['Java']);
+    const newPostingPayload={company:'추천 회사',title:'Java 개발자',url:'https://jobs.example.com/backend',description:'Java와 Spring으로 API를 개발합니다. '.repeat(8),location:'서울'};
+    const newPosting=await json('/api/v1/discovery/postings',{method:'POST',body:JSON.stringify(newPostingPayload)},cookie);
+    assert.equal(newPosting.response.status,201);
+    const postingId=newPosting.data.data.id;
+    const duplicatePosting=await json('/api/v1/discovery/postings',{method:'POST',body:JSON.stringify(newPostingPayload)},cookie);
+    assert.equal(duplicatePosting.response.status,200);
+    assert.equal(duplicatePosting.data.data.id,postingId);
+    const analysisInput=await json(`/api/v1/discovery/postings/${postingId}/analysis-input`,{},cookie);
+    assert.equal(analysisInput.data.data.format,'folio-job-analysis-request');
+    assert.equal('phone' in analysisInput.data.data.career,false);
+    const importPayload={...analysisInput.data.data.resultTemplate,analysis:{...analysisInput.data.data.resultTemplate.analysis,summary:'확인 완료된 커리어가 부족합니다.'}};
+    const fitSaved=await json(`/api/v1/discovery/postings/${postingId}/analysis`,{method:'PUT',body:JSON.stringify(importPayload)},cookie);
+    assert.equal(fitSaved.response.status,200);
+    assert.equal(fitSaved.data.data.score,null);
+    const hiddenPosting=await json(`/api/v1/discovery/postings/${postingId}`,{method:'PATCH',body:JSON.stringify({hidden:true})},cookie);
+    assert.equal(hiddenPosting.data.data.hidden,true);
+    const beforeSaving=(await json('/api/v1/bootstrap',{},cookie)).data.data;
+    const savedPosting=await json(`/api/v1/discovery/postings/${postingId}/save`,{method:'POST'},cookie);
+    const savedPostingAgain=await json(`/api/v1/discovery/postings/${postingId}/save`,{method:'POST'},cookie);
+    assert.equal(savedPosting.data.data.id,savedPostingAgain.data.data.id);
+    const afterSaving=(await json('/api/v1/bootstrap',{},cookie)).data.data;
+    assert.equal(afterSaving.applications.length,beforeSaving.applications.length);
+    assert.equal(afterSaving.tasks.length,beforeSaving.tasks.length);
+    assert.equal(afterSaving.interviews.length,beforeSaving.interviews.length);
+    assert.equal(afterSaving.discovery.items[0].hidden,true);
+    assert.equal(afterSaving.discovery.items[0].analysisStale,false);
+    const crossOrigin=await json('/api/v1/discovery/preferences',{method:'PUT',headers:{Origin:'https://untrusted.example'},body:JSON.stringify({enabled:true})},cookie);
+    assert.equal(crossOrigin.response.status,403);
+    const privateDiscovery=await json(`/api/v1/discovery/postings/${postingId}/analysis-input`);
+    assert.equal(privateDiscovery.response.status,401);
     assert.ok(Array.isArray(bootstrap.data.data.applications));
 
     const profile=await json('/api/v1/profile',{method:'PUT',body:JSON.stringify({

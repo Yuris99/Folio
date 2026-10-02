@@ -14,11 +14,15 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ARG FOLIO_RELEASE=unknown
+
 ENV NODE_ENV=production \
     PORT=4173 \
-    FOLIO_DATA_DIR=/data
+    FOLIO_DATA_DIR=/data \
+    FOLIO_RELEASE=${FOLIO_RELEASE}
 
 COPY --chown=node:node package.json server.js ./
+COPY --chown=node:node lib ./lib
 COPY --from=frontend-build --chown=node:node /build/dist ./dist
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/folio-entrypoint
 

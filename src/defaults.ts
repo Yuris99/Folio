@@ -1,4 +1,9 @@
-import type { Profile, Workspace } from './types';
+import type { DiscoveryState, Profile, Workspace } from './types';
+
+export const emptyDiscovery: DiscoveryState = {
+  preferences: { enabled: false, keywords: [], excludeKeywords: [], locations: [], experience: 'any', sources: ['inthiswork'], intervalHours: 6 },
+  items: [], lastRunAt: '', nextRunAt: '', sourceStatus: []
+};
 
 export const emptyProfile: Profile = {
   name: '', englishName: '', role: '', target: '', summary: '', email: '', phone: '', birthDate: '', location: '', address: '',
@@ -10,7 +15,7 @@ export const emptyWorkspace: Workspace = {
   profile: emptyProfile,
   stories: [], jobs: [], applications: [], archivedApplications: [], tasks: [], docs: [], interviews: [], attachments: [],
   careerVaultVersion: 1, careerSources: [], careerFacts: []
-  ,consultations: [], vaultNotes: []
+  ,consultations: [], vaultNotes: [], discovery: emptyDiscovery
 };
 
 function array<T>(value: unknown): T[] {
@@ -57,6 +62,7 @@ export function normalizeWorkspace(value: Partial<Workspace> | undefined): Works
     careerVaultVersion: Number(value?.careerVaultVersion || 1),
     careerSources: array(value?.careerSources),
     careerFacts: array(value?.careerFacts)
-    ,consultations: array(value?.consultations), vaultNotes: array(value?.vaultNotes)
+    ,consultations: array(value?.consultations), vaultNotes: array(value?.vaultNotes),
+    discovery: { ...emptyDiscovery, ...value?.discovery, preferences: { ...emptyDiscovery.preferences, ...value?.discovery?.preferences }, items: array(value?.discovery?.items), sourceStatus: array(value?.discovery?.sourceStatus) }
   };
 }

@@ -78,7 +78,7 @@ export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace
   }
 
   return <>
-    <PageHead kicker="JOB NOTES" title="공고보관함" description="저장한 공고를 지원 상태별로 찾고, 전형 결과와 진행 상황까지 함께 확인합니다." actions={<div className="page-head-actions"><button className="button" onClick={() => navigate('applications')}>← 지원현황</button><button className="button primary" onClick={() => setCreating(true)}>+ 공고 저장</button></div>} />
+    <PageHead kicker="JOB NOTES" title="공고보관함" description="저장한 공고를 지원 상태별로 찾고, 전형 결과와 진행 상황까지 함께 확인합니다." actions={<div className="page-head-actions"><button className="button" onClick={() => navigate('recommendations')}>추천 공고</button><button className="button" onClick={() => navigate('applications')}>← 지원현황</button><button className="button primary" onClick={() => setCreating(true)}>+ 공고 저장</button></div>} />
     <div className="job-summary-filters">{(['전체', '미지원', '전형 진행', '합격', '불합격', '포기', '보관됨'] as const).map((status) => <button type="button" key={status} className={statusFilter === status ? 'active' : ''} onClick={() => setStatusFilter(status)}><b>{jobEntries.filter((entry) => status === '전체' || (status === '보관됨' ? entry.archived : entry.status === status)).length}</b><span>{status}</span></button>)}</div>
     <div className="job-vault-toolbar">
       <label className="application-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사·직무·지역 검색" /></label>

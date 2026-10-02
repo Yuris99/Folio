@@ -1,5 +1,85 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
 
+/* Job discovery uses intrinsic columns so cards and forms also fit narrow phones. */
+.discovery-overview { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.discovery-overview > div { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.discovery-overview small, .discovery-caption, .discovery-meta { color: var(--muted); font-size: 12px; }
+.discovery-overview .text-link { background: transparent; border: 0; padding: 5px 0; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.discovery-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: 0 0 auto; }
+.discovery-dot.on { background: #8fa897; }
+.discovery-source-report { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; margin: 14px 0; }
+.discovery-source-report > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.discovery-source-report span, .discovery-source-report small { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.discovery-source-report .failed { border-color: var(--accent); }
+.discovery-source-report .failed span { color: #dfadb2; }
+.discovery-notice { padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); font-size: 12px; overflow-wrap: anywhere; }
+.discovery-notice.error { color: #e0afb4; background: var(--accent-soft); border-color: var(--accent); }
+.discovery-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.discovery-toolbar .application-search { flex: 1 1 180px; min-width: 0; }
+.discovery-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 0; }
+.discovery-tabs small { margin-left: 7px; color: var(--faint); }
+.discovery-toolbar select { flex: 0 1 140px; min-width: 0; }
+.discovery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr)); gap: 16px; margin: 18px 0; }
+.card.discovery-card { display: flex; flex-direction: column; min-width: 0; padding: 0; overflow: hidden; }
+.discovery-card-main { flex: 1; display: flex; flex-direction: column; align-items: stretch; width: 100%; min-width: 0; background: transparent; color: inherit; border: 0; padding: 22px; text-align: left; cursor: pointer; font: inherit; }
+.discovery-card-main:hover { background: rgba(255,255,255,.02); }
+.discovery-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.discovery-company { color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+.discovery-score { flex: 0 0 auto; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 11px; }
+.discovery-score.scored { border-color: #536c5b; color: #b7cfbf; background: #28312c; }
+.discovery-card h2 { font-size: 18px; line-height: 1.5; margin: 14px 0 7px; overflow-wrap: anywhere; }
+.discovery-card .tag-row { flex-wrap: wrap; margin-top: 12px; }
+.discovery-card .tag { white-space: normal; overflow-wrap: anywhere; }
+.tag.discovery-quality { color: var(--warning); }
+.discovery-card-summary { color: var(--muted); font-size: 12px; line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; min-height: 40px; }
+.discovery-keywords { font-size: 11px; color: #b7cfbf; overflow-wrap: anywhere; }
+.discovery-card-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 18px; color: var(--faint); }
+.discovery-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; border-top: 1px solid var(--line); padding: 12px 20px; }
+.discovery-card-actions a, .discovery-card-actions button { background: transparent; border: 0; color: var(--muted); font: inherit; font-size: 12px; padding: 5px 0; cursor: pointer; }
+.discovery-card-actions button:last-child { margin-left: auto; color: #dab0b4; }
+.discovery-card-actions button:disabled { opacity: .5; cursor: default; }
+.discovery-detail { display: grid; gap: 18px; min-width: 0; }
+.discovery-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.discovery-analysis { padding: 22px; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; min-width: 0; }
+.discovery-analysis h3 { margin: 0; }
+.discovery-analysis h4 { margin: 22px 0 10px; }
+.discovery-analysis p, .discovery-analysis li { overflow-wrap: anywhere; }
+.discovery-evidence { margin: 12px 0; padding: 13px; background: var(--panel-2); border-radius: 8px; overflow-wrap: anywhere; }
+.discovery-evidence blockquote { border-left: 2px solid var(--accent); padding-left: 12px; margin: 10px 0; color: var(--muted); }
+.discovery-evidence small { color: var(--faint); }
+.discovery-copy-panel, .discovery-original, .discovery-connection { border: 1px solid var(--line); border-radius: 9px; padding: 18px; min-width: 0; }
+.discovery-detail summary, .discovery-connection summary { cursor: pointer; padding: 6px 0; }
+.discovery-copy-panel p, .discovery-connection p { font-size: 12px; color: var(--muted); }
+.discovery-copy-panel label, .discovery-settings > label, .discovery-connection label { display: grid; gap: 8px; font-size: 12px; }
+.discovery-copy-panel textarea, .discovery-settings textarea, .discovery-settings input:not([type=checkbox]), .discovery-settings select { width: 100%; min-width: 0; }
+.discovery-copy-panel textarea { width: 100%; min-width: 0; margin: 10px 0; font-family: monospace; }
+.discovery-original pre { font: inherit; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.discovery-original a { display: inline-block; margin: 8px 12px 0 0; color: #dab0b4; }
+.discovery-settings { display: grid; gap: 18px; min-width: 0; }
+.discovery-settings fieldset { margin: 0; border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.discovery-settings legend { font-size: 12px; color: var(--muted); }
+.discovery-source-option { display: grid; gap: 7px; padding: 9px 0; }
+.discovery-settings small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.discovery-settings > .inline-check { display: flex; }
+.discovery-settings input[type=checkbox] { width: 16px; height: 16px; flex: 0 0 auto; }
+.discovery-connection { display: grid; gap: 10px; }
+.discovery-connection h3 { margin: 0; font-size: 15px; }
+.discovery-prompt { background: var(--panel-2); padding: 13px; border-radius: 8px; }
+.discovery-settings .button { justify-self: start; }
+@media (max-width: 680px) {
+  .discovery-overview { align-items: flex-start; }
+  .discovery-overview > div { gap: 6px 8px; }
+  .discovery-overview small { width: 100%; padding-left: 15px; }
+  .discovery-overview > button { flex: 0 0 auto; font-size: 11px; }
+  .discovery-tabs { flex: 1 0 100%; }
+  .discovery-tabs button { padding: 8px 10px; }
+  .discovery-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .discovery-card-main, .discovery-analysis { padding: 16px; }
+  .discovery-card h2 { font-size: 16px; }
+  .discovery-copy-panel, .discovery-original, .discovery-connection { padding: 14px; }
+  .discovery-card-actions { padding: 10px 16px; }
+}
+
 :root {
   color-scheme: dark;
   --bg: #19191b;

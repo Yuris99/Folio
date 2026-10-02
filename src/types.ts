@@ -1,4 +1,4 @@
-export type View = 'home' | 'applications' | 'documents' | 'vault' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'interviews' | 'stats';
+export type View = 'home' | 'applications' | 'documents' | 'vault' | 'calendar' | 'career' | 'imports' | 'consultations' | 'jobs' | 'recommendations' | 'interviews' | 'stats';
 
 export interface User {
   id: string;
@@ -137,6 +137,7 @@ export interface CareerStory {
 
 export interface Job {
   id: string;
+  discoveryPostingId?: string;
   company: string;
   role: string;
   location?: string;
@@ -319,6 +320,76 @@ export interface Workspace {
   careerFacts: CareerFact[];
   consultations: ConsultationRecord[];
   vaultNotes: VaultNote[];
+  discovery: DiscoveryState;
+}
+
+export interface DiscoveryPreferences {
+  enabled: boolean;
+  keywords: string[];
+  excludeKeywords: string[];
+  locations: string[];
+  experience: 'any' | 'entry' | 'junior';
+  sources: Array<'inthiswork' | 'saramin'>;
+  intervalHours: number;
+}
+export interface JobFitAnalysis {
+  score: number | null;
+  confidence: 'low' | 'medium' | 'high';
+  summary: string;
+  evidence: Array<{ claim: string; careerFactIds: string[]; jobQuote: string }>;
+  gaps: string[];
+  questions: string[];
+  matchedSkills: string[];
+  missingSkills: string[];
+  sourceUrls: string[];
+  contextVersion: string;
+  analyzedAt: string;
+  provider: 'chatgpt';
+}
+export interface DiscoveredJob {
+  id: string;
+  company: string;
+  title: string;
+  location: string;
+  experience: string;
+  deadline: string;
+  alwaysOpen: boolean;
+  url: string;
+  description: string;
+  contentQuality: 'full' | 'partial' | 'image';
+  sources: Array<{ source: string; externalId: string; url: string }>;
+  publishedAt: string;
+  discoveredAt: string;
+  checkedAt: string;
+  hidden: boolean;
+  closed: boolean;
+  savedJobId?: string;
+  suppressed?: boolean;
+  matchedKeywords?: string[];
+  analysis?: JobFitAnalysis;
+  analysisStale?: boolean;
+}
+export interface DiscoverySourceStatus {
+  source: string;
+  ok: boolean;
+  checkedAt: string;
+  fetched: number;
+  matched: number;
+  truncated: boolean;
+  message: string;
+}
+export interface DiscoveryState {
+  preferences: DiscoveryPreferences;
+  items: DiscoveredJob[];
+  running?: boolean;
+  lastRunAt: string;
+  lastCompletedAt?: string;
+  nextRunAt: string;
+  sourceStatus: DiscoverySourceStatus[];
+}
+export interface DiscoveryStatus extends DiscoveryState {
+  sources: Array<{ id: 'inthiswork' | 'saramin'; name: string; ready: boolean; note: string }>;
+  mcp: { configured: boolean; endpoint: string; connected: boolean; subscriptions: number; pendingDeliveries: number; lastDeliveredAt: string; failures: string[] };
 }
 
 export interface VaultNote {

@@ -1,4 +1,4 @@
-import type { Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, Interview, Job, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
+import type { Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, DiscoveredJob, DiscoveryPreferences, DiscoverySourceStatus, DiscoveryStatus, Interview, Job, JobFitAnalysis, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 const requestTimeoutMs = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
@@ -46,6 +46,17 @@ export const api = {
   session: () => request<User>('/auth/session'),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   bootstrap: () => request<Workspace>('/bootstrap'),
+  discoveryStatus: () => request<DiscoveryStatus>('/discovery/status'),
+  updateDiscoveryPreferences: (payload: DiscoveryPreferences) => request<DiscoveryPreferences>('/discovery/preferences', json('PUT', payload)),
+  collectJobs: () => request<{ added: number; total: number; sourceStatus: DiscoverySourceStatus[] }>('/discovery/collect', { method: 'POST' }, 180_000),
+  addDiscoveredJob: (payload: { company: string; title: string; url: string; description: string; location: string }) => request<DiscoveredJob>('/discovery/postings', json('POST', payload)),
+  hideDiscoveredJob: (id: string, hidden: boolean) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden })),
+  saveDiscoveredJob: (id: string) => request<Job>(`/discovery/postings/${id}/save`, { method: 'POST' }),
+  jobAnalysisInput: (id: string) => request<Record<string, unknown>>(`/discovery/postings/${id}/analysis-input`),
+  saveJobFitAnalysis: (id: string, payload: unknown) => request<JobFitAnalysis>(`/discovery/postings/${id}/analysis`, json('PUT', payload)),
+  mcpAuthorization: (id: string) => request<{ clientName: string; scopes: string[]; consentToken: string; expiresAt: string }>(`/mcp/authorization/${id}`),
+  approveMcpAuthorization: (id: string, consentToken: string, approve: boolean) => request<{ redirectUrl: string }>(`/mcp/authorization/${id}`, json('POST', { consentToken, approve })),
+  disconnectMcp: () => request<DiscoveryStatus['mcp']>('/mcp/disconnect', { method: 'POST' }),
   calendarStatus: () => request<{ connected: boolean; lastSyncedAt: string; configured?: boolean }>('/calendar/status'),
   connectGoogleCalendar() {
     const url = new URL(window.location.href.split('#')[0]);

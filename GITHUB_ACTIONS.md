@@ -17,6 +17,7 @@ NAS 예약 작업
 - `.github/workflows/publish-container.yml`: `main`에 반영된 커밋을 `ghcr.io/yuris99/folio:latest`와 커밋 SHA 태그로 발행합니다.
 - 이미지는 Intel/AMD NAS용 `linux/amd64`와 ARM NAS용 `linux/arm64`를 함께 지원합니다.
 - 비밀 값은 이미지에 포함하지 않습니다. Google, AI, Tunnel 설정은 NAS의 `.env`에만 둡니다.
+- 발행된 이미지에는 커밋 SHA를 기록하며 `/api/v1/health`의 `data.release`로 NAS에 적용된 버전을 확인할 수 있습니다.
 
 ## 1. 첫 Actions 실행 확인
 
