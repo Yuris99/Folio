@@ -50,7 +50,9 @@ export const api = {
   updateDiscoveryPreferences: (payload: DiscoveryPreferences) => request<DiscoveryPreferences>('/discovery/preferences', json('PUT', payload)),
   collectJobs: () => request<{ added: number; total: number; sourceStatus: DiscoverySourceStatus[] }>('/discovery/collect', { method: 'POST' }, 180_000),
   addDiscoveredJob: (payload: { company: string; title: string; url: string; description: string; location: string }) => request<DiscoveredJob>('/discovery/postings', json('POST', payload)),
-  hideDiscoveredJob: (id: string, hidden: boolean) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden })),
+  // Keep the collected identity as a tombstone so the next collection cannot revive it.
+  deleteDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: true })),
+  restoreDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: false })),
   saveDiscoveredJob: (id: string) => request<Job>(`/discovery/postings/${id}/save`, { method: 'POST' }),
   jobAnalysisInput: (id: string) => request<Record<string, unknown>>(`/discovery/postings/${id}/analysis-input`),
   saveJobFitAnalysis: (id: string, payload: unknown) => request<JobFitAnalysis>(`/discovery/postings/${id}/analysis`, json('PUT', payload)),

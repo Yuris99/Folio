@@ -86,6 +86,15 @@ async function json(path, options={}, cookie='') {
     assert.equal(afterSaving.interviews.length,beforeSaving.interviews.length);
     assert.equal(afterSaving.discovery.items[0].hidden,true);
     assert.equal(afterSaving.discovery.items[0].analysisStale,false);
+    const recollectedDeletedPosting=await json('/api/v1/discovery/postings',{method:'POST',body:JSON.stringify(newPostingPayload)},cookie);
+    assert.equal(recollectedDeletedPosting.data.data.id,postingId);
+    assert.equal(recollectedDeletedPosting.data.data.hidden,true,'repeated collection cannot revive deleted recommendations');
+    const restoredPosting=await json(`/api/v1/discovery/postings/${postingId}`,{method:'PATCH',body:JSON.stringify({hidden:false})},cookie);
+    assert.equal(restoredPosting.data.data.hidden,false);
+    const restoredDiscoveryWorkspace=(await json('/api/v1/bootstrap',{},cookie)).data.data;
+    assert.equal(restoredDiscoveryWorkspace.jobs.length,afterSaving.jobs.length,'deleting and restoring a recommendation preserves saved jobs');
+    assert.equal(restoredDiscoveryWorkspace.applications.length,afterSaving.applications.length);
+    assert.equal(restoredDiscoveryWorkspace.discovery.items.find(item=>item.id===postingId).hidden,false,'restoration persists across reload');
     const crossOrigin=await json('/api/v1/discovery/preferences',{method:'PUT',headers:{Origin:'https://untrusted.example'},body:JSON.stringify({enabled:true})},cookie);
     assert.equal(crossOrigin.response.status,403);
     const privateDiscovery=await json(`/api/v1/discovery/postings/${postingId}/analysis-input`);

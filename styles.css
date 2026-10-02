@@ -2913,6 +2913,22 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .home-recommendations .section-head small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
 .home-recommendations .text-button { flex: 0 0 auto; min-height: 40px; }
 .home-recommendation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.home-recommendation-count { margin-left: 4px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.home-recommendation-item { min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); }
+.home-recommendation-item .home-recommendation { width: 100%; flex: 1; border: 0; border-radius: 0; background: transparent; }
+.home-recommendation-item .home-recommendation:hover { background: var(--panel-hover); }
+.home-recommendation-item .home-recommendation:focus-visible { outline-offset: -3px; }
+.home-recommendation-actions { display: flex; justify-content: flex-end; padding: 0 16px 6px; }
+.home-recommendation-delete { min-height: 36px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--fail); font: inherit; font-size: 12px; cursor: pointer; }
+.home-recommendation-delete:hover { background: var(--fail-soft); }
+.home-recommendation-delete:disabled { opacity: .5; cursor: default; }
+.home-recommendation-message { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; }
+.discovery-card-actions button.discovery-delete, .discovery-detail-actions button.discovery-delete { color: var(--fail); }
+.discovery-closed { background: var(--panel-2); color: var(--muted); }
+@media (max-width: 680px) {
+  .view-recommendations .page-head-actions { width: 100%; display: flex; flex-wrap: wrap; }
+  .view-recommendations .page-head-actions .button { min-width: 0; flex: 1 1 110px; }
+}
 .home-recommendation { min-width: 0; display: flex; flex-direction: column; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background .15s, border-color .15s; }
 .home-recommendation:hover { background: var(--panel-hover); border-color: var(--line-strong); }
 .home-recommendation:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
