@@ -1,9 +1,22 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
 import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, applicationDeadlineForSort, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
+import { dashboardRecommendations, isClosedRecommendation, recommendationScoreLabel } from './src/recommendations.ts';
 
 function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
 }
+
+const recommendationNow = Date.parse('2026-10-02T14:59:59Z');
+const posting = { id:'new', company:'회사', title:'개발자', deadline:'2026-10-02', closed:false, hidden:false, publishedAt:'2026-10-02', discoveredAt:'2026-10-02' };
+assert(!isClosedRecommendation(posting, recommendationNow), 'recommendation remains open through Korean deadline day');
+assert(isClosedRecommendation(posting, recommendationNow + 1000), 'recommendation expires at Korean midnight');
+assert(isClosedRecommendation({...posting, deadline:'2026-10-02T18:00:00+09:00'}, recommendationNow), 'explicit recommendation deadline is respected');
+const recommendations = [posting, {...posting,id:'hidden',hidden:true}, {...posting,id:'rejected',suppressed:true}, {...posting,id:'closed',closed:true}, {...posting,id:'expired',deadline:'2026-10-01'}, {...posting,id:'stale',analysis:{score:99},analysisStale:true,publishedAt:'2026-10-01'}, {...posting,id:'fit',analysis:{score:80},publishedAt:'2026-10-01'}, {...posting,id:'fit-low',analysis:{score:60},publishedAt:'2026-10-01'}];
+assert(dashboardRecommendations(recommendations, recommendationNow).map(item=>item.id).join(',') === 'fit,fit-low,new', 'dashboard excludes hidden/rejected/closed/expired and ranks valid fit before recent pending');
+assert(recommendations[0].id === 'new' && recommendations.length === 8, 'dashboard selection preserves source records');
+assert(recommendationScoreLabel({...posting,analysis:{score:99},analysisStale:true}) === '재분석 필요', 'stale analysis never shows a current fit score');
+assert(recommendationScoreLabel({...posting,analysis:{score:null}}) === '정보 부족', 'insufficient information never shows zero fit');
+console.log('PASS dashboard recommendations');
 
 assert(applicationStatuses.includes('불합격'), 'rejected status is selectable');
 assert(normalizedApplicationStatus('불합격') === '불합격', 'rejected status is preserved');

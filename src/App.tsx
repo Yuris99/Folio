@@ -33,6 +33,7 @@ export default function App() {
     if (next === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', next);
     if (next !== 'applications') { url.searchParams.delete('status'); url.searchParams.delete('sort'); }
     if (next !== 'jobs') url.searchParams.delete('job');
+    if (next !== 'recommendations') url.searchParams.delete('posting');
     window.history.pushState(null, '', url);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);

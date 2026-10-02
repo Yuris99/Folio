@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { EmptyState, PageHead } from '../components/Common';
 import { Modal } from '../components/Modal';
+import { isClosedRecommendation as isClosed, recommendationScoreLabel as scoreLabel } from '../recommendations';
 import type { Mutation } from '../hooks/useFolio';
 import type { DiscoveredJob, DiscoveryPreferences, DiscoveryStatus, View, Workspace } from '../types';
 
@@ -13,17 +14,13 @@ const split = (value: string) => value.split(/[,，\n]/).map(item => item.trim()
 function timeLabel(value?: string) {
   return value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '아직 수집하지 않음';
 }
-function isClosed(item: DiscoveredJob) { return item.closed || Boolean(item.deadline && Date.parse(`${item.deadline}T23:59:59+09:00`) < Date.now()); }
-function scoreLabel(item: DiscoveredJob) {
-  return item.analysisStale ? '재분석 필요' : !item.analysis ? '분석 대기' : item.analysis.score === null ? '정보 부족' : `적합도 ${item.analysis.score}`;
-}
 
 export function RecommendationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [status, setStatus] = useState<DiscoveryStatus | null>(null);
   const [tab, setTab] = useState<(typeof tabs)[number]>('전체');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('posting') || '');
   const [settings, setSettings] = useState(false);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -35,7 +32,20 @@ export function RecommendationsPage({ workspace, navigate, mutate }: { workspace
   const [authorization, setAuthorization] = useState<Awaited<ReturnType<typeof api.mcpAuthorization>> | null>(null);
   const [authorizationError, setAuthorizationError] = useState('');
   const state = status || workspace.discovery;
-  const selected = state.items.find(item => item.id === selectedId);
+  const selected = state.items.find(item => item.id === selectedId && !item.suppressed && !isClosed(item));
+
+  function closePosting() {
+    setSelectedId('');
+    const url = new URL(window.location.href);
+    url.searchParams.delete('posting');
+    window.history.replaceState(null, '', url);
+  }
+
+  useEffect(() => {
+    const onPopState = () => setSelectedId(new URLSearchParams(window.location.search).get('posting') || '');
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -109,7 +119,7 @@ export function RecommendationsPage({ workspace, navigate, mutate }: { workspace
 
     {settings && <DiscoverySettings status={status} preferences={state.preferences} busy={busy} onClose={() => setSettings(false)} onSave={value => void perform('수집 설정 저장', () => api.updateDiscoveryPreferences(value), () => { setSettings(false); setMessage('수집 설정을 저장했습니다.'); })} onCopy={text => void copy(text)} onDisconnect={() => void perform('ChatGPT 연결 해제', api.disconnectMcp)} />}
     {adding && <ManualPosting busy={busy} onClose={() => setAdding(false)} onSave={value => void perform('공고 추가', () => api.addDiscoveredJob(value), result => { setAdding(false); setSelectedId(result.id); })} />}
-    {selected && <Modal title={selected.title} kicker={selected.company || 'JOB DETAILS'} wide onClose={() => setSelectedId('')}><div className="discovery-detail">
+    {selected && <Modal title={selected.title} kicker={selected.company || 'JOB DETAILS'} wide onClose={closePosting}><div className="discovery-detail">
       <div className="discovery-detail-actions"><a className="button" href={selected.url} target="_blank" rel="noreferrer">원문 보기 ↗</a><button className="button primary" disabled={busy || Boolean(selected.savedJobId)} onClick={() => void perform('공고 저장', () => api.saveDiscoveredJob(selected.id))}>{selected.savedJobId ? '보관함에 저장됨' : '관심 공고 저장'}</button></div>
       {selected.contentQuality !== 'full' && <p className="discovery-notice">{qualityNames[selected.contentQuality]} · 현재 확보한 정보만으로는 적합도 점수를 매기기 어렵습니다.</p>}
       {selected.analysis ? <section className="discovery-analysis"><div className="section-head"><h3>{scoreLabel(selected)}</h3><span className="tag">{confidenceNames[selected.analysis.confidence]}</span></div>{selected.analysisStale && <p className="discovery-notice">공고 또는 커리어가 바뀌었습니다. 아래 분석을 다시 확인해 주세요.</p>}<p>{selected.analysis.summary}</p><h4>맞는 경력 근거</h4>{selected.analysis.evidence.length ? selected.analysis.evidence.map((row, index) => <div className="discovery-evidence" key={index}><strong>{row.claim}</strong><blockquote>{row.jobQuote}</blockquote><small>{row.careerFactIds.map(id => workspace.careerFacts.find(fact => fact.id === id)?.title || '이전 커리어 항목').join(' · ')}</small></div>) : <p className="discovery-caption">확인 가능한 경력 근거가 부족합니다.</p>}<AnalysisList title="부족한 조건" items={selected.analysis.gaps} /><AnalysisList title="지원 전 확인할 내용" items={selected.analysis.questions} /><small className="discovery-caption">{timeLabel(selected.analysis.analyzedAt)} 분석 · 점수는 합격 확률이 아닙니다.</small></section> : <div className="discovery-analysis"><h3>분석 대기</h3><p>ChatGPT에 분석을 요청하면 내 경력과 맞는 이유, 부족한 조건을 정리할 수 있습니다.</p></div>}
