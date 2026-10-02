@@ -2903,7 +2903,7 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .app-card-actions { justify-self: stretch; }
 }
 
-/* Dashboard: recommendations first, compact deadlines, and natural page scrolling. */
+/* Dashboard recommendations and priority deadlines use natural page scrolling. */
 .home-view { display: block; height: auto; overflow: visible; }
 .home-view .home-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .home-recommendations { min-width: 0; margin-bottom: 16px; }
@@ -2947,10 +2947,26 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
 .home-recommendation-empty p { max-width: 560px; margin: 7px 0 0; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .home-recommendation-empty .button { flex: 0 0 auto; }
 .home-recommendation-error { margin: 12px 0 0; color: var(--warning); font-size: 12px; }
-.home-deadline-strip { display: flex; align-items: center; gap: 16px; padding: 10px 12px; }
-.home-deadline-strip > div:first-child { flex: 0 0 auto; margin: 0; }
-.home-deadline-strip > div:last-child { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.home-deadline-strip button { min-height: 48px; padding: 8px 10px; }
+.home-deadline-priority { margin-bottom: 16px; padding: 18px; border: 1px solid #85505d; border-left: 4px solid var(--fail); border-radius: var(--radius); background: linear-gradient(120deg, #30202c, #211c29); }
+.home-deadline-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.home-deadline-heading h2 { margin: 0; color: #ffb9c3; font-size: 18px; }
+.home-deadline-heading h2 > span { margin-left: 6px; padding: 3px 7px; border-radius: 6px; background: #502c38; color: #ffd4db; font-size: 12px; }
+.home-deadline-heading small { display: block; margin-top: 5px; color: #c5a6b1; font-size: 12px; }
+.home-deadline-heading .text-button { flex: 0 0 auto; min-height: 36px; color: #ffb9c3; }
+.home-deadline-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.home-deadline-cards > button { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; align-content: start; gap: 10px; padding: 14px; border: 1px solid #70424f; border-radius: 10px; background: #35252f; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.home-deadline-cards > button:hover { border-color: #d98090; background: #422a36; }
+.home-deadline-cards > button:focus-visible { outline: 2px solid #ffb9c3; outline-offset: 3px; }
+.home-deadline-cards > button.critical { border-color: #db7c8d; background: #4a2935; }
+.home-deadline-info { min-width: 0; }
+.home-deadline-info b { display: block; overflow-wrap: anywhere; color: #fff2f4; font-size: 16px; line-height: 1.4; }
+.home-deadline-info small { display: block; margin-top: 4px; overflow: hidden; color: #dfc5cf; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.home-deadline-cards em { padding: 5px 8px; border-radius: 7px; background: #5e3442; color: #ffd1da; font-size: 14px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.home-deadline-cards .critical em { background: #ee91a1; color: #32151e; }
+.home-deadline-cards time { grid-column: 1 / -1; color: #ead3db; font-size: 12px; line-height: 1.5; }
+.home-deadline-cards .deadline-timer { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0; padding-top: 9px; border-top: 1px solid #70424f; color: #ffd1da; }
+.home-deadline-cards .deadline-timer small { font-size: 11px; }
+.home-deadline-cards .deadline-timer b { font-size: 20px; font-variant-numeric: tabular-nums; }
 .home-view .home-panels, .home-view:has(.home-record) .home-panels, .home-view:has(.onboarding-strip) .home-panels { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: auto; max-height: none; overflow: visible; }
 .home-view .home-panels > .card { min-width: 0; overflow: visible; }
 .home-view .home-calendar-card { grid-column: auto; }
@@ -2973,12 +2989,19 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .home-recommendation h3 { margin-top: 8px; }
   .home-recommendation p { margin: 8px 0 12px; }
   .home-recommendation-empty { align-items: stretch; flex-direction: column; gap: 14px; padding: 14px; }
-  .home-deadline-strip { display: block; padding: 10px 12px; margin-bottom: 12px; }
-  .home-deadline-strip > div:first-child { margin-bottom: 8px; }
-  .home-deadline-strip > div:last-child { grid-template-columns: minmax(0, 1fr); }
-  .home-deadline-strip button { grid-template-columns: minmax(0, 1fr) auto; min-height: 44px; }
-  .home-deadline-strip button > span { display: flex; min-width: 0; align-items: center; gap: 8px; }
-  .home-deadline-strip button span b { flex: 0 1 auto; max-width: 45%; font-size: 12px; }
-  .home-deadline-strip button span small { min-width: 0; flex: 1; font-size: 11px; }
+  .home-deadline-priority { margin-bottom: 12px; padding: 14px; }
+  .home-deadline-heading { gap: 8px; margin-bottom: 12px; }
+  .home-deadline-heading h2 { font-size: 17px; }
+  .home-deadline-heading small { font-size: 11px; }
+  .home-deadline-heading .text-button { padding: 0; font-size: 12px; }
+  .home-deadline-cards { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .home-deadline-cards > button { padding: 12px; gap: 6px 10px; }
+  .home-deadline-info b { font-size: 15px; }
+  .home-deadline-info small { font-size: 11px; }
+  .home-deadline-cards em { padding: 4px 7px; font-size: 12px; }
+  .home-deadline-cards time { grid-column: 1; grid-row: 2; font-size: 11px; }
+  .home-deadline-cards .deadline-timer { grid-column: 2; grid-row: 2; padding: 0; border: 0; justify-content: flex-end; }
+  .home-deadline-cards .deadline-timer small { display: none; }
+  .home-deadline-cards .deadline-timer b { font-size: 16px; }
   .home-view .home-calendar-overview { grid-template-columns: minmax(0, 1fr); }
 }
