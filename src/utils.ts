@@ -70,6 +70,38 @@ export function applicationDeadlineForSort(application: Application, job: Job): 
   return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
 }
 
+// 다음 일정이 없는 지원은 마지막 전형이 끝난 날부터 기다린 기간을 보여 줍니다.
+// 수정 시각/등록 시각은 전형 날짜가 아니므로 대기 기간의 근거로 쓰지 않습니다.
+export function applicationWaitingPeriod(application: Application, job: Job, reference = new Date()): { since: number; days: number; label: string } | null {
+  if (!['전형 진행', '결과 대기'].includes(normalizedApplicationStatus(application.status)) || ['합격', '포기', '마감'].includes(application.status)) return null;
+  const steps = application.processSteps || [];
+  const next = currentProcessStep(application);
+  const nextDate = steps.length ? next && !next.dateTbd ? next.date : '' : application.nextDate;
+  const timestamp = (value?: string) => value ? new Date(value.includes('T') ? value : `${value}T23:59:59`).getTime() : NaN;
+  if (Number.isFinite(timestamp(nextDate))) return null;
+
+  const completed = steps.filter((step) => step.status === '완료');
+  const last = completed.at(-1);
+  const candidates = last
+    ? [{ date: last.dateTbd ? '' : last.date, label: last.name }]
+    : [
+      ...(!job.alwaysOpen ? [{ date: job.deadline, label: '서류 마감' }] : []),
+      { date: application.appliedAt, label: '서류 접수' }
+    ];
+  for (const candidate of candidates) {
+    const since = timestamp(candidate.date);
+    if (!Number.isFinite(since) || since > reference.getTime()) continue;
+    return { since, days: Math.floor((reference.getTime() - since) / 86_400_000), label: candidate.label };
+  }
+  return null;
+}
+
+export function compareApplicationWaiting(a: Application, aJob: Job, b: Application, bJob: Job, reference = new Date()): number {
+  const aSince = applicationWaitingPeriod(a, aJob, reference)?.since ?? Infinity;
+  const bSince = applicationWaitingPeriod(b, bJob, reference)?.since ?? Infinity;
+  return aSince < bSince ? -1 : aSince > bSince ? 1 : 0;
+}
+
 export const processStageGroups = ['서류 심사', '테스트', '면접', '최종 조율', '기타', '단계 미등록'] as const;
 export type ProcessStageGroup = typeof processStageGroups[number];
 

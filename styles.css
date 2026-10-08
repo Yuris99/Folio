@@ -3005,3 +3005,77 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
   .home-deadline-cards .deadline-timer b { font-size: 16px; }
   .home-view .home-calendar-overview { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Waiting dates use the recorded process date, alongside the next schedule. */
+.app-sort-help { margin: -2px 0 12px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.app-card-cell > .app-waiting { white-space: normal; overflow-wrap: anywhere; color: var(--warning); font-size: 12px; }
+.app-waiting b { font-weight: 600; }
+
+/* Phone layouts: keep titles, controls and sheets within the available width. */
+@media (max-width: 680px) {
+  html:has(.modal-backdrop, .mobile-menu-backdrop), body:has(.modal-backdrop, .mobile-menu-backdrop) { overflow: hidden; }
+  .main, .content, .content > *, .page-head > *, .page-head-actions { min-width: 0; max-width: 100%; }
+  .main { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .topbar { justify-content: space-between; gap: 12px; }
+  .top-actions { position: static; min-width: 0; gap: 8px; }
+  .sync-state { min-width: 0; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .header-user { flex: 0 0 auto; padding-right: 6px; }
+  .header-user small { display: none; }
+  .mobile-brand { flex: 0 0 auto; }
+  .mobile-menu-button { flex: 0 0 auto; }
+  .mobile-bottom-nav .nav-item { min-width: 0; }
+  .page-head-actions, .view-actions-buttons { flex-wrap: wrap; }
+  .page-head-actions .button { min-width: 0; }
+  .app-status-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+  .app-status-tabs button { min-height: 54px; }
+  .app-stage-chips button, .app-filter-toggle { min-height: 40px; }
+  .app-filter-panel { gap: 12px; }
+  .app-filter-panel .inline-check { flex-wrap: wrap; }
+  .app-sort { min-height: 40px; }
+  .app-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'company company' 'badges badges' 'next date' 'actions actions'; gap: 12px; padding: 14px; }
+  .app-card-company { align-items: flex-start; gap: 10px; }
+  .app-card-company .company-logo { flex: 0 0 auto; }
+  .app-card-title { flex: 1; }
+  .app-card-title strong, .app-card-title small { white-space: normal; overflow-wrap: anywhere; }
+  .app-card-title strong { line-height: 1.5; }
+  .app-card-title small { margin-top: 3px; line-height: 1.6; }
+  .app-card-company .job-links-md { flex-wrap: wrap; }
+  .app-card-badges { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; }
+  .app-card-chips { flex-wrap: wrap; gap: 6px; }
+  .app-card-chips .status { max-width: 100%; white-space: normal; }
+  .app-card-actions { justify-self: stretch; align-self: stretch; padding-top: 12px; border-top: 1px solid var(--line); gap: 8px; }
+  .app-card-actions select { display: block; flex: 1; width: auto; min-width: 0; min-height: 40px; margin: 0; }
+  .app-card-actions .icon-btn { flex: 0 0 40px; width: 40px; height: 40px; }
+  .app-card-progress { flex-wrap: wrap; gap: 6px; }
+  .app-card .step-result-chain { flex-wrap: wrap; white-space: normal; }
+  .app-card .step-result-chain i { max-width: 100%; overflow-wrap: anywhere; }
+  .app-card-reason { grid-area: next / 1 / date / -1; }
+  .app-card-reason p { white-space: normal; overflow-wrap: anywhere; }
+  .app-card-cell > span { white-space: normal; overflow-wrap: anywhere; }
+  .react-modal, .react-modal.compact { width: 100%; max-width: 100%; max-height: 94dvh; margin: 0; overscroll-behavior: contain; }
+  .react-modal:not(.wide) .modal-body { padding: 18px 18px 20px; }
+  .react-modal form { padding: 0; }
+  .modal-head > div { min-width: 0; }
+  .modal h2 { overflow-wrap: anywhere; }
+  .modal-close { flex: 0 0 38px; width: 38px; height: 38px; }
+  .react-modal .form-grid.two { grid-template-columns: minmax(0, 1fr); }
+  .react-modal .modal-actions { margin: 22px -18px -20px; padding: 14px 18px calc(14px + env(safe-area-inset-bottom)); }
+  .react-modal.wide .modal-actions { margin-inline: 0; margin-bottom: 0; }
+  .react-modal .inline-check { flex-wrap: wrap; }
+  .react-modal .inline-check small { flex: 1 1 100%; }
+  .prio-summary { position: relative; flex-wrap: wrap; }
+  .prio-row { position: relative; }
+  .prio-info { position: static; }
+  .prio-tip { display: none; left: 0; right: 0; width: auto; max-width: 100%; }
+  .prio-info:hover .prio-tip, .prio-info:focus .prio-tip, .prio-info:focus-within .prio-tip { display: block; }
+  .datetime-24 { grid-template-columns: minmax(0, 1fr) 54px 54px; gap: 6px; }
+  .datetime-24 input, .datetime-24 select { min-width: 0; }
+  .pstep-name { font-size: 13px; }
+  .pstep-when { min-height: 40px; }
+  .mobile-menu-sheet.react-sheet { max-height: calc(100dvh - 12px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+@media (max-width: 380px) {
+  .app-card { grid-template-areas: 'company company' 'badges badges' 'next next' 'date date' 'actions actions'; }
+  .topbar { padding-inline: 12px; gap: 8px; }
+  .sync-state { max-width: 70px; font-size: 10px; }
+}

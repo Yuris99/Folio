@@ -12,12 +12,13 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { ApplicationPayload, ApplicationProcessStep, DocumentResult, View, Workspace } from '../types';
 import { CAREER_GRADES, PRIORITY_CRITERIA, getPriorityBreakdown, priorityLevels, getPriorityLabel, isClosedApplication, priorityClass } from '../priority';
-import { statsApplications, applicationStats, applicationDeadlineForSort, currentProcessStep, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, duplicatesJobDeadline, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
+import { statsApplications, applicationStats, applicationDeadlineForSort, applicationWaitingPeriod, compareApplicationWaiting, currentProcessStep, processStageGroup, processStageGroups, type ProcessStageGroup, isRejected, isSubmitted, matchesApplicationTab, applicationStatuses, dateLabel, dateTimeInputValue, daysUntil, duplicatesJobDeadline, getJob, nextProcesses, normalizedApplicationStatus, statusClass, todayDateTimeInputValue } from '../utils';
 
 const STEP_STATUS_CYCLE: ApplicationProcessStep['status'][] = ['예정', '진행 중', '완료'];
 const nextStepStatus = (status: ApplicationProcessStep['status']) => STEP_STATUS_CYCLE[(STEP_STATUS_CYCLE.indexOf(status) + 1) % STEP_STATUS_CYCLE.length];
 const documentResultClass = (result?: DocumentResult) => result === '합격' ? 'pass' : result === '불합격' ? 'fail' : 'pending';
 const processStepClass = (status: ApplicationProcessStep['status']) => ({ '예정': 'planned', '진행 중': 'active', '완료': 'done', '취소': 'cancelled' })[status];
+type ApplicationSort = 'recent' | 'priority' | 'grade' | 'deadline' | 'waiting' | 'company';
 
 export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [currentTime, setCurrentTime] = useState(() => Date.now());
@@ -39,7 +40,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [statusFilter, setStatusFilter] = useState(() => new URLSearchParams(window.location.search).get('status') || '전체');
   const [gradeFilter, setGradeFilter] = useState('전체');
   const [priorityFilter, setPriorityFilter] = useState('전체');
-  const [sortBy, setSortBy] = useState<'recent' | 'priority' | 'grade' | 'deadline' | 'company'>(() => { const value = new URLSearchParams(window.location.search).get('sort'); return ['recent', 'priority', 'grade', 'deadline', 'company'].includes(value || '') ? value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company' : 'deadline'; });
+  const [sortBy, setSortBy] = useState<ApplicationSort>(() => { const value = new URLSearchParams(window.location.search).get('sort'); return ['recent', 'priority', 'grade', 'deadline', 'waiting', 'company'].includes(value || '') ? value as ApplicationSort : 'deadline'; });
   const [pinFirst, setPinFirst] = useState(true);
   const [consideringOnly, setConsideringOnly] = useState(false);
   const [workspaceJobId, setWorkspaceJobId] = useState<string | null>(null);
@@ -74,18 +75,19 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   }).sort((a, b) => {
     const closedOrder = Number(isClosedApplication(a.status)) - Number(isClosedApplication(b.status));
     if (closedOrder) return closedOrder;
-    if (sortBy !== 'deadline' && pinFirst && Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+    if (!['deadline', 'waiting'].includes(sortBy) && pinFirst && Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
     const aJob = getJob(workspace, a); const bJob = getJob(workspace, b);
     if (sortBy === 'priority') { const score = getPriorityBreakdown(b, bJob).sortScore - getPriorityBreakdown(a, aJob).sortScore; if (score) return score; return (aJob.deadline || '9999').localeCompare(bJob.deadline || '9999'); }
     if (sortBy === 'grade') return (a.careerGrade ? CAREER_GRADES.indexOf(a.careerGrade) : 99) - (b.careerGrade ? CAREER_GRADES.indexOf(b.careerGrade) : 99);
     if (sortBy === 'company') return aJob.company.localeCompare(bJob.company, 'ko');
+    if (sortBy === 'waiting') return compareApplicationWaiting(a, aJob, b, bJob, new Date(currentTime));
     if (sortBy === 'deadline') {
       const aDeadline = applicationDeadlineForSort(a, aJob);
       const bDeadline = applicationDeadlineForSort(b, bJob);
-      return aDeadline < bDeadline ? -1 : aDeadline > bDeadline ? 1 : 0;
+      return aDeadline < bDeadline ? -1 : aDeadline > bDeadline ? 1 : compareApplicationWaiting(a, aJob, b, bJob, new Date(currentTime));
     }
     return (b.createdAt || '').localeCompare(a.createdAt || '');
-  }), [workspace, query, statusFilter, stageFilter, gradeFilter, priorityFilter, sortBy, pinFirst, consideringOnly]);
+  }), [workspace, query, statusFilter, stageFilter, gradeFilter, priorityFilter, sortBy, pinFirst, consideringOnly, currentTime]);
 
   function changeStatusFilter(status: string) {
     setStatusFilter(status);
@@ -262,22 +264,24 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     </div>}
     <div className="app-toolbar">
       <label className="app-search"><Icon name="search" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="회사 또는 직무 검색" /></label>
-      <select className="app-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as 'recent' | 'priority' | 'grade' | 'deadline' | 'company')} aria-label="지원 정렬"><option value="priority">우선순위순</option><option value="deadline">마감 임박순</option><option value="grade">직무선호도순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
+      <select className="app-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as ApplicationSort)} aria-label="지원 정렬"><option value="priority">우선순위순</option><option value="deadline">마감 임박순</option><option value="waiting">대기 오래된순</option><option value="grade">직무선호도순</option><option value="recent">최근 추가순</option><option value="company">회사명순</option></select>
       <button type="button" className={`app-filter-toggle ${mobileFiltersOpen || activeFilterCount ? 'active' : ''}`} aria-expanded={mobileFiltersOpen} onClick={() => setMobileFiltersOpen((value) => !value)}><Icon name="sliders" size={16} />필터{activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button>
     </div>
     {mobileFiltersOpen && <div className="app-filter-panel">
       <label>직무선호도<select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}><option>전체</option>{CAREER_GRADES.map((grade) => <option key={grade}>{grade}</option>)}</select></label>
       <label>우선순위<select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option>전체</option>{['최우선', '적극 지원', '지원 검토', '후순위', '낮음'].map((label) => <option key={label}>{label}</option>)}</select></label>
       <label className="inline-check"><input type="checkbox" checked={consideringOnly} onChange={(event) => setConsideringOnly(event.target.checked)} />고민 중인 공고만</label>
-      {sortBy !== 'deadline' && <label className="inline-check"><input type="checkbox" checked={pinFirst} onChange={(event) => setPinFirst(event.target.checked)} />고정한 지원 먼저</label>}
+      {!['deadline', 'waiting'].includes(sortBy) && <label className="inline-check"><input type="checkbox" checked={pinFirst} onChange={(event) => setPinFirst(event.target.checked)} />고정한 지원 먼저</label>}
       {activeFilterCount > 0 && <button type="button" className="text-button" onClick={() => { setGradeFilter('전체'); setPriorityFilter('전체'); setConsideringOnly(false); }}>필터 초기화</button>}
     </div>}
+    {sortBy === 'waiting' && <p className="app-sort-help">다음 일정이 없는 지원을 마지막 완료 전형부터 오래 기다린 순서로 표시합니다. 완료 전형이 없으면 서류 마감일·접수일을 사용하며, 기준일이 없으면 뒤에 표시합니다.</p>}
     <div className="app-list">
       {visibleApplications.map((application) => {
         const job = getJob(workspace, application);
         const breakdown = getPriorityBreakdown(application, job), priorityLabel = getPriorityLabel(breakdown.final), closed = isClosedApplication(application.status);
         const deadlineDays = job.deadline ? daysUntil(job.deadline, new Date(currentTime)) : null;
         const normalizedStatus = normalizedApplicationStatus(application.status);
+        const waiting = applicationWaitingPeriod(application, job, new Date(currentTime));
         const processStepsForProgress = application.processSteps || [];
         const completedSteps = processStepsForProgress.filter((step) => step.status === '완료').length;
         const processProgress = processStepsForProgress.length ? Math.round((completedSteps / processStepsForProgress.length) * 100) : 0;
@@ -291,7 +295,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             : activeProcessDate ? dateLabel(activeProcessDate) : '';
         const processDays = activeProcessDate ? daysUntil(activeProcessDate, new Date(currentTime)) : null;
         const scoreTitle = `${PRIORITY_CRITERIA.map((criterion) => `${criterion.label} ${breakdown.points[criterion.key]}/${criterion.weight}${breakdown.levels[criterion.key] ? '' : '(미입력)'}`).join(' · ')}${breakdown.deadline ? ` · 마감 보너스 +${breakdown.deadline}` : ''}`;
-        const nextLabel = activeProcessStep?.name || application.nextProcess || application.next || '미정';
+        const nextLabel = activeProcessStep?.name || (processStepsForProgress.length ? '' : application.nextProcess || application.next) || '미정';
         const urgentDeadline = deadlineDays !== null && deadlineDays <= 3 && deadlineDays >= 0;
         const nextUrgent = processDays !== null && processDays >= 0 && processDays <= 3;
         const ddayText = (days: number) => days === 0 ? 'D-DAY' : `D-${days}`;
@@ -316,7 +320,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             </div>
           </div>
           {isRejected(application.status) ? <div className="app-card-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 수정</button></div> : <>
-            <div className={`app-card-cell app-card-next ${nextUrgent ? 'is-urgent' : ''}`}><small>다음 전형</small><strong className="cell-line"><span className="cell-text">{nextLabel === '미정' ? '다음 전형 미정' : nextLabel}</span>{processDays !== null && processDays >= 0 && <em className="dday">{ddayText(processDays)}</em>}</strong><span>{activeProcessDateLabel || '날짜 미정'}</span>{deadlineIsNext && <DeadlineCountdown deadline={job.deadline} compact />}</div>
+            <div className={`app-card-cell app-card-next ${nextUrgent ? 'is-urgent' : ''}`}><small>다음 전형</small><strong className="cell-line"><span className="cell-text">{nextLabel === '미정' || nextLabel === '없음' ? '다음 전형 미정' : nextLabel}</span>{processDays !== null && processDays >= 0 && <em className="dday">{ddayText(processDays)}</em>}</strong><span>{activeProcessDateLabel || '날짜 미정'}</span>{waiting && <span className="app-waiting" title={`${dateLabel(new Date(waiting.since).toISOString())} 기준`}>{waiting.label} 후 <b>{waiting.days}일 대기</b></span>}{deadlineIsNext && <DeadlineCountdown deadline={job.deadline} compact />}</div>
             {normalizedStatus === '전형 진행'
               ? <div className="app-card-cell app-card-date"><small>전형 진행</small>{processStepsForProgress.length ? <><span className="app-card-progress"><strong>{completedSteps} / {processStepsForProgress.length}단계</strong><span className="process-progress-track"><i style={{ width: `${processProgress}%` }} /></span></span>{processStepsForProgress.some((step) => step.result) && <span className="step-result-chain">{processStepsForProgress.filter((step) => step.result).map((step) => <i key={step.id} className={`doc-${documentResultClass(step.result)}`}>{step.name} {step.result === '합격' ? '✓' : '✕'}</i>)}</span>}</> : <strong className="muted-value">단계 미등록</strong>}{documentSelect}</div>
               : deadlineIsNext || (!job.deadline && !job.alwaysOpen)

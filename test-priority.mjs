@@ -1,5 +1,5 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
-import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, applicationDeadlineForSort, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
+import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, applicationDeadlineForSort, applicationWaitingPeriod, compareApplicationWaiting, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
 import { dashboardRecommendations, isClosedRecommendation, recommendationScoreLabel, matchesRecommendationTab } from './src/recommendations.ts';
 
 function assert(condition, message) {
@@ -55,6 +55,31 @@ assert(applicationDeadlineForSort(interviewing, deadlineJob) < applicationDeadli
 assert(applicationDeadlineForSort({ ...interviewing, processSteps:[], nextDate:'2099-06-08T10:00' }, deadlineJob) < applicationDeadlineForSort(interviewing, deadlineJob), 'legacy next date is used when steps are absent');
 assert(applicationDeadlineForSort({ ...interviewing, processSteps:[{ ...interviewing.processSteps[1], dateTbd:true }] }, deadlineJob) === Infinity, 'undated next step is sorted last');
 assert(applicationDeadlineForSort(preparing, { ...deadlineJob, alwaysOpen:true }) === Infinity, 'always-open preparation has no deadline');
+
+const waitNow = new Date('2026-10-08T12:00:00');
+const waitingJob = { ...job, deadline:'2026-09-20T18:00' };
+const oldWaiting = { id:'old-wait', jobId:'j', status:'전형 진행', next:'', pinned:false, processSteps:[{ id:'doc', name:'서류 마감', date:'2026-09-20T18:00', status:'완료' }, { id:'next', name:'서류 결과', date:'', dateTbd:true, status:'예정' }] };
+const recentWaiting = { ...oldWaiting, id:'recent-wait', pinned:true, processSteps:[...oldWaiting.processSteps.slice(0, 1), { id:'test', name:'코딩 테스트', date:'2026-10-05T10:00', status:'완료' }] };
+assert(applicationWaitingPeriod(oldWaiting, waitingJob, waitNow)?.days === 17, 'document wait counts full elapsed days from deadline');
+assert(applicationWaitingPeriod(oldWaiting, waitingJob, waitNow)?.label === '서류 마감', 'waiting badge identifies its date source');
+assert(applicationWaitingPeriod(recentWaiting, waitingJob, waitNow)?.days === 3, 'latest completed stage replaces the document deadline');
+assert(compareApplicationWaiting(oldWaiting, waitingJob, recentWaiting, waitingJob, waitNow) < 0, 'longest wait comes first regardless of pinned status');
+assert(applicationDeadlineForSort(oldWaiting, waitingJob) === Infinity && compareApplicationWaiting(oldWaiting, waitingJob, recentWaiting, waitingJob, waitNow) < 0, 'undated deadline ties use the waiting duration');
+assert(applicationWaitingPeriod(interviewing, deadlineJob, waitNow) === null, 'known next interview is not awaiting a schedule');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[], nextDate:'2026-10-09' }, waitingJob, waitNow) === null, 'legacy dated next step is not waiting');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[...oldWaiting.processSteps.slice(0,1), { id:'tbd', name:'面接', date:'2026-10-10', dateTbd:true, status:'예정' }] }, waitingJob, waitNow)?.days === 17, 'TBD ignores a leftover next date');
+assert(applicationWaitingPeriod({ ...oldWaiting, status:'결과 대기' }, waitingJob, waitNow)?.days === 17, 'final result waits can be sorted');
+for (const status of ['관심', '지원 준비', '불합격', '탈락', '합격', '포기', '마감']) assert(applicationWaitingPeriod({ ...oldWaiting, status }, waitingJob, waitNow) === null, `${status} is not an active wait`);
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[] }, waitingJob, waitNow)?.label === '서류 마감', 'legacy submissions fall back to a past document deadline');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[], appliedAt:'2026-10-01T09:00' }, { ...waitingJob, alwaysOpen:true }, waitNow)?.days === 7, 'always-open submission falls back to the actual submission date');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[], createdAt:'2026-09-01', updatedAt:'2026-10-07' }, job, waitNow) === null, 'registration and editing dates never fabricate a wait');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[{ id:'unknown', name:'면접', date:'invalid', status:'완료' }] }, waitingJob, waitNow) === null, 'invalid completed-stage dates remain unknown');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[{ id:'future', name:'면접', date:'2026-10-09', status:'완료' }] }, waitingJob, waitNow) === null, 'future completed dates cannot create negative waits');
+assert(applicationWaitingPeriod({ ...oldWaiting, processSteps:[{ id:'unknown', name:'면접', date:'2026-10-01', dateTbd:true, status:'완료' }] }, waitingJob, waitNow) === null, 'unknown completed dates do not reuse an earlier stage');
+assert(applicationWaitingPeriod({ ...recentWaiting, processSteps:[...recentWaiting.processSteps, { id:'cancelled', name:'취소 단계', date:'2026-10-07', status:'취소' }] }, waitingJob, waitNow)?.days === 3, 'cancelled stages never reset a wait');
+assert(compareApplicationWaiting(oldWaiting, waitingJob, preparing, job, waitNow) < 0, 'unknown and non-waiting records follow known waits');
+assert(compareApplicationWaiting(preparing, job, preparing, job, waitNow) === 0, 'two unknown waits preserve their existing order');
+console.log('PASS application waiting duration and sorting');
 // 지원 가치 = 커리어 30 + 직무선호 20 + 연봉 20 + 합격 20 + 근무 10, 단계 비율 5=100% 4=85% 3=65% 2=40% 1=15%
 const full = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'S', careerLevel:5, compensationLevel:5, passLevel:5, workLevel:5 }, job);
 assert(full.value === 100 && full.missing.length === 0, 'all top levels make 100');
