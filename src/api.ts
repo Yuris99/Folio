@@ -54,6 +54,7 @@ export const api = {
   deleteDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: true })),
   restoreDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: false })),
   saveDiscoveredJob: (id: string) => request<Job>(`/discovery/postings/${id}/save`, { method: 'POST' }),
+  decideDiscoveredJob: (id: string, payload: { decision: 'registered' | 'rejected'; reasons: string[]; note: string }) => request<{ posting: DiscoveredJob; job: Job | null }>(`/discovery/postings/${id}/decision`, json('POST', payload)),
   jobAnalysisInput: (id: string) => request<Record<string, unknown>>(`/discovery/postings/${id}/analysis-input`),
   saveJobFitAnalysis: (id: string, payload: unknown) => request<JobFitAnalysis>(`/discovery/postings/${id}/analysis`, json('PUT', payload)),
   mcpAuthorization: (id: string) => request<{ clientName: string; scopes: string[]; consentToken: string; expiresAt: string }>(`/mcp/authorization/${id}`),

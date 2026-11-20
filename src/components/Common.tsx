@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import type { View } from '../types';
 
-export function PageHead({ kicker, title, description, actions }: { kicker: string; title: string; description: string; actions?: ReactNode }) {
+export function PageHead({ title, description, actions }: { kicker?: string; title: string; description: string; actions?: ReactNode }) {
   return (
     <div className="page-head">
-      <div><p className="eyebrow">{kicker}</p><h1>{title}</h1><p>{description}</p></div>
+      <div><h1>{title}</h1><p>{description}</p></div>
       {actions || <span className="date-chip">{new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())}</span>}
     </div>
   );

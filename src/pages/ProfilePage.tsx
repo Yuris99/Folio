@@ -203,7 +203,7 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
   async function deleteAccount() { if (window.prompt('계정과 모든 데이터를 삭제합니다. 계속하려면 “탈퇴”를 입력하세요.') === '탈퇴') await onDeleteAccount(); }
 
   return <>
-    <div className="page-head vault-page-head"><div><p className="eyebrow">MY CAREER PORTFOLIO</p><h1>{workspace.profile.name || '나의 커리어'}</h1><p>{workspace.profile.target || workspace.profile.summary || '경험과 역량을 한곳에 정리하는 나의 커리어 포트폴리오'}</p></div><button className="button" onClick={() => setProfileOpen(true)}>프로필 편집</button></div>
+    <div className="page-head vault-page-head"><div><h1>{workspace.profile.name || '나의 커리어'}</h1><p>{workspace.profile.target || workspace.profile.summary || '경험과 역량을 한곳에 정리하는 나의 커리어 포트폴리오'}</p></div><button className="button" onClick={() => setProfileOpen(true)}>프로필 편집</button></div>
     <section className="vault-overview">
       <button className={tab === 'facts' ? 'active' : ''} onClick={() => setTab('facts')}><i>01</i><span><b>내 커리어</b><small>이력·프로젝트·활동</small></span></button>
       <button className={tab === 'sources' ? 'active' : ''} onClick={() => setTab('sources')}><i>02</i><span><b>자료 보관함</b><small>PDF·원본 {workspace.careerSources.length}개</small></span></button>
@@ -221,9 +221,9 @@ export function ProfilePage({ workspace, mutate, onDeleteAccount }: { workspace:
     </section>}
 
     {tab === 'facts' && <section className="vault-panel">
-      <div className="career-profile-hero"><div className="career-monogram">{(workspace.profile.name || '나')[0]}</div><div><span>CAREER PROFILE</span><h2>{workspace.profile.role || '희망 직무를 입력하세요'}</h2><p>{workspace.profile.summary || workspace.profile.target || '나를 설명하는 커리어 소개를 입력하세요.'}</p><div className="tag-row">{workspace.profile.skills.slice(0,8).map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></div><aside><b>{resumeGroups.reduce((sum, group) => sum + group.items.length, 0)}</b><small>정리된 이력</small></aside></div>
+      <div className="career-profile-hero"><div className="career-monogram">{(workspace.profile.name || '나')[0]}</div><div><h2>{workspace.profile.role || '희망 직무를 입력하세요'}</h2><p>{workspace.profile.summary || workspace.profile.target || '나를 설명하는 커리어 소개를 입력하세요.'}</p><div className="tag-row">{workspace.profile.skills.slice(0,8).map((skill) => <span className="tag" key={skill}>{skill}</span>)}</div></div><aside><b>{resumeGroups.reduce((sum, group) => sum + group.items.length, 0)}</b><small>정리된 이력</small></aside></div>
       <section className="canonical-resume">
-        <div className="canonical-resume-head"><div><span>EXPERIENCE INDEX</span><h2>커리어 기록</h2><p>분류를 선택해 상세 이력과 연결된 자료를 확인하세요.</p></div><button type="button" className="button primary" onClick={() => setResumeDetail({ section: selectedResumeGroup.section, index: -1 })}>+ 직접 추가</button></div>
+        <div className="canonical-resume-head"><div><h2>커리어 기록</h2><p>분류를 선택해 상세 이력과 연결된 자료를 확인하세요.</p></div><button type="button" className="button primary" onClick={() => setResumeDetail({ section: selectedResumeGroup.section, index: -1 })}>+ 직접 추가</button></div>
         <div className="resume-category-row">{resumeGroups.map((group) => <button type="button" key={group.label} className={resumeCategory === group.label ? 'active' : ''} onClick={() => setResumeCategory(group.label)}><span>{group.label}</span><b>{group.items.length}</b></button>)}</div>
         {selectedResumeGroup.items.length ? <div className="canonical-items">{selectedResumeGroup.items.map((item) => <article className="canonical-item" key={`${item.section}-${item.index}`} onClick={() => setResumeDetail({ section:item.section,index:item.index })}><div><strong>{item.title || '제목 미입력'}</strong><em className={item.verified ? 'verified' : ''}>{item.verified ? '검수 완료' : '검수 필요'}</em></div>{item.meta && <span>{item.meta}</span>}{item.detail && <p>{item.detail}</p>}<small>상세 보기 · 수정 · 자료 관리 →</small></article>)}</div> : <div className="canonical-empty">등록된 {selectedResumeGroup.label} 정보가 없습니다.</div>}
       </section>

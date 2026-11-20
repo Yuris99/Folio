@@ -66,6 +66,23 @@ test('analysis uses verified facts and validates evidence, stale input and missi
   assert.throws(() => d.validateAnalysis(w, item, missing), /INSUFFICIENT_ANALYSIS_DATA/);
   missing.analysis.score = null; assert.equal(d.validateAnalysis(w, item, missing).score, null);
 });
+test('register/reject decisions are recorded and fed back into analysis input', () => {
+  const w = workspace(), state = d.ensureDiscovery(w);
+  const a = d.mergePosting(state.items, d.parseInthiswork([post()], categories)[0]).item;
+  const b = d.mergePosting(state.items, { ...a, id: undefined, title: '영업 담당자', sources: [{ source: 'manual', externalId: 'sales', url: 'https://jobs.example.com/sales' }], url: 'https://jobs.example.com/sales' }).item;
+  const before = d.analysisContext(w, a).contextVersion;
+  assert.throws(() => d.decidePosting(w, b, { decision: 'maybe' }), /INVALID_DECISION/);
+  assert.equal(d.decidePosting(w, b, { decision: 'rejected', reasons: ['직무가 안 맞음', '직무가 안 맞음', ''], note: ' 영업 비중이 높음 ' }), null);
+  assert.equal(b.hidden, true); assert.deepEqual(b.decision.reasons, ['직무가 안 맞음']); assert.equal(b.decision.note, '영업 비중이 높음');
+  const job = d.decidePosting(w, a, { decision: 'registered', reasons: ['직무가 잘 맞음'] });
+  assert.equal(job.discoveryPostingId, a.id); assert.equal(a.savedJobId, job.id); assert.equal(w.applications.length, 0);
+  const packet = d.analysisPacket(w, a);
+  assert.equal(packet.contextVersion, before, 'decisions do not stale existing analyses');
+  assert.equal(packet.feedback.rejectedCount, 1); assert.equal(packet.feedback.registeredCount, 0, 'the posting under analysis is excluded from its own feedback');
+  assert.deepEqual(packet.feedback.topRejectedReasons, [{ reason: '직무가 안 맞음', times: 1 }]);
+  assert.equal(packet.feedback.recent[0].title, '영업 담당자');
+  assert.equal(d.recommendationFeedback(w).registeredCount, 1);
+});
 test('saved jobs are idempotent and rejection/archive suppress recommendations', () => {
   const w = workspace(), item = d.mergePosting(d.ensureDiscovery(w).items, d.parseInthiswork([post()], categories)[0]).item;
   const job = d.savePosting(w, item); assert.equal(d.savePosting(w, item).id, job.id); assert.equal(w.jobs.length, 1);
@@ -152,10 +169,12 @@ test('MCP OAuth, account isolation, signed events, retry, persistence and revoke
     await assert.rejects(link(blocked), /ACCOUNT_NOT_ALLOWED/);
     const first = await link(user), second = await link(other);
     assert.equal((await rpc(first.access_token, 'server/discover')).result.supportedVersions[0], '2026-07-28');
-    assert.equal((await rpc(first.access_token, 'tools/list')).result.tools.length, 4);
+    assert.equal((await rpc(first.access_token, 'tools/list')).result.tools.length, 5);
     const career = await rpc(first.access_token, 'tools/call', { name: 'get_verified_career', arguments: {} }); assert.deepEqual(career.result.structuredContent.facts.map(f => f.id), ['fact-1']);
     const denied = await rpc(second.access_token, 'tools/call', { name: 'get_analysis_input', arguments: { postingId: item.id } }); assert.equal(denied.result.isError, true);
-    const input = await rpc(first.access_token, 'tools/call', { name: 'get_analysis_input', arguments: { postingId: item.id } }); assert.equal(input.result.structuredContent.posting.id, item.id);
+    const input = await rpc(first.access_token, 'tools/call', { name: 'get_analysis_input', arguments: { postingId: item.id } }); assert.equal(input.result.structuredContent.posting.id, item.id); assert.ok(input.result.structuredContent.feedback);
+  const feedback = await rpc(first.access_token, 'tools/call', { name: 'get_recommendation_feedback', arguments: { limit: 5 } }); assert.equal(feedback.result.structuredContent.rejectedCount, 0);
+  assert.equal((await rpc(first.access_token, 'tools/call', { name: 'get_recommendation_feedback', arguments: { limit: 0 } })).result.isError, true);
     const saved = await rpc(first.access_token, 'tools/call', { name: 'save_job_analysis', arguments: analysisPayload(w, item) }); assert.ok(saved.result.structuredContent.analyzedAt);
     item.hidden=true;
     const excluded=await rpc(first.access_token,'tools/call',{name:'get_analysis_input',arguments:{postingId:item.id}});assert.equal(excluded.result.isError,true);assert.match(excluded.result.content[0].text,/NOT_ELIGIBLE/);
@@ -173,7 +192,7 @@ test('MCP OAuth, account isolation, signed events, retry, persistence and revoke
     assert.equal((await request('/api/v1/mcp/oauth/token', 'POST', refresh)).data.error, 'invalid_grant');
     mcp.revoke(user.id); assert.equal(mcp.status(user).subscriptions, 0);
     assert.equal((await request('/api/v1/mcp', 'POST', { jsonrpc: '2.0', id: 2, method: 'tools/list' }, first.access_token)).res.status, 401);
-    assert.equal((await rpc(second.access_token, 'tools/list')).result.tools.length, 4);
+    assert.equal((await rpc(second.access_token, 'tools/list')).result.tools.length, 5);
     assert.equal(JSON.stringify(w).includes('whsec_'), false);
     const otherSubscription = await rpc(second.access_token, 'events/subscribe', { name: 'jobs.discovered', arguments: {}, delivery: { mode: 'webhook', url: 'https://receiver.example/callback', secret } });
     assert.ok(otherSubscription.result.id);

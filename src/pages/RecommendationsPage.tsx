@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { EmptyState, PageHead } from '../components/Common';
 import { Modal } from '../components/Modal';
-import { isClosedRecommendation as isClosed, recommendationScoreLabel as scoreLabel, matchesRecommendationTab, recommendationTabs as tabs } from '../recommendations';
+import { RecommendationDecisionModal, type DecisionKind, type DecisionPayload } from '../components/RecommendationDecision';
+import { dateLabel } from '../utils';
+import { deadlineMarkClass, isClosedRecommendation as isClosed, isRegisteredRecommendation as isRegistered, recommendationScoreLabel as scoreLabel, matchesRecommendationTab, recommendationTabs as tabs } from '../recommendations';
 import type { Mutation } from '../hooks/useFolio';
 import type { DiscoveredJob, DiscoveryPreferences, DiscoveryStatus, View, Workspace } from '../types';
 
@@ -16,13 +18,14 @@ function timeLabel(value?: string) {
 
 export function RecommendationsPage({ workspace, navigate, mutate }: { workspace: Workspace; navigate: (view: View) => void; mutate: Mutation }) {
   const [status, setStatus] = useState<DiscoveryStatus | null>(null);
-  const [tab, setTab] = useState<(typeof tabs)[number]>('전체');
+  const [tab, setTab] = useState<(typeof tabs)[number]>('추천');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('recent');
   const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('posting') || '');
   const [settings, setSettings] = useState(false);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [deciding, setDeciding] = useState<{ item: DiscoveredJob; kind: DecisionKind } | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [packet, setPacket] = useState('');
@@ -107,54 +110,71 @@ export function RecommendationsPage({ workspace, navigate, mutate }: { workspace
     await perform('분석 저장', () => api.saveJobFitAnalysis(selected.id, payload), () => { setAnalysisJson(''); setMessage('분석을 저장했습니다.'); });
   }
 
-  function removePosting(item: DiscoveredJob) {
-    void perform('공고 삭제', () => api.deleteDiscoveredJob(item.id), () => {
-      if (selectedId === item.id) closePosting();
-      setMessage('삭제함으로 옮겼습니다. 다음 수집에도 다시 나타나지 않으며 삭제함에서 복구할 수 있습니다.');
+  function decidePosting(item: DiscoveredJob, value: DecisionPayload) {
+    void perform(value.decision === 'rejected' ? '공고 거절' : '공고 등록', () => api.decideDiscoveredJob(item.id, value), () => {
+      setDeciding(null);
+      if (value.decision === 'rejected' && selectedId === item.id) closePosting();
+      setMessage(value.decision === 'rejected' ? '거절함으로 옮겼습니다. 거절 이유는 다음 추천 분석에 반영되며, 거절함에서 되돌릴 수 있습니다.' : '공고보관함에 등록했습니다. 등록 기록은 다음 추천 분석에 반영됩니다.');
     });
   }
 
   function restorePosting(item: DiscoveredJob) {
-    void perform('공고 복구', () => api.restoreDiscoveredJob(item.id), () => setMessage('공고를 복구했습니다.'));
+    void perform('거절 취소', () => api.restoreDiscoveredJob(item.id), () => setMessage('거절을 취소하고 추천 목록으로 되돌렸습니다.'));
+  }
+
+  function decisionActions(item: DiscoveredJob, inDetail = false) {
+    const cls = inDetail ? 'button ' : '';
+    if (item.hidden) return <button className={inDetail ? 'button' : ''} disabled={busy} onClick={() => restorePosting(item)}>거절 취소</button>;
+    if (isRegistered(item)) return <span className={`decision-done ${inDetail ? 'in-detail' : ''}`}>✓ 공고보관함에 등록됨</span>;
+    const label = `${item.company || '회사 미상'} · ${item.title}`;
+    return <><button className={`${cls}discovery-delete`} disabled={busy} aria-label={`${label} 거절`} onClick={() => { setError(''); setDeciding({ item, kind: 'rejected' }); }}>거절</button>
+      <button className={`${cls}${inDetail ? 'primary' : 'decision-register'}`} disabled={busy || isClosed(item)} aria-label={`${label} 등록`} onClick={() => { setError(''); setDeciding({ item, kind: 'registered' }); }}>등록</button></>;
   }
 
   return <>
-    <PageHead kicker="JOB DISCOVERY" title="추천 공고" description="수집된 내게 맞는 공고를 모두 보고, 필요 없는 공고는 직접 삭제하세요." actions={<div className="page-head-actions"><button className="button" onClick={() => setAdding(true)}>+ 직접 추가</button><button className="button" onClick={() => setSettings(true)}>수집 설정</button><button className="button primary" disabled={busy || state.running} onClick={() => void perform('공고 수집', api.collectJobs, value => setMessage(value.sourceStatus.some(source => source.ok) ? `새 공고 ${value.added}개를 찾았습니다.` : '수집하지 못했습니다. 아래 사이트별 상태를 확인해 주세요.'))}>{busy || state.running ? '처리 중…' : '새 공고 찾기'}</button></div>} />
+    <PageHead kicker="JOB DISCOVERY" title="추천 공고" description="추천 공고를 등록하거나 거절하세요. 거절·등록 이유는 다음 추천 분석에 반영됩니다." actions={<div className="page-head-actions"><button className="button" onClick={() => setAdding(true)}>+ 직접 추가</button><button className="button" onClick={() => setSettings(true)}>수집 설정</button><button className="button primary" disabled={busy || state.running} onClick={() => void perform('공고 수집', api.collectJobs, value => setMessage(value.sourceStatus.some(source => source.ok) ? `새 공고 ${value.added}개를 찾았습니다.` : '수집하지 못했습니다. 아래 사이트별 상태를 확인해 주세요.'))}>{busy || state.running ? '처리 중…' : '새 공고 찾기'}</button></div>} />
     <div className="discovery-overview"><div><span className={`discovery-dot ${state.preferences.enabled ? 'on' : ''}`} /><strong>{state.preferences.enabled ? `${state.preferences.intervalHours}시간마다 자동 수집` : '자동 수집 꺼짐'}</strong><small>최근 확인 · {timeLabel(state.lastCompletedAt)}</small></div><button className="text-link" onClick={() => navigate('jobs')}>공고보관함 →</button></div>
     {state.sourceStatus.length > 0 && <div className="discovery-source-report">{state.sourceStatus.map(source => <div key={source.source} className={source.ok ? '' : 'failed'}><strong>{sourceNames[source.source] || source.source}</strong><span>{source.ok ? `${source.fetched}개 확인 · 조건 일치 ${source.matched}개` : source.message}</span>{source.ok && source.message && <small>{source.message}</small>}<small>{timeLabel(source.checkedAt)}</small></div>)}</div>}
     {message && <p className="discovery-notice" role="status">{message}</p>}
     {error && <p className="discovery-notice error" role="alert">{error}</p>}
     <div className="discovery-toolbar"><div className="section-tabs discovery-tabs">{tabs.map(value => <button key={value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{value}<small>{eligible.filter(item => matchesTab(item, value)).length}</small></button>)}</div><label className="application-search"><span>⌕</span><input aria-label="추천 공고 검색" placeholder="회사·직무 검색" value={query} onChange={event => setQuery(event.target.value)} /></label><select aria-label="추천 공고 정렬" value={sort} onChange={event => setSort(event.target.value)}><option value="recent">최근 발견순</option><option value="fit">적합도순</option><option value="deadline">마감 임박순</option></select></div>
-    <p className="discovery-caption">전체 탭에는 수집된 공고를 제한 없이 표시합니다. 마감된 공고도 확인·삭제할 수 있고, 삭제한 공고는 삭제함에서 복구할 수 있습니다. 이전 불합격·보관 기록은 추천에서 제외합니다.</p>
+    <p className="discovery-caption">추천 탭에는 아직 결정하지 않은 진행 중 공고만 보입니다. 마감된 공고는 마감됨, 등록·거절한 공고는 각 탭에서 확인할 수 있습니다. 이전 불합격·보관 기록은 추천에서 제외합니다.</p>
     {visible.length ? <div className="discovery-grid">{visible.map(item => <article className="card discovery-card" key={item.id}>
       <button className="discovery-card-main" onClick={() => setSelectedId(item.id)}>
         <div className="discovery-card-top"><span className="discovery-company">{item.company || '기업명 확인 필요'}</span><span className={`discovery-score ${item.analysis && !item.analysisStale && item.analysis.score !== null ? 'scored' : ''}`}>{scoreLabel(item)}</span></div>
         <h2>{item.title}</h2><p className="discovery-meta">{[item.location || '지역 확인 필요', item.experience || '경력 조건 확인 필요'].join(' · ')}</p>
-        <div className="tag-row">{isClosed(item) && <span className="tag discovery-closed">마감됨</span>}{item.hidden && <span className="tag discovery-closed">삭제됨</span>}{item.sources.map(source => <span className="tag" key={`${source.source}:${source.externalId}`}>{sourceNames[source.source] || source.source}</span>)}<span className={`tag ${item.contentQuality !== 'full' ? 'discovery-quality' : ''}`}>{qualityNames[item.contentQuality]}</span></div>
+        <div className="tag-row">{isClosed(item) && <span className="tag discovery-closed">마감됨</span>}{item.hidden && <span className="tag discovery-closed">거절함</span>}{item.sources.map(source => <span className="tag" key={`${source.source}:${source.externalId}`}>{sourceNames[source.source] || source.source}</span>)}<span className={`tag ${item.contentQuality !== 'full' ? 'discovery-quality' : ''}`}>{qualityNames[item.contentQuality]}</span></div>
         <p className="discovery-card-summary">{item.analysis?.summary || (item.description ? item.description.slice(0, 140) : '이미지 또는 원문에서 상세 조건을 확인해 주세요.')}</p>
         {!item.analysis && Boolean(item.matchedKeywords?.length) && <p className="discovery-keywords">커리어 일치 키워드 · {item.matchedKeywords?.slice(0, 5).join(', ')}</p>}
-        <div className="discovery-card-bottom"><small>{item.deadline ? `${item.deadline} 마감` : item.alwaysOpen ? '상시 채용' : '마감일 확인 필요'}</small><small>{timeLabel(item.discoveredAt)} 발견</small></div>
+        {item.decision && <DecisionNote item={item} />}<div className="discovery-card-bottom"><small>{item.deadline ? <span className={isClosed(item) ? '' : deadlineMarkClass(item.deadline)}>{dateLabel(item.deadline)} 마감</span> : item.alwaysOpen ? '상시 채용' : '마감일 확인 필요'}</small><small>{timeLabel(item.discoveredAt)} 발견</small></div>
       </button>
       <div className="discovery-card-actions"><a href={item.url} target="_blank" rel="noreferrer">원문 보기 ↗</a>
-        {item.hidden ? <button disabled={busy} onClick={() => restorePosting(item)}>복구</button> : <><button className="discovery-delete" disabled={busy} aria-label={`${item.company || '회사 미상'} · ${item.title} 추천 공고 삭제`} onClick={() => removePosting(item)}>삭제</button><button disabled={busy || isClosed(item) || Boolean(item.savedJobId)} onClick={() => void perform('공고 저장', () => api.saveDiscoveredJob(item.id), () => setMessage('공고보관함에 저장했습니다.'))}>{item.savedJobId ? '저장됨' : '관심 공고 저장'}</button></>}
+        {decisionActions(item)}
       </div>
-    </article>)}</div> : <EmptyState title={query.trim() ? '검색 조건에 맞는 공고가 없습니다.' : tab === '삭제함' ? '삭제한 공고가 없습니다.' : tab === '마감됨' ? '마감된 공고가 없습니다.' : state.items.length ? '이 탭에 표시할 공고가 없습니다.' : '내게 맞는 새 공고를 찾아보세요.'} description={tab === '삭제함' ? '삭제한 공고는 이곳에서 확인하고 복구할 수 있습니다.' : '검색어나 탭을 바꾸거나, 수집 설정에서 희망 직무·지역을 확인해 주세요.'} action={tab !== '삭제함' && <button className="button" onClick={() => setSettings(true)}>수집 설정 확인</button>} />}
+    </article>)}</div> : <EmptyState title={query.trim() ? '검색 조건에 맞는 공고가 없습니다.' : tab === '거절함' ? '거절한 공고가 없습니다.' : tab === '등록함' ? '등록한 공고가 없습니다.' : tab === '마감됨' ? '마감된 공고가 없습니다.' : state.items.length ? '이 탭에 표시할 공고가 없습니다.' : '내게 맞는 새 공고를 찾아보세요.'} description={tab === '거절함' ? '거절한 공고와 이유는 이곳에서 확인하고 되돌릴 수 있습니다.' : '검색어나 탭을 바꾸거나, 수집 설정에서 희망 직무·지역을 확인해 주세요.'} action={tab !== '거절함' && tab !== '등록함' && <button className="button" onClick={() => setSettings(true)}>수집 설정 확인</button>} />}
 
     {settings && <DiscoverySettings status={status} preferences={state.preferences} busy={busy} onClose={() => setSettings(false)} onSave={value => void perform('수집 설정 저장', () => api.updateDiscoveryPreferences(value), () => { setSettings(false); setMessage('수집 설정을 저장했습니다.'); })} onCopy={text => void copy(text)} onDisconnect={() => void perform('ChatGPT 연결 해제', api.disconnectMcp)} />}
     {adding && <ManualPosting busy={busy} onClose={() => setAdding(false)} onSave={value => void perform('공고 추가', () => api.addDiscoveredJob(value), result => { setAdding(false); setSelectedId(result.id); })} />}
     {selected && <Modal title={selected.title} kicker={selected.company || 'JOB DETAILS'} wide onClose={closePosting}><div className="discovery-detail">
-      <div className="discovery-detail-actions"><a className="button" href={selected.url} target="_blank" rel="noreferrer">원문 보기 ↗</a><button className="button primary" disabled={busy || selected.hidden || isClosed(selected) || Boolean(selected.savedJobId)} onClick={() => void perform('공고 저장', () => api.saveDiscoveredJob(selected.id))}>{selected.savedJobId ? '보관함에 저장됨' : '관심 공고 저장'}</button>{selected.hidden ? <button className="button" disabled={busy} onClick={() => restorePosting(selected)}>공고 복구</button> : <button className="button discovery-delete" disabled={busy} onClick={() => removePosting(selected)}>공고 삭제</button>}</div>
-      {isClosed(selected) && <p className="discovery-notice">마감된 공고입니다.</p>}
+      <div className="discovery-detail-actions"><a className="button" href={selected.url} target="_blank" rel="noreferrer">원문 보기 ↗</a>{decisionActions(selected, true)}</div>
+      {isClosed(selected) && <p className="discovery-notice">마감된 공고입니다.</p>}{selected.decision && <DecisionNote item={selected} />}
       {selected.contentQuality !== 'full' && <p className="discovery-notice">{qualityNames[selected.contentQuality]} · 현재 확보한 정보만으로는 적합도 점수를 매기기 어렵습니다.</p>}
       {selected.analysis ? <section className="discovery-analysis"><div className="section-head"><h3>{scoreLabel(selected)}</h3><span className="tag">{confidenceNames[selected.analysis.confidence]}</span></div>{selected.analysisStale && <p className="discovery-notice">공고 또는 커리어가 바뀌었습니다. 아래 분석을 다시 확인해 주세요.</p>}<p>{selected.analysis.summary}</p><h4>맞는 경력 근거</h4>{selected.analysis.evidence.length ? selected.analysis.evidence.map((row, index) => <div className="discovery-evidence" key={index}><strong>{row.claim}</strong><blockquote>{row.jobQuote}</blockquote><small>{row.careerFactIds.map(id => workspace.careerFacts.find(fact => fact.id === id)?.title || '이전 커리어 항목').join(' · ')}</small></div>) : <p className="discovery-caption">확인 가능한 경력 근거가 부족합니다.</p>}<AnalysisList title="부족한 조건" items={selected.analysis.gaps} /><AnalysisList title="지원 전 확인할 내용" items={selected.analysis.questions} /><small className="discovery-caption">{timeLabel(selected.analysis.analyzedAt)} 분석 · 점수는 합격 확률이 아닙니다.</small></section> : <div className="discovery-analysis"><h3>분석 대기</h3><p>ChatGPT에 분석을 요청하면 내 경력과 맞는 이유, 부족한 조건을 정리할 수 있습니다.</p></div>}
       <details className="discovery-copy-panel" open={!selected.analysis}><summary>ChatGPT에서 분석하기</summary><p>분석 요청을 복사해서 ChatGPT에 붙여넣고, 반환된 JSON을 아래에 넣어 주세요. 확인 완료된 커리어만 포함하며 연락처와 원본 파일은 보내지 않습니다.</p><button className="button" disabled={!packet} onClick={() => void copyAnalysisRequest()}>분석 요청 복사</button><details><summary>분석 요청 내용 확인</summary><textarea aria-label="분석 요청 내용" value={packet} readOnly rows={8} /></details><label>ChatGPT 분석 결과<textarea aria-label="ChatGPT 분석 결과 JSON" value={analysisJson} onChange={event => setAnalysisJson(event.target.value)} placeholder="분석 결과 JSON 전체를 붙여넣으세요." rows={7} /></label><button className="button primary" disabled={busy || !analysisJson.trim()} onClick={() => void importAnalysis()}>분석 결과 저장</button></details>
       <details className="discovery-original"><summary>수집한 공고 본문 · {qualityNames[selected.contentQuality]}</summary><pre>{selected.description || '텍스트 본문이 없습니다. 원문에서 확인해 주세요.'}</pre>{selected.sources.map(source => <a key={`${source.source}:${source.externalId}`} href={source.url} target="_blank" rel="noreferrer">{sourceNames[source.source] || source.source} 출처 ↗</a>)}</details>
       {error && <p className="discovery-notice error" role="alert">{error}</p>}{message && <p className="discovery-notice" role="status">{message}</p>}
     </div></Modal>}
+    {deciding && <RecommendationDecisionModal item={deciding.item} kind={deciding.kind} busy={busy} error={error} onClose={() => setDeciding(null)} onSubmit={value => decidePosting(deciding.item, value)} />}
     {(authorization || authorizationError) && <Modal title="ChatGPT와 Folio 연결" kicker="ACCOUNT CONNECTION" compact onClose={clearAuthorization}>{authorizationError && <p className="discovery-notice error" role="alert">{authorizationError}</p>}{authorization && <><p>ChatGPT가 이 Folio 계정에서 아래 작업을 할 수 있도록 허용합니다.</p><ul><li>확인 완료된 커리어 조회</li><li>추천 공고 조회와 적합도 분석 저장</li><li>새 공고 이벤트 구독</li></ul><p className="discovery-caption">연락처·원본 파일은 공유하지 않습니다. 수집 설정에서 언제든 연결을 해제할 수 있습니다.</p><div className="discovery-detail-actions"><button className="button" disabled={busy} onClick={() => void authorize(false)}>취소</button><button className="button primary" disabled={busy} onClick={() => void authorize(true)}>연결 허용</button></div></>}</Modal>}
   </>;
 }
 
+function DecisionNote({ item }: { item: DiscoveredJob }) {
+  const decision = item.decision;
+  if (!decision || (decision.kind === 'rejected' && !item.hidden)) return null;
+  const detail = [...decision.reasons, decision.note].filter(Boolean).join(' · ');
+  return <p className={`decision-note ${decision.kind}`}><strong>{decision.kind === 'rejected' ? '거절 이유' : '등록 이유'}</strong>{detail || '이유를 남기지 않았어요.'}</p>;
+}
 function AnalysisList({ title, items }: { title: string; items: string[] }) {
   return <><h4>{title}</h4>{items.length ? <ul>{items.map((item, i) => <li key={i}>{item}</li>)}</ul> : <p className="discovery-caption">추가로 기록된 내용이 없습니다.</p>}</>;
 }
@@ -173,7 +193,7 @@ function DiscoverySettings({ status, preferences, busy, onClose, onSave, onCopy,
     <label className="inline-check"><input type="checkbox" checked={draft.enabled} onChange={event => setDraft({ ...draft, enabled: event.target.checked })} />새 공고 자동 수집</label>
     <label>수집 주기<select value={draft.intervalHours} onChange={event => setDraft({ ...draft, intervalHours: Number(event.target.value) })}>{[1, 3, 6, 12, 24].map(hour => <option key={hour} value={hour}>{hour}시간마다</option>)}</select></label>
     <button className="button primary" disabled={busy || !draft.sources.length}>설정 저장</button>
-    {status?.mcp.allowed && <section className="discovery-connection"><h3>ChatGPT 자동 분석</h3><p>{!status?.mcp.configured ? '서버 연결 설정이 필요합니다.' : !status.mcp.connected ? 'ChatGPT 계정 연결 대기' : status.mcp.subscriptions ? '새 공고 분석 이벤트 구독 중' : '연결됨 · 자동 분석 설정 대기'}</p>{status?.mcp.connected && <small>구독 {status.mcp.subscriptions}개 · 이벤트 전달 대기 {status.mcp.pendingDeliveries}건</small>}{status?.mcp.lastDeliveredAt && <small>최근 이벤트 전달 · {timeLabel(status.mcp.lastDeliveredAt)} (분석 완료 여부는 공고에서 확인)</small>}{status?.mcp.failures.map((failure, index) => <p className="discovery-notice error" key={index}>{failure}</p>)}<details><summary>연결 방법</summary><p>ChatGPT 개발자 모드에서 Folio를 연결한 뒤 Work의 Cloud 대화에서 아래 요청을 전달하세요. 실제 사용 가능 여부는 계정과 워크스페이스 설정에 따라 확인해야 합니다.</p>{status?.mcp.endpoint && <><label>Folio 연결 주소<input readOnly value={status.mcp.endpoint} /></label><button type="button" className="button" onClick={() => onCopy(status.mcp.endpoint)}>주소 복사</button></>}<p className="discovery-prompt">Folio의 새 공고 이벤트를 구독해 줘. 공고가 오면 분석 입력을 읽고, 확인 완료된 커리어와 비교해서 적합도·근거·부족한 조건을 분석하고 Folio에 저장해 줘. 본문이나 경력이 부족하면 점수는 비워 줘.</p><button type="button" className="button" onClick={() => onCopy('Folio의 jobs.discovered 이벤트를 구독해 줘. 새 공고가 오면 각 postingId의 get_analysis_input을 읽고, 확인 완료된 커리어와 비교해서 적합도·근거·부족한 조건을 분석한 뒤 save_job_analysis로 Folio에 저장해 줘. 본문이 full이 아니거나 커리어가 부족하면 score=null로 작성해 줘.')}>자동 분석 요청 복사</button><p className="discovery-caption">별도 AI 분석 API 키를 사용하지 않습니다. ChatGPT 사용량은 소비합니다. 연결 전에도 공고 상세에서 분석 요청을 복사할 수 있습니다.</p></details>{status?.mcp.connected && <button type="button" className="button" disabled={busy} onClick={onDisconnect}>ChatGPT 연결 해제</button>}</section>}
+    {status?.mcp.allowed && <section className="discovery-connection"><h3>ChatGPT 자동 분석</h3><p>{!status?.mcp.configured ? '서버 연결 설정이 필요합니다.' : !status.mcp.connected ? 'ChatGPT 계정 연결 대기' : status.mcp.subscriptions ? '새 공고 분석 이벤트 구독 중' : '연결됨 · 자동 분석 설정 대기'}</p>{status?.mcp.connected && <small>구독 {status.mcp.subscriptions}개 · 이벤트 전달 대기 {status.mcp.pendingDeliveries}건</small>}{status?.mcp.lastDeliveredAt && <small>최근 이벤트 전달 · {timeLabel(status.mcp.lastDeliveredAt)} (분석 완료 여부는 공고에서 확인)</small>}{status?.mcp.failures.map((failure, index) => <p className="discovery-notice error" key={index}>{failure}</p>)}<details><summary>연결 방법</summary><p>ChatGPT 개발자 모드에서 Folio를 연결한 뒤 Work의 Cloud 대화에서 아래 요청을 전달하세요. 실제 사용 가능 여부는 계정과 워크스페이스 설정에 따라 확인해야 합니다.</p>{status?.mcp.endpoint && <><label>Folio 연결 주소<input readOnly value={status.mcp.endpoint} /></label><button type="button" className="button" onClick={() => onCopy(status.mcp.endpoint)}>주소 복사</button></>}<p className="discovery-prompt">Folio의 새 공고 이벤트를 구독해 줘. 공고가 오면 분석 입력을 읽고, 확인 완료된 커리어와 비교해서 적합도·근거·부족한 조건을 분석하고 Folio에 저장해 줘. 내가 예전에 등록·거절한 이유도 참고해 줘. 본문이나 경력이 부족하면 점수는 비워 줘.</p><button type="button" className="button" onClick={() => onCopy('Folio의 jobs.discovered 이벤트를 구독해 줘. 새 공고가 오면 각 postingId의 get_analysis_input을 읽고, 확인 완료된 커리어와 비교해서 적합도·근거·부족한 조건을 분석한 뒤 save_job_analysis로 Folio에 저장해 줘. 분석 입력의 feedback(내가 이전 추천을 등록·거절한 이유)도 반영해서 내 선호와 맞지 않는 점은 gaps에 적어 줘. 본문이 full이 아니거나 커리어가 부족하면 score=null로 작성해 줘.')}>자동 분석 요청 복사</button><p className="discovery-caption">별도 AI 분석 API 키를 사용하지 않습니다. ChatGPT 사용량은 소비합니다. 연결 전에도 공고 상세에서 분석 요청을 복사할 수 있습니다.</p></details>{status?.mcp.connected && <button type="button" className="button" disabled={busy} onClick={onDisconnect}>ChatGPT 연결 해제</button>}</section>}
   </form></Modal>;
 }
 function ManualPosting({ busy, onClose, onSave }: { busy: boolean; onClose: () => void; onSave: (value: { company: string; title: string; url: string; description: string; location: string }) => void }) {

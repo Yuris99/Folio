@@ -456,16 +456,17 @@ async function api(req,res,url) {
         const result=discovery.mergePosting(discoveryState.items,discovery.manualPosting(payload));
         if(result.added)mcp.enqueue(user,[result.item.id]);saveDb();return ok(res,discovery.postingView(w,result.item),result.added?201:200);
       }
-      const postingMatch=route.match(/^\/api\/v1\/discovery\/postings\/([^/]+)(?:\/(analysis-input|analysis|save))?$/);
+      const postingMatch=route.match(/^\/api\/v1\/discovery\/postings\/([^/]+)(?:\/(analysis-input|analysis|save|decision))?$/);
       if(postingMatch){
         const item=discoveryState.items.find(x=>x.id===postingMatch[1]);if(!item)return fail(res,404,'추천 공고를 찾을 수 없습니다.','NOT_FOUND');
         if(method==='GET'&&postingMatch[2]==='analysis-input')return ok(res,discovery.analysisPacket(w,item));
         if(method==='PUT'&&postingMatch[2]==='analysis'){item.analysis=discovery.validateAnalysis(w,item,payload);saveDb();return ok(res,item.analysis);}
         if(method==='POST'&&postingMatch[2]==='save'){const job=discovery.savePosting(w,item);saveDb();return ok(res,job);}
-        if(method==='PATCH'&&!postingMatch[2]){if(typeof payload.hidden!=='boolean')throw new Error('INVALID_POSTING');item.hidden=payload.hidden;saveDb();return ok(res,discovery.postingView(w,item));}
+        if(method==='POST'&&postingMatch[2]==='decision'){const job=discovery.decidePosting(w,item,payload);saveDb();return ok(res,{posting:discovery.postingView(w,item),job});}
+        if(method==='PATCH'&&!postingMatch[2]){if(typeof payload.hidden!=='boolean')throw new Error('INVALID_POSTING');item.hidden=payload.hidden;if(!item.hidden&&item.decision?.kind==='rejected')delete item.decision;saveDb();return ok(res,discovery.postingView(w,item));}
       }
     }catch(error){
-      const messages={DISCOVERY_RUNNING:'이미 공고를 수집하고 있습니다.',DISCOVERY_COOLDOWN:'반복 수집은 2분 뒤에 다시 시도해 주세요.',DISCOVERY_SOURCE_REQUIRED:'수집할 사이트를 선택해 주세요.',INVALID_POSTING:'공고 제목과 올바른 URL을 입력해 주세요.',STALE_ANALYSIS:'공고 또는 커리어가 변경되었습니다. 분석 입력을 다시 복사해 주세요.',INSUFFICIENT_ANALYSIS_DATA:'본문 또는 확인 완료된 커리어가 부족한 공고는 score를 null로 작성해 주세요.',INVALID_ANALYSIS_EVIDENCE:'공고 인용과 확인 완료된 커리어 항목 ID를 다시 확인해 주세요.',INVALID_ANALYSIS_SOURCE:'출처는 분석 입력에 있는 공고 URL을 사용해 주세요.',AUTHORIZATION_EXPIRED:'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.'};
+      const messages={DISCOVERY_RUNNING:'이미 공고를 수집하고 있습니다.',DISCOVERY_COOLDOWN:'반복 수집은 2분 뒤에 다시 시도해 주세요.',DISCOVERY_SOURCE_REQUIRED:'수집할 사이트를 선택해 주세요.',INVALID_POSTING:'공고 제목과 올바른 URL을 입력해 주세요.',INVALID_DECISION:'등록 또는 거절을 선택해 주세요.',STALE_ANALYSIS:'공고 또는 커리어가 변경되었습니다. 분석 입력을 다시 복사해 주세요.',INSUFFICIENT_ANALYSIS_DATA:'본문 또는 확인 완료된 커리어가 부족한 공고는 score를 null로 작성해 주세요.',INVALID_ANALYSIS_EVIDENCE:'공고 인용과 확인 완료된 커리어 항목 ID를 다시 확인해 주세요.',INVALID_ANALYSIS_SOURCE:'출처는 분석 입력에 있는 공고 URL을 사용해 주세요.',AUTHORIZATION_EXPIRED:'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.'};
       if(error.message==='ACCOUNT_NOT_ALLOWED')return fail(res,403,'이 계정에는 ChatGPT 연결이 허용되지 않습니다.',error.message);
       return fail(res,['DISCOVERY_RUNNING','DISCOVERY_COOLDOWN','STALE_ANALYSIS'].includes(error.message)?409:400,messages[error.message]||'입력 형식을 확인해 주세요.',error.message);
     }

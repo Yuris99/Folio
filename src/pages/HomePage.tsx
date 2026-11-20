@@ -46,7 +46,7 @@ export function HomePage({ workspace: fullWorkspace, navigate, mutate }: { works
   }
 
   return <>
-    <div className="page-head compact-head"><div><p className="eyebrow">DASHBOARD</p><h1>오늘의 지원 현황</h1></div><span className="home-clock"><b>{new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(clock)}</b><small>{new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(clock)}</small></span></div>
+    <div className="page-head compact-head"><div><h1>오늘의 지원 현황</h1></div><span className="home-clock"><b>{new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(clock)}</b><small>{new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(clock)}</small></span></div>
     {!workspace.applications.length && <div className="onboarding-strip"><div><strong>{hasProfile ? '첫 지원을 등록해 시작하세요.' : '먼저 이력서를 커리어 데이터로 정리하세요.'}</strong><span>{hasProfile ? '회사와 직무, 마감일만 입력하면 됩니다.' : '확인된 데이터는 ChatGPT에서 바로 사용할 수 있습니다.'}</span></div><div>{!hasProfile && <button className="button" onClick={() => navigate('career')}>이력서 정리</button>}<button className="button primary" onClick={() => navigate('applications')}>지원 추가</button></div></div>}
     {!!urgentDeadlines.length && <section className="home-deadline-priority" aria-labelledby="home-deadline-title">
       <div className="home-deadline-heading"><div><h2 id="home-deadline-title">마감 임박 <span>{urgentDeadlines.length}개</span></h2><small>7일 이내 마감하는 지원 공고</small></div><button className="text-button" onClick={openPreparingApplications}>지원 관리 →</button></div>

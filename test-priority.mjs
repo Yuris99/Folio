@@ -13,11 +13,14 @@ assert(isClosedRecommendation(posting, recommendationNow + 1000), 'recommendatio
 assert(isClosedRecommendation({...posting, deadline:'2026-10-02T18:00:00+09:00'}, recommendationNow), 'explicit recommendation deadline is respected');
 const recommendations = [posting, {...posting,id:'hidden',hidden:true}, {...posting,id:'rejected',suppressed:true}, {...posting,id:'closed',closed:true}, {...posting,id:'expired',deadline:'2026-10-01'}, {...posting,id:'stale',analysis:{score:99},analysisStale:true,publishedAt:'2026-10-01'}, {...posting,id:'fit',analysis:{score:80},publishedAt:'2026-10-01'}, {...posting,id:'fit-low',analysis:{score:60},publishedAt:'2026-10-01'}];
 assert(dashboardRecommendations(recommendations, recommendationNow).map(item=>item.id).join(',') === 'fit,fit-low,new,stale', 'dashboard shows every eligible collected recommendation, ranked by valid fit then recent pending');
-assert(recommendations.filter(item=>matchesRecommendationTab(item,'전체',recommendationNow)).length === 6, 'all collected tab includes expired postings while excluding deleted and rejected');
+assert(recommendations.filter(item=>matchesRecommendationTab(item,'추천',recommendationNow)).map(item=>item.id).join(',') === 'new,stale,fit,fit-low', 'default tab hides expired, deleted and rejected postings');
+assert(!matchesRecommendationTab({...posting,savedJobId:'job'},'추천',recommendationNow) && matchesRecommendationTab({...posting,savedJobId:'job'},'등록함',recommendationNow), 'registered postings move from the queue to the registered tab');
+assert(matchesRecommendationTab({...posting,deadline:'2026-10-01',decision:{kind:'registered',reasons:[],note:'',decidedAt:''}},'등록함',recommendationNow), 'registered tab keeps the record after the deadline');
+assert(!dashboardRecommendations([{...posting,savedJobId:'job'}], recommendationNow).length, 'dashboard excludes registered postings');
 assert(recommendations.filter(item=>matchesRecommendationTab(item,'마감됨',recommendationNow)).map(item=>item.id).join(',') === 'closed,expired', 'expired collection remains accessible for review and removal');
-assert(matchesRecommendationTab({...posting,hidden:true,closed:true},'삭제함',recommendationNow), 'deleted expired postings remain recoverable');
-assert(!matchesRecommendationTab({...posting,hidden:true},'전체',recommendationNow), 'deleted postings disappear from the full collection');
-assert(!matchesRecommendationTab({...posting,hidden:true,suppressed:true},'삭제함',recommendationNow), 'rejected linked postings stay excluded from other tabs');
+assert(matchesRecommendationTab({...posting,hidden:true,closed:true},'거절함',recommendationNow), 'rejected expired postings remain recoverable');
+assert(!matchesRecommendationTab({...posting,hidden:true},'추천',recommendationNow), 'rejected postings disappear from the queue');
+assert(!matchesRecommendationTab({...posting,hidden:true,suppressed:true},'거절함',recommendationNow), 'rejected linked postings stay excluded from other tabs');
 assert(recommendations[0].id === 'new' && recommendations.length === 8, 'dashboard selection preserves source records');
 assert(recommendationScoreLabel({...posting,analysis:{score:99},analysisStale:true}) === '재분석 필요', 'stale analysis never shows a current fit score');
 assert(recommendationScoreLabel({...posting,analysis:{score:null}}) === '정보 부족', 'insufficient information never shows zero fit');

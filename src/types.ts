@@ -368,6 +368,13 @@ export interface DiscoveredJob {
   matchedKeywords?: string[];
   analysis?: JobFitAnalysis;
   analysisStale?: boolean;
+  decision?: RecommendationDecision;
+}
+export interface RecommendationDecision {
+  kind: 'registered' | 'rejected';
+  reasons: string[];
+  note: string;
+  decidedAt: string;
 }
 export interface DiscoverySourceStatus {
   source: string;
