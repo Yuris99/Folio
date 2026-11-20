@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
 /* ==========================================================================
    Folio tokens: one light and one dark theme. Components reference only these.
    Planner world: navy cover rail, blue-black ink for actions and selection,
@@ -3229,7 +3228,7 @@ select { padding-right: 32px; appearance: none; background-image: url("data:imag
    type, the navy cover rail, primitives and the highlighter signature.
    ========================================================================== */
 html { background: var(--bg); }
-body { background: var(--bg); color: var(--text); font-family: Pretendard, 'Pretendard Variable', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif; font-size: 15px; line-height: 1.6; letter-spacing: -.01em; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { background: var(--bg); color: var(--text); font-family: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif; font-size: 15px; line-height: 1.6; letter-spacing: -.01em; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 ::selection { background: var(--mark); color: var(--text); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -3249,7 +3248,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sidebar .nav-item:hover span { color: var(--shell-text); }
 .sidebar .nav-item.active { background: var(--shell-active); color: var(--shell-text); box-shadow: inset 3px 0 0 var(--mark); }
 .sidebar .nav-item.active span { color: var(--shell-text); }
-.brand-mark { border-radius: 8px; background: var(--mark); color: var(--shell-bg); font: 800 17px/1 Pretendard, 'Noto Sans KR', system-ui, sans-serif; font-style: normal; letter-spacing: -.02em; }
+.brand-mark { border-radius: 8px; background: var(--mark); color: var(--shell-bg); font: 800 17px/1 'Pretendard Variable', Pretendard, system-ui, sans-serif; font-style: normal; letter-spacing: -.02em; }
 .topbar { background: color-mix(in srgb, var(--bg) 92%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: saturate(1.2) blur(8px); }
 
 /* Page head: the title carries the page; no kicker above it. */
