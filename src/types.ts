@@ -138,6 +138,7 @@ export interface CareerStory {
 export interface Job {
   id: string;
   discoveryPostingId?: string;
+  recommendation?: PostingRecommendation;
   company: string;
   role: string;
   location?: string;
@@ -323,28 +324,16 @@ export interface Workspace {
   discovery: DiscoveryState;
 }
 
-export interface DiscoveryPreferences {
-  enabled: boolean;
-  keywords: string[];
-  excludeKeywords: string[];
-  locations: string[];
-  experience: 'any' | 'entry' | 'junior';
-  sources: Array<'inthiswork' | 'saramin'>;
-  intervalHours: number;
-}
-export interface JobFitAnalysis {
-  score: number | null;
-  confidence: 'low' | 'medium' | 'high';
-  summary: string;
-  evidence: Array<{ claim: string; careerFactIds: string[]; jobQuote: string }>;
-  gaps: string[];
-  questions: string[];
-  matchedSkills: string[];
-  missingSkills: string[];
-  sourceUrls: string[];
-  contextVersion: string;
-  analyzedAt: string;
-  provider: 'chatgpt';
+// Why a posting was recommended, plus the same five priority levels applications use.
+export interface PostingRecommendation {
+  reason: string;
+  careerGrade?: CareerGrade;
+  careerLevel?: number;
+  compensationLevel?: number;
+  passLevel?: number;
+  workLevel?: number;
+  score?: number;
+  by?: string;
 }
 export interface DiscoveredJob {
   id: string;
@@ -366,8 +355,9 @@ export interface DiscoveredJob {
   savedJobId?: string;
   suppressed?: boolean;
   matchedKeywords?: string[];
-  analysis?: JobFitAnalysis;
-  analysisStale?: boolean;
+  recommendation?: PostingRecommendation;
+  // Older postings analysed by the removed ChatGPT connection.
+  analysis?: { score: number | null; summary: string };
   decision?: RecommendationDecision;
 }
 export interface RecommendationDecision {
@@ -376,27 +366,17 @@ export interface RecommendationDecision {
   note: string;
   decidedAt: string;
 }
-export interface DiscoverySourceStatus {
-  source: string;
-  ok: boolean;
-  checkedAt: string;
-  fetched: number;
-  matched: number;
-  truncated: boolean;
-  message: string;
-}
 export interface DiscoveryState {
-  preferences: DiscoveryPreferences;
   items: DiscoveredJob[];
-  running?: boolean;
-  lastRunAt: string;
-  lastCompletedAt?: string;
-  nextRunAt: string;
-  sourceStatus: DiscoverySourceStatus[];
+}
+export interface BotTokenStatus {
+  active: boolean;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string;
 }
 export interface DiscoveryStatus extends DiscoveryState {
-  sources: Array<{ id: 'inthiswork' | 'saramin'; name: string; ready: boolean; note: string }>;
-  mcp: { allowed: boolean; configured: boolean; endpoint: string; connected: boolean; subscriptions: number; pendingDeliveries: number; lastDeliveredAt: string; failures: string[] };
+  bot: BotTokenStatus;
 }
 
 export interface VaultNote {

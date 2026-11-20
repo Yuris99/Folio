@@ -1,9 +1,6 @@
 import type { DiscoveryState, Profile, Workspace } from './types';
 
-export const emptyDiscovery: DiscoveryState = {
-  preferences: { enabled: false, keywords: [], excludeKeywords: [], locations: [], experience: 'any', sources: ['inthiswork'], intervalHours: 6 },
-  items: [], lastRunAt: '', nextRunAt: '', sourceStatus: []
-};
+export const emptyDiscovery: DiscoveryState = { items: [] };
 
 export const emptyProfile: Profile = {
   name: '', englishName: '', role: '', target: '', summary: '', email: '', phone: '', birthDate: '', location: '', address: '',
@@ -63,6 +60,6 @@ export function normalizeWorkspace(value: Partial<Workspace> | undefined): Works
     careerSources: array(value?.careerSources),
     careerFacts: array(value?.careerFacts)
     ,consultations: array(value?.consultations), vaultNotes: array(value?.vaultNotes),
-    discovery: { ...emptyDiscovery, ...value?.discovery, preferences: { ...emptyDiscovery.preferences, ...value?.discovery?.preferences }, items: array(value?.discovery?.items), sourceStatus: array(value?.discovery?.sourceStatus) }
+    discovery: { items: array(value?.discovery?.items) }
   };
 }

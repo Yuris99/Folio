@@ -1,6 +1,8 @@
-import type { Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, DiscoveredJob, DiscoveryPreferences, DiscoverySourceStatus, DiscoveryStatus, Interview, Job, JobFitAnalysis, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
+import type { BotTokenStatus, PostingRecommendation, Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, DiscoveredJob, DiscoveryStatus, Interview, Job, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+// Absolute address the user's bot calls; follows the same API base as the app.
+export const botApiBase = () => `${new URL(apiBaseUrl, window.location.origin).href.replace(/\/$/, '')}/bot`;
 const requestTimeoutMs = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
 
 export class ApiError extends Error {
@@ -47,19 +49,15 @@ export const api = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   bootstrap: () => request<Workspace>('/bootstrap'),
   discoveryStatus: () => request<DiscoveryStatus>('/discovery/status'),
-  updateDiscoveryPreferences: (payload: DiscoveryPreferences) => request<DiscoveryPreferences>('/discovery/preferences', json('PUT', payload)),
-  collectJobs: () => request<{ added: number; total: number; sourceStatus: DiscoverySourceStatus[] }>('/discovery/collect', { method: 'POST' }, 180_000),
-  addDiscoveredJob: (payload: { company: string; title: string; url: string; description: string; location: string }) => request<DiscoveredJob>('/discovery/postings', json('POST', payload)),
+  addDiscoveredJob: (payload: NewPostingPayload) => request<DiscoveredJob>('/discovery/postings', json('POST', payload)),
   // Keep the collected identity as a tombstone so the next collection cannot revive it.
   deleteDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: true })),
   restoreDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: false })),
   saveDiscoveredJob: (id: string) => request<Job>(`/discovery/postings/${id}/save`, { method: 'POST' }),
+  botToken: () => request<BotTokenStatus>('/bot-token'),
+  createBotToken: () => request<BotTokenStatus & { token: string }>('/bot-token', { method: 'POST' }),
+  revokeBotToken: () => request<BotTokenStatus>('/bot-token', { method: 'DELETE' }),
   decideDiscoveredJob: (id: string, payload: { decision: 'registered' | 'rejected'; reasons: string[]; note: string }) => request<{ posting: DiscoveredJob; job: Job | null }>(`/discovery/postings/${id}/decision`, json('POST', payload)),
-  jobAnalysisInput: (id: string) => request<Record<string, unknown>>(`/discovery/postings/${id}/analysis-input`),
-  saveJobFitAnalysis: (id: string, payload: unknown) => request<JobFitAnalysis>(`/discovery/postings/${id}/analysis`, json('PUT', payload)),
-  mcpAuthorization: (id: string) => request<{ clientName: string; scopes: string[]; consentToken: string; expiresAt: string }>(`/mcp/authorization/${id}`),
-  approveMcpAuthorization: (id: string, consentToken: string, approve: boolean) => request<{ redirectUrl: string }>(`/mcp/authorization/${id}`, json('POST', { consentToken, approve })),
-  disconnectMcp: () => request<DiscoveryStatus['mcp']>('/mcp/disconnect', { method: 'POST' }),
   calendarStatus: () => request<{ connected: boolean; lastSyncedAt: string; configured?: boolean }>('/calendar/status'),
   connectGoogleCalendar() {
     const url = new URL(window.location.href.split('#')[0]);
@@ -107,3 +105,5 @@ export const api = {
   deleteFile: (id: string) => request<void>(`/files/${id}`, { method: 'DELETE' }),
   fileUrl: (id: string) => `${apiBaseUrl}/files/${id}`
 };
+
+export interface NewPostingPayload { company: string; title: string; url: string; description: string; location: string; experience: string; deadline: string; recommendation: PostingRecommendation }

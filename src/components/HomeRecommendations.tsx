@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { RecommendationDecisionModal, type DecisionKind, type DecisionPayload } from './RecommendationDecision';
-import { deadlineMarkClass, dashboardRecommendations, recommendationScore, recommendationScoreLabel } from '../recommendations';
+import { deadlineMarkClass, dashboardRecommendations, recommendationReason, recommendationScoreLabel } from '../recommendations';
 import type { Mutation } from '../hooks/useFolio';
 import type { DiscoveredJob, DiscoveryState, View } from '../types';
 import { dateLabel } from '../utils';
@@ -72,12 +72,12 @@ export function HomeRecommendations({ discovery, navigate, mutate }: { discovery
     <div className="section-head"><div><h2 id="home-recommendations-title">나에게 맞는 추천 공고 <span className="home-recommendation-count">{items.length}개</span></h2><small>마감 전 · 아직 결정하지 않은 공고 · 적합도 높은 순</small></div><button className="text-button" onClick={() => navigate('recommendations')}>공고 관리 →</button></div>
     {message && <div className="home-recommendation-message" role="status"><span>{message}</span>{lastRemovedId && <button className="text-button" disabled={busy} onClick={() => void undoRemoval()}>되돌리기</button>}</div>}
     {items.length ? <div className="home-recommendation-grid">{items.map(item => <article className="home-recommendation-item" key={item.id}><button className="home-recommendation" onClick={() => openPosting(item.id)}>
-      <div className="home-recommendation-top"><strong>{item.company || '회사 확인 필요'}</strong><span className={`home-fit ${recommendationScore(item) >= 0 ? 'analyzed' : ''}`}>{recommendationScoreLabel(item)}</span></div>
+      <div className="home-recommendation-top"><strong>{item.company || '회사 확인 필요'}</strong>{recommendationScoreLabel(item) && <span className="home-fit analyzed">{recommendationScoreLabel(item)}</span>}</div>
       <h3>{item.title}</h3>
       <small className="home-recommendation-meta">{[item.location, item.experience].filter(Boolean).join(' · ') || '근무 조건 확인 필요'}</small>
-      <p>{item.analysisStale ? '공고나 커리어가 바뀌어 분석을 다시 확인해야 합니다.' : item.analysis?.summary || (item.matchedKeywords?.length ? `내 커리어와 일치하는 키워드: ${item.matchedKeywords.slice(0, 3).join(', ')}` : '공고를 열어 상세 조건과 분석 내용을 확인해 보세요.')}</p>
+      <p>{recommendationReason(item) || (item.matchedKeywords?.length ? `내 커리어와 일치하는 키워드: ${item.matchedKeywords.slice(0, 3).join(', ')}` : '공고를 열어 상세 조건을 확인해 보세요.')}</p>
       <div className="home-recommendation-bottom"><span>{item.deadline ? <span className={deadlineMarkClass(item.deadline)}>{dateLabel(item.deadline)} 마감</span> : item.alwaysOpen ? '상시 채용' : '마감일 확인 필요'}</span><span>공고 보기 →</span></div>
-    </button><div className="home-recommendation-actions"><button className="home-recommendation-delete" disabled={busy} aria-label={`${item.company || '회사 미상'} · ${item.title} 거절`} onClick={() => setDeciding({ item, kind: 'rejected' })}>거절</button><button className="home-recommendation-register" disabled={busy} aria-label={`${item.company || '회사 미상'} · ${item.title} 등록`} onClick={() => setDeciding({ item, kind: 'registered' })}>등록</button></div></article>)}</div> : <div className="home-recommendation-empty"><div><strong>{state.running ? '새 공고를 찾고 있어요.' : '현재 조건에 맞는 추천 공고가 없어요.'}</strong><p>{state.preferences.enabled ? '새 공고가 수집되면 이곳에 보여드릴게요. 추천 공고에서 수집 조건을 확인할 수 있어요.' : '희망 직무와 지역을 설정하고 새 공고를 찾아보세요.'}</p></div><button className="button" onClick={() => navigate('recommendations')}>추천 공고 살펴보기</button></div>}
+    </button><div className="home-recommendation-actions"><button className="home-recommendation-delete" disabled={busy} aria-label={`${item.company || '회사 미상'} · ${item.title} 거절`} onClick={() => setDeciding({ item, kind: 'rejected' })}>거절</button><button className="home-recommendation-register" disabled={busy} aria-label={`${item.company || '회사 미상'} · ${item.title} 등록`} onClick={() => setDeciding({ item, kind: 'registered' })}>등록</button></div></article>)}</div> : <div className="home-recommendation-empty"><div><strong>새 추천 공고가 없어요.</strong><p>봇이 찾은 공고가 들어오면 이곳에 보여드릴게요. 추천 공고에서 직접 추가하거나 봇을 연결할 수 있어요.</p></div><button className="button" onClick={() => navigate('recommendations')}>추천 공고 살펴보기</button></div>}
     {deciding && <RecommendationDecisionModal item={deciding.item} kind={deciding.kind} busy={busy} error={decisionError} onClose={() => { setDeciding(null); setDecisionError(''); }} onSubmit={value => void decidePosting(deciding.item, value)} />}
     {error && <p className="home-recommendation-error" role="status">최신 공고를 불러오지 못했어요. 잠시 후 다시 확인합니다.</p>}
   </section>;

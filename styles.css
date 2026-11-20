@@ -3326,3 +3326,30 @@ input, textarea, select { color: var(--text); }
 .event.deadline { background: var(--fail-soft); color: var(--fail-text); }
 .requirement .ok { color: var(--pass-text); }
 .vault-warning button { color: var(--warning-text); }
+
+/* Recommendation reason and the five priority levels. */
+.recommend-label { margin-right: 6px; color: var(--text); font-weight: 600; }
+.recommend-levels { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.recommend-levels span { padding: 2px 8px; border-radius: 6px; background: var(--panel-2); color: var(--muted); font-size: 12px; }
+.recommend-levels b { color: var(--text); }
+.recommend-level-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 12px 0; }
+.recommend-level-list div { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.recommend-level-list dt { color: var(--muted); font-size: 12px; }
+.recommend-level-list dd { margin: 2px 0 0; font-weight: 700; }
+.job-recommend-note { margin: 0 0 12px; padding: 9px 10px; border-radius: 6px; background: var(--accent-soft); color: var(--text-2); font-size: 13px; overflow-wrap: anywhere; }
+.job-recommend-note b { margin-right: 6px; color: var(--accent-text); }
+/* Add posting form */
+.add-posting-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.add-posting-grid .span-2 { grid-column: 1 / -1; }
+.add-posting-grid label small, .add-posting-levels legend small { color: var(--muted); font-weight: 400; }
+@media (max-width: 680px) { .add-posting-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Bot connection */
+.bot-status { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); }
+.bot-status small { color: var(--muted); }
+.bot-token { display: grid; gap: 8px; }
+.bot-token input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+.bot-connection code { overflow-wrap: anywhere; font-size: 13px; }
+.bot-endpoints { display: grid; gap: 10px; margin: 10px 0; }
+.bot-endpoints dt { color: var(--muted); font-size: 12px; }
+.bot-endpoints dd { margin: 2px 0 0; }
+.bot-example { max-height: 260px; overflow: auto; margin: 10px 0; padding: 12px; border-radius: 8px; background: var(--panel-2); color: var(--text-2); font-size: 12px; line-height: 1.5; }

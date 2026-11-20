@@ -1,6 +1,6 @@
-import type { DiscoveredJob } from './types';
+import type { DiscoveredJob, PostingRecommendation } from './types';
 
-export const recommendationTabs = ['추천', '분석 완료', '등록함', '마감됨', '거절함'] as const;
+export const recommendationTabs = ['추천', '등록함', '마감됨', '거절함'] as const;
 export type RecommendationTab = (typeof recommendationTabs)[number];
 
 export const rejectReasons = ['직무가 안 맞음', '경력 조건', '근무 지역', '회사·산업', '처우·고용 형태', '이미 지원함'] as const;
@@ -15,12 +15,27 @@ export function isRegisteredRecommendation(item: DiscoveredJob) {
   return Boolean(item.savedJobId) || item.decision?.kind === 'registered';
 }
 
+// The fit score comes from whoever recommended the posting (the user's bot or the add form).
 export function recommendationScore(item: DiscoveredJob) {
-  return item.analysisStale ? -1 : item.analysis?.score ?? -1;
+  const score = item.recommendation?.score ?? item.analysis?.score;
+  return typeof score === 'number' ? score : -1;
 }
 
 export function recommendationScoreLabel(item: DiscoveredJob) {
-  return item.analysisStale ? '재분석 필요' : !item.analysis ? '분석 대기' : item.analysis.score === null ? '정보 부족' : `적합도 ${item.analysis.score}`;
+  const score = recommendationScore(item);
+  return score >= 0 ? `적합도 ${score}` : '';
+}
+
+export function recommendationReason(item: DiscoveredJob) {
+  return item.recommendation?.reason || item.analysis?.summary || '';
+}
+
+// "커리어 가치 5 · 합격 가능성 4" style summary of whichever levels were filled in.
+export function recommendationLevels(value?: PostingRecommendation) {
+  if (!value) return [] as Array<{ label: string; level: string }>;
+  // Same labels and order as PRIORITY_CRITERIA in priority.ts (kept import-free so plain Node tests can load this file).
+  const rows: Array<[string, string | number | undefined]> = [['커리어 가치', value.careerLevel], ['직무선호도', value.careerGrade], ['연봉·보상', value.compensationLevel], ['합격 가능성', value.passLevel], ['근무 조건', value.workLevel]];
+  return rows.flatMap(([label, level]) => level ? [{ label, level: String(level) }] : []);
 }
 
 // Expired and already-decided postings leave the default queue; their own tabs keep them reviewable.
@@ -30,8 +45,7 @@ export function matchesRecommendationTab(item: DiscoveredJob, tab: Recommendatio
   if (item.hidden) return false;
   if (tab === '등록함') return isRegisteredRecommendation(item);
   if (tab === '마감됨') return isClosedRecommendation(item, now);
-  if (isClosedRecommendation(item, now) || isRegisteredRecommendation(item)) return false;
-  return tab === '추천' || Boolean(item.analysis && !item.analysisStale);
+  return !isClosedRecommendation(item, now) && !isRegisteredRecommendation(item);
 }
 
 export function dashboardRecommendations(items: DiscoveredJob[], now = Date.now()) {

@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const discovery = require('./lib/job-discovery');
-const { createMcpService } = require('./lib/folio-mcp');
 
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'dist');
@@ -134,13 +133,6 @@ function loadDb() {
 }
 assertDataDirectoryWritable();
 let db = loadDb();
-const mcp = createMcpService({ getDb: () => db, save: saveDb, send, appOrigin: APP_ORIGIN,
-  publicOrigin: process.env.FOLIO_PUBLIC_API_ORIGIN || '', enabled: process.env.FOLIO_MCP_ENABLED === 'true',
-  allowedEmails: (process.env.FOLIO_MCP_ALLOWED_EMAILS || '').split(',').map(value => value.trim()).filter(Boolean),
-  redirectUris: process.env.FOLIO_MCP_REDIRECT_URIS ? process.env.FOLIO_MCP_REDIRECT_URIS.split(',').map(x => x.trim()).filter(Boolean) : undefined });
-const jobDiscovery = discovery.createDiscoveryService({ getDb: () => db, save: saveDb, saraminKey: process.env.SARAMIN_ACCESS_KEY || '',
-  onDiscovered: (user, ids) => mcp.enqueue(user, ids) });
-jobDiscovery.restore();
 function pruneExpiredSessions() {
   const current=Date.now();let changed=false;
   for(const [id,session] of Object.entries(db.sessions))if(new Date(session.expiresAt).getTime()<=current){delete db.sessions[id];changed=true;}
@@ -412,12 +404,59 @@ function localDocument(workspace,job) {
   return {id:uid(),title:`${job.company} · 맞춤 지원서`,content,citations:stories.map((s,i)=>({sentence:i+2,careerStoryId:s.id})),warnings:evidence.length?[]:['연결할 경력 정보가 부족합니다.'],source:'local'};
 }
 
+
+// ---------- Bot connection: the user's own bot adds recommended postings and reads feedback ----------
+const BOT_LIMIT = { windowMs: 60_000, max: 60 };
+const botHits = new Map();
+const tokenHash = value => crypto.createHash('sha256').update(String(value)).digest('hex');
+function botTokenStatus(user) { const t=user.botToken; return t?{active:true,prefix:t.prefix,createdAt:t.createdAt,lastUsedAt:t.lastUsedAt||''}:{active:false,prefix:'',createdAt:'',lastUsedAt:''}; }
+function botUser(req) {
+  const value=/^Bearer (folio_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization||'')?.[1];
+  if(!value)return null;
+  const hash=tokenHash(value);
+  return Object.values(db.users).find(user=>user.botToken?.hash===hash)||null;
+}
+async function smallBody(req, limit = 1_000_000) {
+  const chunks=[]; let size=0;
+  for await (const chunk of req) { size+=chunk.length; if(size>limit) throw new Error('PAYLOAD_TOO_LARGE'); chunks.push(chunk); }
+  if (!chunks.length) return {};
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('INVALID_JSON'); }
+}
+async function botApi(req,res,url) {
+  const user=botUser(req);
+  if(!user)return fail(res,401,'봇 연결 열쇠가 올바르지 않습니다. Folio 추천 공고 화면에서 새 열쇠를 만들어 주세요.','INVALID_BOT_TOKEN');
+  const now=Date.now(), hits=(botHits.get(user.id)||[]).filter(time=>now-time<BOT_LIMIT.windowMs);
+  if(hits.length>=BOT_LIMIT.max)return fail(res,429,'요청이 너무 많습니다. 1분 뒤에 다시 시도해 주세요.','RATE_LIMITED');
+  hits.push(now);botHits.set(user.id,hits);
+  user.botToken.lastUsedAt=new Date().toISOString();
+  const w=user.workspace, state=discovery.ensureDiscovery(w), method=req.method, route=url.pathname;
+  if(method==='GET'&&route==='/api/v1/bot/context'){saveDb();return ok(res,discovery.botContext(w));}
+  if(method==='POST'&&route==='/api/v1/bot/postings'){
+    const payload=await smallBody(req);
+    const postings=Array.isArray(payload?.postings)?payload.postings:null;
+    if(!postings||!postings.length||postings.length>50)return fail(res,400,'postings 배열에 공고를 1~50개 넣어 주세요.','INVALID_POSTINGS');
+    const results=postings.map((posting,index)=>{
+      try{
+        const by=String(payload.by||posting?.recommendation?.by||'').trim().slice(0,60);
+        const raw=discovery.newPosting({...posting,recommendation:{...(posting?.recommendation||{}),...(by?{by}:{})}},'bot');
+        const {item,added}=discovery.mergePosting(state.items,raw);
+        return {index,id:item.id,added,status:item.decision?.kind||(item.hidden?'rejected':'pending')};
+      }catch(error){return {index,error:error.message==='INVALID_POSTING'?'제목·URL·마감일(YYYY-MM-DD)·평가 단계(1~5)·점수(0~100)를 확인해 주세요.':'처리하지 못했습니다.'};}
+    });
+    saveDb();
+    return ok(res,{added:results.filter(row=>row.added).length,updated:results.filter(row=>row.id&&!row.added).length,failed:results.filter(row=>row.error).length,results});
+  }
+  saveDb();
+  return fail(res,404,'지원하지 않는 봇 요청입니다.','NOT_FOUND');
+}
+
 async function api(req,res,url) {
   const method=req.method, route=url.pathname;
   if(method==='GET'&&route==='/api/v1/health') return ok(res,{status:'ok',release:RELEASE,googleConfigured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET),aiProvider:AI_PROVIDER,aiConfigured:AI_PROVIDER==='gemini'?Boolean(GEMINI_API_KEY):Boolean(OPENAI_API_KEY)});
   if(method==='GET'&&route==='/api/v1/auth/google') return googleStart(req,res,url);
   if(method==='GET'&&route==='/api/v1/auth/google/callback') return googleCallback(req,res,url);
   if(method==='GET'&&route==='/api/v1/auth/session'){const user=requireUser(req,res);if(user)return ok(res,publicUser(user));return;}
+  if(route.startsWith('/api/v1/bot/'))return botApi(req,res,url);
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
   w.archivedApplications=Array.isArray(w.archivedApplications)?w.archivedApplications:[];
@@ -426,9 +465,7 @@ async function api(req,res,url) {
   const discoveryState=discovery.ensureDiscovery(w);
   const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap'){if(completePastProcessSteps(w))saveDb();return ok(res,{...w,discovery:{...discoveryState,items:discoveryState.items.map(item=>discovery.postingView(w,item))}});}
-  if(method==='GET'&&route==='/api/v1/discovery/status')return ok(res,{...discoveryState,items:discoveryState.items.map(item=>discovery.postingView(w,item)),sources:jobDiscovery.sourceCatalog(),mcp:mcp.status(user)});
-  const mcpConsent=route.match(/^\/api\/v1\/mcp\/authorization\/([A-Za-z0-9_-]+)$/);
-  if(mcpConsent&&method==='GET'){try{return ok(res,mcp.consentInfo(user,mcpConsent[1]));}catch(error){return error.message==='ACCOUNT_NOT_ALLOWED'?fail(res,403,'이 계정에는 ChatGPT 연결이 허용되지 않습니다.','ACCOUNT_NOT_ALLOWED'):fail(res,400,'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.','AUTHORIZATION_EXPIRED');}}
+  if(method==='GET'&&route==='/api/v1/discovery/status')return ok(res,{items:discoveryState.items.map(item=>discovery.postingView(w,item)),bot:botTokenStatus(user)});
   if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||'',configured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET)});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
   if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return calendarSyncFailure(res,user,error);}}
@@ -441,34 +478,26 @@ async function api(req,res,url) {
     res.writeHead(200,{'Content-Type':item.type||'application/octet-stream','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(item.name)}`,'Content-Length':fs.statSync(filePath).size});return fs.createReadStream(filePath).pipe(res);
   }
   const payload=await body(req);
-  if(route.startsWith('/api/v1/discovery/')||route.startsWith('/api/v1/mcp/authorization/')||route==='/api/v1/mcp/disconnect'){
+  if(route.startsWith('/api/v1/discovery/')||route==='/api/v1/bot-token'){
     if(req.headers.origin&&req.headers.origin!==origin(req))return fail(res,403,'유효하지 않은 요청 출처입니다.','INVALID_ORIGIN');
     try{
-      if(mcpConsent&&method==='POST')return ok(res,mcp.consent(user,mcpConsent[1],payload));
-      if(method==='POST'&&route==='/api/v1/mcp/disconnect'){mcp.revoke(user.id);return ok(res,mcp.status(user));}
-      if(method==='PUT'&&route==='/api/v1/discovery/preferences'){
-        discoveryState.preferences=discovery.normalizePreferences(payload,w.profile);
-        discoveryState.nextRunAt=discoveryState.preferences.enabled?new Date(Date.now()+discoveryState.preferences.intervalHours*3600000).toISOString():'';
-        saveDb();return ok(res,discoveryState.preferences);
-      }
-      if(method==='POST'&&route==='/api/v1/discovery/collect')return ok(res,await jobDiscovery.collect(user));
+      if(method==='GET'&&route==='/api/v1/bot-token')return ok(res,botTokenStatus(user));
+      if(method==='POST'&&route==='/api/v1/bot-token'){const token=`folio_${crypto.randomBytes(32).toString('base64url')}`;user.botToken={hash:tokenHash(token),prefix:token.slice(0,10),createdAt:new Date().toISOString(),lastUsedAt:''};saveDb();return ok(res,{...botTokenStatus(user),token},201);}
+      if(method==='DELETE'&&route==='/api/v1/bot-token'){delete user.botToken;saveDb();return ok(res,botTokenStatus(user));}
       if(method==='POST'&&route==='/api/v1/discovery/postings'){
-        const result=discovery.mergePosting(discoveryState.items,discovery.manualPosting(payload));
-        if(result.added)mcp.enqueue(user,[result.item.id]);saveDb();return ok(res,discovery.postingView(w,result.item),result.added?201:200);
+        const result=discovery.mergePosting(discoveryState.items,discovery.newPosting(payload,'manual'));
+        saveDb();return ok(res,discovery.postingView(w,result.item),result.added?201:200);
       }
-      const postingMatch=route.match(/^\/api\/v1\/discovery\/postings\/([^/]+)(?:\/(analysis-input|analysis|save|decision))?$/);
+      const postingMatch=route.match(/^\/api\/v1\/discovery\/postings\/([^/]+)(?:\/(save|decision))?$/);
       if(postingMatch){
         const item=discoveryState.items.find(x=>x.id===postingMatch[1]);if(!item)return fail(res,404,'추천 공고를 찾을 수 없습니다.','NOT_FOUND');
-        if(method==='GET'&&postingMatch[2]==='analysis-input')return ok(res,discovery.analysisPacket(w,item));
-        if(method==='PUT'&&postingMatch[2]==='analysis'){item.analysis=discovery.validateAnalysis(w,item,payload);saveDb();return ok(res,item.analysis);}
         if(method==='POST'&&postingMatch[2]==='save'){const job=discovery.savePosting(w,item);saveDb();return ok(res,job);}
         if(method==='POST'&&postingMatch[2]==='decision'){const job=discovery.decidePosting(w,item,payload);saveDb();return ok(res,{posting:discovery.postingView(w,item),job});}
         if(method==='PATCH'&&!postingMatch[2]){if(typeof payload.hidden!=='boolean')throw new Error('INVALID_POSTING');item.hidden=payload.hidden;if(!item.hidden&&item.decision?.kind==='rejected')delete item.decision;saveDb();return ok(res,discovery.postingView(w,item));}
       }
     }catch(error){
-      const messages={DISCOVERY_RUNNING:'이미 공고를 수집하고 있습니다.',DISCOVERY_COOLDOWN:'반복 수집은 2분 뒤에 다시 시도해 주세요.',DISCOVERY_SOURCE_REQUIRED:'수집할 사이트를 선택해 주세요.',INVALID_POSTING:'공고 제목과 올바른 URL을 입력해 주세요.',INVALID_DECISION:'등록 또는 거절을 선택해 주세요.',STALE_ANALYSIS:'공고 또는 커리어가 변경되었습니다. 분석 입력을 다시 복사해 주세요.',INSUFFICIENT_ANALYSIS_DATA:'본문 또는 확인 완료된 커리어가 부족한 공고는 score를 null로 작성해 주세요.',INVALID_ANALYSIS_EVIDENCE:'공고 인용과 확인 완료된 커리어 항목 ID를 다시 확인해 주세요.',INVALID_ANALYSIS_SOURCE:'출처는 분석 입력에 있는 공고 URL을 사용해 주세요.',AUTHORIZATION_EXPIRED:'연결 요청이 만료되었습니다. ChatGPT에서 다시 연결해 주세요.'};
-      if(error.message==='ACCOUNT_NOT_ALLOWED')return fail(res,403,'이 계정에는 ChatGPT 연결이 허용되지 않습니다.',error.message);
-      return fail(res,['DISCOVERY_RUNNING','DISCOVERY_COOLDOWN','STALE_ANALYSIS'].includes(error.message)?409:400,messages[error.message]||'입력 형식을 확인해 주세요.',error.message);
+      const messages={INVALID_POSTING:'공고 제목, 올바른 URL, 마감일(YYYY-MM-DD), 평가 단계(1~5)를 확인해 주세요.',INVALID_DECISION:'등록 또는 거절을 선택해 주세요.'};
+      return fail(res,400,messages[error.message]||'입력 형식을 확인해 주세요.',error.message);
     }
   }
   if(method==='POST'&&route==='/api/v1/chat-import'){
@@ -528,9 +557,8 @@ async function api(req,res,url) {
     if(facts.length){w.careerSources.unshift(source);w.careerFacts.unshift(...facts);}
     saveDb();return ok(res,{workspace:w,imported:{profileFields,profileItems,facts:facts.length,skippedDuplicates}});
   }
-  if(method==='POST'&&route==='/api/v1/workspace/reset'){mcp.revoke(user.id);removeUserUploads(user.id);user.workspace=defaultWorkspace(user.name,user.email);saveDb();return ok(res,user.workspace);}
+  if(method==='POST'&&route==='/api/v1/workspace/reset'){delete user.botToken;removeUserUploads(user.id);user.workspace=defaultWorkspace(user.name,user.email);saveDb();return ok(res,user.workspace);}
   if(method==='DELETE'&&route==='/api/v1/account'){
-    mcp.revoke(user.id);
     removeUserUploads(user.id);
     for(const [id,session] of Object.entries(db.sessions))if(session.userId===user.id)delete db.sessions[id];
     delete db.users[user.id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();
@@ -649,18 +677,16 @@ const server=http.createServer(async(req,res)=>{
   if(IS_PROD)res.setHeader('Strict-Transport-Security','max-age=31536000; includeSubDomains');
   if(req.url.startsWith('/api/v1/'))res.setHeader('Cache-Control','no-store');
   const url=new URL(req.url,origin(req));
-  try { if(await mcp.handle(req,res,url))return; if(url.pathname.startsWith('/api/v1/'))await api(req,res,url); else staticFile(req,res,url); }
+  try { if(url.pathname.startsWith('/api/v1/'))await api(req,res,url); else staticFile(req,res,url); }
   catch(error){console.error(error);if(!res.headersSent)fail(res,error.message==='PAYLOAD_TOO_LARGE'?413:400,error.message==='INVALID_JSON'?'JSON 형식이 올바르지 않습니다.':error.message==='PAYLOAD_TOO_LARGE'?'요청 용량이 너무 큽니다. 파일은 100MB 이하여야 합니다.':'요청 처리 중 오류가 발생했습니다.','SERVER_ERROR');}
 });
 pruneExpiredSessions();
 const sessionCleanup=setInterval(pruneExpiredSessions,60*60_000);sessionCleanup.unref();
-const discoveryTimer=setInterval(()=>{void jobDiscovery.tick().catch(error=>console.error('Job discovery failed',error.message));},60_000);discoveryTimer.unref();
-const mcpTimer=setInterval(()=>{mcp.prune();void mcp.flush().catch(error=>console.error('MCP delivery failed',error.message));},30_000);mcpTimer.unref();
 server.listen(PORT,()=>{
   console.log(`Folio is running at http://localhost:${PORT}`);
   if(IS_PROD&&!APP_ORIGIN)console.warn('APP_ORIGIN is recommended in production.');
   if(IS_PROD&&(!GOOGLE_CLIENT_ID||!GOOGLE_CLIENT_SECRET))console.warn('Google OAuth is not configured.');
 });
-function shutdown(signal){console.log(`${signal} received, shutting down.`);clearInterval(sessionCleanup);clearInterval(discoveryTimer);clearInterval(mcpTimer);server.close(()=>{saveDb();process.exit(0)});setTimeout(()=>process.exit(1),10_000).unref();}
+function shutdown(signal){console.log(`${signal} received, shutting down.`);clearInterval(sessionCleanup);server.close(()=>{saveDb();process.exit(0)});setTimeout(()=>process.exit(1),10_000).unref();}
 process.on('SIGTERM',()=>shutdown('SIGTERM'));
 process.on('SIGINT',()=>shutdown('SIGINT'));

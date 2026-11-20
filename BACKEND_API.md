@@ -4,7 +4,7 @@
 
 ## 공통 규칙
 
-추천 공고 API는 세션 쿠키를 사용한다. `/api/v1/mcp`만 OAuth Bearer 인증과 JSON-RPC 응답을 사용하며 아래 공통 JSON wrapper를 적용하지 않는다. [운영 연결 안내](./JOB_DISCOVERY_SETUP.md)를 참고한다.
+추천 공고 API는 세션 쿠키를 사용한다. `/api/v1/bot/*`만 사용자가 만든 봇 연결 열쇠(`Authorization: Bearer folio_…`)를 사용한다. [봇 연결 안내](./JOB_DISCOVERY_SETUP.md)를 참고한다.
 
 - API prefix: `/api/v1`
 - 인증: HttpOnly, Secure, SameSite=Lax 세션 쿠키 권장
@@ -57,18 +57,17 @@ GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 
 추천 공고 계약:
 
-- `GET /api/v1/discovery/status`: 공고·설정·수집원 상태와 비밀값 없는 ChatGPT 연결 상태.
-- `PUT /api/v1/discovery/preferences`: 키워드/지역/경력/수집원/주기/활성화 설정.
-- `POST /api/v1/discovery/collect`: 수동 수집. 사이트별 성공/실패를 함께 반환한다.
-- `POST /api/v1/discovery/postings`: URL·제목·본문 직접 추가.
-- `PATCH /api/v1/discovery/postings/:id`: `{hidden:boolean}`.
-- `POST /api/v1/discovery/postings/:id/save`: 중복 없이 공고보관함에 저장. 지원/일정을 생성하지 않는다.
-- `GET /api/v1/discovery/postings/:id/analysis-input`: 확인 완료된 커리어와 입력 버전/결과 템플릿.
-- `PUT /api/v1/discovery/postings/:id/analysis`: `folio-job-analysis` JSON 검증 후 저장. 변경된 입력 버전은 `409 STALE_ANALYSIS`.
-- `GET/POST /api/v1/mcp/authorization/:id`: 로그인 계정의 OAuth 연결 검토/허용/취소.
-- `POST /api/v1/mcp/disconnect`: 현재 계정의 OAuth 토큰·이벤트 구독 폐기.
+- `GET /api/v1/discovery/status`: 추천 공고 목록과 봇 연결 열쇠 상태(열쇠 값은 포함하지 않음).
+- `POST /api/v1/discovery/postings`: 공고 직접 추가. `recommendation`에 추천 사유(`reason`), 0~100 점수(`score`), 5단계 평가(`careerGrade` S~D, `careerLevel`·`compensationLevel`·`passLevel`·`workLevel` 1~5)를 함께 넣을 수 있다.
+- `PATCH /api/v1/discovery/postings/:id`: `{hidden:boolean}`. 거절 취소 시 거절 이유도 지운다.
+- `POST /api/v1/discovery/postings/:id/decision`: `{decision:'registered'|'rejected', reasons:string[], note:string}`. 등록은 공고보관함에 저장하며 추천 사유·평가를 공고에 함께 옮긴다. 지원 기록은 만들지 않는다.
+- `POST /api/v1/discovery/postings/:id/save`: 중복 없이 공고보관함에 저장.
+- `GET/POST/DELETE /api/v1/bot-token`: 봇 연결 열쇠 상태 조회·발급(값은 발급 응답에서 한 번만 보임)·폐기.
 
-MCP 도구는 `get_verified_career`, `list_discovered_jobs`, `get_analysis_input`, `save_job_analysis`이며 `jobs.discovered` 이벤트를 제공한다. OAuth 메타데이터·인증·콜백은 백엔드의 공개 HTTPS origin으로 제공한다.
+봇 전용(연결 열쇠 필요, 1분 60회 제한):
+
+- `GET /api/v1/bot/context`: 확인 완료·민감하지 않은 경력, 등록·거절 기록과 이유, 이미 받은 공고 목록.
+- `POST /api/v1/bot/postings`: `{by?:string, postings:[...]}` 1~50개. 같은 공고는 갱신하며 거절한 공고는 다시 살아나지 않는다. 항목별 성공·실패를 반환한다.
 
 ### `GET /api/v1/bootstrap`
 
