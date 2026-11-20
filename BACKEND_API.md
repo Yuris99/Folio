@@ -4,7 +4,7 @@
 
 ## 공통 규칙
 
-추천 공고 API는 세션 쿠키를 사용한다. `/api/v1/bot/*`만 사용자가 만든 봇 연결 열쇠(`Authorization: Bearer folio_…`)를 사용한다. [봇 연결 안내](./JOB_DISCOVERY_SETUP.md)를 참고한다.
+추천 공고 API도 세션 쿠키를 사용한다. 봇은 사용자 계정으로 로그인한 화면에서 공고를 넣는다. [추천 공고 넣기 안내](./JOB_DISCOVERY_SETUP.md)를 참고한다.
 
 - API prefix: `/api/v1`
 - 인증: HttpOnly, Secure, SameSite=Lax 세션 쿠키 권장
@@ -57,17 +57,11 @@ GOOGLE_REDIRECT_URI=http://localhost:4173/api/v1/auth/google/callback
 
 추천 공고 계약:
 
-- `GET /api/v1/discovery/status`: 추천 공고 목록과 봇 연결 열쇠 상태(열쇠 값은 포함하지 않음).
-- `POST /api/v1/discovery/postings`: 공고 직접 추가. `recommendation`에 추천 사유(`reason`), 0~100 점수(`score`), 5단계 평가(`careerGrade` S~D, `careerLevel`·`compensationLevel`·`passLevel`·`workLevel` 1~5)를 함께 넣을 수 있다.
+- `GET /api/v1/discovery/status`: 추천 공고 목록.
+- `POST /api/v1/discovery/postings`: 공고 직접 추가. `recommendation`에 추천 사유(`reason`), 추천한 곳(`by`), 0~100 점수(`score`), 5단계 평가(예상 직무선호도 `expectedGrade` S~D, `careerLevel`·`compensationLevel`·`passLevel`·`workLevel` 1~5)를 함께 넣을 수 있다. 예전 이름 `careerGrade`도 예상 직무선호도로 읽는다. 사용자가 정하는 직무선호도는 지원 기록의 `careerGrade`에만 있다.
 - `PATCH /api/v1/discovery/postings/:id`: `{hidden:boolean}`. 거절 취소 시 거절 이유도 지운다.
 - `POST /api/v1/discovery/postings/:id/decision`: `{decision:'registered'|'rejected', reasons:string[], note:string}`. 등록은 공고보관함에 저장하며 추천 사유·평가를 공고에 함께 옮긴다. 지원 기록은 만들지 않는다.
 - `POST /api/v1/discovery/postings/:id/save`: 중복 없이 공고보관함에 저장.
-- `GET/POST/DELETE /api/v1/bot-token`: 봇 연결 열쇠 상태 조회·발급(값은 발급 응답에서 한 번만 보임)·폐기.
-
-봇 전용(연결 열쇠 필요, 1분 60회 제한):
-
-- `GET /api/v1/bot/context`: 확인 완료·민감하지 않은 경력, 등록·거절 기록과 이유, 이미 받은 공고 목록.
-- `POST /api/v1/bot/postings`: `{by?:string, postings:[...]}` 1~50개. 같은 공고는 갱신하며 거절한 공고는 다시 살아나지 않는다. 항목별 성공·실패를 반환한다.
 
 ### `GET /api/v1/bootstrap`
 

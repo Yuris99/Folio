@@ -12,12 +12,13 @@ function workspace() {
 const raw = (extra = {}) => d.newPosting({ company: '테스트 기업', title: 'Java 개발자', url: 'https://jobs.example.com/1', description: body, location: '서울', deadline: '2099-12-31', ...extra });
 
 test('a posting carries its recommendation reason and five priority levels', () => {
-  const item = raw({ recommendation: { reason: 'API 경험과 맞음', careerGrade: 'A', careerLevel: 5, compensationLevel: 3, passLevel: 4, workLevel: 2, score: 82 } });
-  assert.deepEqual(item.recommendation, { reason: 'API 경험과 맞음', careerGrade: 'A', careerLevel: 5, compensationLevel: 3, passLevel: 4, workLevel: 2, score: 82 });
+  const item = raw({ recommendation: { reason: 'API 경험과 맞음', expectedGrade: 'A', careerLevel: 5, compensationLevel: 3, passLevel: 4, workLevel: 2, score: 82 } });
+  assert.deepEqual(item.recommendation, { reason: 'API 경험과 맞음', expectedGrade: 'A', careerLevel: 5, compensationLevel: 3, passLevel: 4, workLevel: 2, score: 82 });
+  assert.equal(raw({ recommendation: { careerGrade: 'B' } }).recommendation.expectedGrade, 'B', 'the old field name is read as the expected grade');
   assert.equal(item.deadline, '2099-12-31');
-  assert.deepEqual(raw({ recommendation: { careerLevel: 0, careerGrade: '' } }).recommendation, { reason: '' }, 'empty levels stay unset');
+  assert.deepEqual(raw({ recommendation: { careerLevel: 0, expectedGrade: '' } }).recommendation, { reason: '' }, 'empty levels stay unset');
   assert.throws(() => raw({ recommendation: { careerLevel: 6 } }), /INVALID_POSTING/);
-  assert.throws(() => raw({ recommendation: { careerGrade: 'Z' } }), /INVALID_POSTING/);
+  assert.throws(() => raw({ recommendation: { expectedGrade: 'Z' } }), /INVALID_POSTING/);
   assert.throws(() => raw({ recommendation: { score: 120 } }), /INVALID_POSTING/);
   assert.throws(() => raw({ deadline: '다음 주' }), /INVALID_POSTING/);
   assert.throws(() => raw({ url: 'javascript:alert(1)' }), /INVALID_POSTING/);
@@ -48,22 +49,6 @@ test('registering saves the job once with its reason and levels; rejection hides
   assert.equal(job.discoveryPostingId, a.id); assert.equal(a.savedJobId, job.id);
   assert.deepEqual(job.recommendation, { reason: '맞음', careerLevel: 5, passLevel: 3 });
   assert.equal(d.savePosting(w, a).id, job.id); assert.equal(w.jobs.length, 1); assert.equal(w.applications.length, 0, 'registering never creates an application');
-});
-test('feedback and bot context expose choices and verified career only', () => {
-  const w = workspace(), state = d.ensureDiscovery(w);
-  const a = d.mergePosting(state.items, raw()).item;
-  const b = d.mergePosting(state.items, raw({ title: '영업 담당자', url: 'https://jobs.example.com/sales', recommendation: { reason: '봇 사유' } })).item;
-  d.decidePosting(w, b, { decision: 'rejected', reasons: ['근무 지역'] });
-  d.decidePosting(w, a, { decision: 'registered', reasons: ['직무가 잘 맞음'] });
-  const feedback = d.recommendationFeedback(w, a.id);
-  assert.equal(feedback.rejectedCount, 1); assert.equal(feedback.registeredCount, 0, 'the excluded posting is not counted');
-  assert.deepEqual(feedback.topRejectedReasons, [{ reason: '근무 지역', times: 1 }]);
-  assert.equal(feedback.recent[0].summary, '봇 사유');
-  const context = d.botContext(w);
-  assert.equal(context.format, 'folio-recommendation-context');
-  assert.deepEqual(context.career.facts.map(f => f.id), ['fact-1'], 'unverified and sensitive facts never leave');
-  assert.equal(context.feedback.registeredCount, 1);
-  assert.deepEqual(context.knownPostings.map(p => p.status).sort(), ['registered', 'rejected']);
 });
 test('rejected or archived applications suppress the recommendation', () => {
   const w = workspace(), item = d.mergePosting(d.ensureDiscovery(w).items, raw()).item;

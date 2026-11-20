@@ -4,7 +4,7 @@
 
 Folio는 여러 이력서를 검증된 커리어 데이터로 통합하고, 그 데이터를 ChatGPT 같은 LLM에서 재사용하면서 지원 현황과 일정을 함께 관리하는 개인용 워크스페이스입니다.
 
-추천 공고는 사용자의 봇이 넣고 Folio에서 등록·거절합니다. 봇 연결 방법은 [JOB_DISCOVERY_SETUP.md](./JOB_DISCOVERY_SETUP.md)를 참고하세요.
+추천 공고는 사용자나 사용자 계정으로 로그인한 봇이 화면에서 넣고, Folio에서 등록·거절합니다. 넣는 방법은 [JOB_DISCOVERY_SETUP.md](./JOB_DISCOVERY_SETUP.md)를 참고하세요.
 
 현재 저장소에는 React·TypeScript·Vite 반응형 프론트엔드와 Node.js API 서버가 함께 구현되어 있습니다. Google OAuth와 AI API 키를 등록하면 실제 외부 서비스와 연결됩니다.
 

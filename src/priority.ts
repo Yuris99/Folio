@@ -5,6 +5,7 @@ import type { Application, CareerGrade, Job, Profile } from './types';
 // 화면의 점수·등급·정렬은 모두 합계(지원 가치 + 마감 보너스)를 씁니다.
 // 마감 보너스는 최대 15점이라 등급을 한 칸 정도만 올립니다.
 // 원칙: 내 선호(직무선호도)는 내가 정하고, 객관적인 항목은 근거를 보고 매깁니다.
+// 추천한 쪽(봇·AI)의 예상 직무선호도는 따로 두고, 내가 정하기 전까지만 점수에 씁니다.
 // ---------------------------------------------------------------------------
 
 export type Level = 1 | 2 | 3 | 4 | 5;
@@ -114,7 +115,7 @@ function legacyLevel(...pairs: Array<[unknown, number]>): Level | undefined {
 export function priorityLevels(application: Application): Record<CriterionKey, Level | undefined> {
   return {
     career: asLevel(application.careerLevel) ?? legacyLevel([application.companyScore, 5]),
-    preference: application.careerGrade ? GRADE_LEVEL[application.careerGrade] : undefined,
+    preference: application.careerGrade ? GRADE_LEVEL[application.careerGrade] : application.expectedGrade ? GRADE_LEVEL[application.expectedGrade] : undefined,
     compensation: asLevel(application.compensationLevel) ?? legacyLevel([application.compensationScore, 15]),
     pass: asLevel(application.passLevel) ?? legacyLevel([application.applicationFitScore, 25], [application.processScore, 10]),
     work: asLevel(application.workLevel) ?? legacyLevel([application.locationScore, 10])
@@ -145,7 +146,9 @@ export function getPriorityBreakdown(application: Application, job: Job) {
   const deadlineEligible = ['관심', '지원 준비', '작성 중', '서류 준비'].includes(application.status);
   const deadline = job.alwaysOpen || !deadlineEligible ? 0 : calculateDeadlineScore(job.deadline);
   // value: 지원 가치(100점). final·sortScore: 마감 보너스를 더한 점수로 등급과 정렬에 씁니다.
-  return { levels, points, missing, value, deadline, final: value + deadline, sortScore: value + deadline };
+  // preferenceExpected: 직무선호도를 아직 정하지 않아 예상 직무선호도로 계산했는지.
+  const preferenceExpected = !application.careerGrade && Boolean(application.expectedGrade);
+  return { levels, points, missing, value, deadline, final: value + deadline, sortScore: value + deadline, preferenceExpected };
 }
 
 export function getPriorityLabel(score: number): '최우선' | '적극 지원' | '지원 검토' | '후순위' | '낮음' {
@@ -203,7 +206,7 @@ export function buildPriorityPrompt(job: PromptJob, profile?: Partial<Profile>):
 아래 공고를 내 기준으로 평가해줘. 직무명만 보지 말고 실제 업무(JD)를 기준으로, 확인된 사실만 근거로 써.
 
 ## 원칙
-- 직무선호도(S~D)는 내가 정한다. 너는 예상 등급을 참고 의견으로만 준다.
+- 직무선호도(S~D)는 내가 정한다. 너는 예상 직무선호도를 참고 의견으로만 준다.
 - 나머지 항목은 공고와 공식 자료 등 근거를 보고 1~5단계로 매긴다.
 - 근거가 부족하면 숫자를 지어내지 말고 null로 두고 무엇을 확인해야 하는지 적는다.
 - 연봉은 전체 직원 평균이 아니라 신입 기준. 근무지가 확실하지 않으면 출퇴근 시간을 추정하지 않는다.

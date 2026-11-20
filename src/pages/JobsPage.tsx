@@ -7,6 +7,7 @@ import { JobWorkspace } from '../components/JobWorkspace';
 import type { Mutation } from '../hooks/useFolio';
 import type { Application, Job, View, Workspace } from '../types';
 import { dateLabel, daysUntil, normalizedApplicationStatus } from '../utils';
+import { expectedGradeOf } from '../recommendations';
 
 type JobStatus = '미지원' | '관심' | '지원 준비' | '전형 진행' | '결과 대기' | '합격' | '불합격' | '포기' | '마감';
 type JobSort = 'recent' | 'deadline' | 'company' | 'status';
@@ -73,8 +74,10 @@ export function JobsPage({ workspace, navigate, mutate }: { workspace: Workspace
       navigate('applications');
       return;
     }
-    const { careerGrade, careerLevel, compensationLevel, passLevel, workLevel } = job.recommendation || {};
-    await mutate('지원 추가', () => api.createApplication({ careerGrade, careerLevel, compensationLevel, passLevel, workLevel, jobId: job.id, company: job.company, role: job.role, location: job.location || '', status: '관심', appliedAt: '', deadline: job.deadline, nextProcess: '서류 마감', nextDate: job.deadline, processSteps: [{ id: crypto.randomUUID(), name: '서류 마감', date: job.deadline, dateTbd: !job.deadline, status: '예정' }], next: '서류 마감', url: job.url, memo: '' }));
+    // 추천에서 넘어온 직무선호도는 예상값입니다. 내 직무선호도는 지원 건에서 직접 정합니다.
+    const { careerLevel, compensationLevel, passLevel, workLevel } = job.recommendation || {};
+    const expectedGrade = expectedGradeOf(job.recommendation);
+    await mutate('지원 추가', () => api.createApplication({ expectedGrade, careerLevel, compensationLevel, passLevel, workLevel, jobId: job.id, company: job.company, role: job.role, location: job.location || '', status: '관심', appliedAt: '', deadline: job.deadline, nextProcess: '서류 마감', nextDate: job.deadline, processSteps: [{ id: crypto.randomUUID(), name: '서류 마감', date: job.deadline, dateTbd: !job.deadline, status: '예정' }], next: '서류 마감', url: job.url, memo: '' }));
     navigate('applications');
   }
 

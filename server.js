@@ -405,58 +405,12 @@ function localDocument(workspace,job) {
 }
 
 
-// ---------- Bot connection: the user's own bot adds recommended postings and reads feedback ----------
-const BOT_LIMIT = { windowMs: 60_000, max: 60 };
-const botHits = new Map();
-const tokenHash = value => crypto.createHash('sha256').update(String(value)).digest('hex');
-function botTokenStatus(user) { const t=user.botToken; return t?{active:true,prefix:t.prefix,createdAt:t.createdAt,lastUsedAt:t.lastUsedAt||''}:{active:false,prefix:'',createdAt:'',lastUsedAt:''}; }
-function botUser(req) {
-  const value=/^Bearer (folio_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization||'')?.[1];
-  if(!value)return null;
-  const hash=tokenHash(value);
-  return Object.values(db.users).find(user=>user.botToken?.hash===hash)||null;
-}
-async function smallBody(req, limit = 1_000_000) {
-  const chunks=[]; let size=0;
-  for await (const chunk of req) { size+=chunk.length; if(size>limit) throw new Error('PAYLOAD_TOO_LARGE'); chunks.push(chunk); }
-  if (!chunks.length) return {};
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('INVALID_JSON'); }
-}
-async function botApi(req,res,url) {
-  const user=botUser(req);
-  if(!user)return fail(res,401,'봇 연결 열쇠가 올바르지 않습니다. Folio 추천 공고 화면에서 새 열쇠를 만들어 주세요.','INVALID_BOT_TOKEN');
-  const now=Date.now(), hits=(botHits.get(user.id)||[]).filter(time=>now-time<BOT_LIMIT.windowMs);
-  if(hits.length>=BOT_LIMIT.max)return fail(res,429,'요청이 너무 많습니다. 1분 뒤에 다시 시도해 주세요.','RATE_LIMITED');
-  hits.push(now);botHits.set(user.id,hits);
-  user.botToken.lastUsedAt=new Date().toISOString();
-  const w=user.workspace, state=discovery.ensureDiscovery(w), method=req.method, route=url.pathname;
-  if(method==='GET'&&route==='/api/v1/bot/context'){saveDb();return ok(res,discovery.botContext(w));}
-  if(method==='POST'&&route==='/api/v1/bot/postings'){
-    const payload=await smallBody(req);
-    const postings=Array.isArray(payload?.postings)?payload.postings:null;
-    if(!postings||!postings.length||postings.length>50)return fail(res,400,'postings 배열에 공고를 1~50개 넣어 주세요.','INVALID_POSTINGS');
-    const results=postings.map((posting,index)=>{
-      try{
-        const by=String(payload.by||posting?.recommendation?.by||'').trim().slice(0,60);
-        const raw=discovery.newPosting({...posting,recommendation:{...(posting?.recommendation||{}),...(by?{by}:{})}},'bot');
-        const {item,added}=discovery.mergePosting(state.items,raw);
-        return {index,id:item.id,added,status:item.decision?.kind||(item.hidden?'rejected':'pending')};
-      }catch(error){return {index,error:error.message==='INVALID_POSTING'?'제목·URL·마감일(YYYY-MM-DD)·평가 단계(1~5)·점수(0~100)를 확인해 주세요.':'처리하지 못했습니다.'};}
-    });
-    saveDb();
-    return ok(res,{added:results.filter(row=>row.added).length,updated:results.filter(row=>row.id&&!row.added).length,failed:results.filter(row=>row.error).length,results});
-  }
-  saveDb();
-  return fail(res,404,'지원하지 않는 봇 요청입니다.','NOT_FOUND');
-}
-
 async function api(req,res,url) {
   const method=req.method, route=url.pathname;
   if(method==='GET'&&route==='/api/v1/health') return ok(res,{status:'ok',release:RELEASE,googleConfigured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET),aiProvider:AI_PROVIDER,aiConfigured:AI_PROVIDER==='gemini'?Boolean(GEMINI_API_KEY):Boolean(OPENAI_API_KEY)});
   if(method==='GET'&&route==='/api/v1/auth/google') return googleStart(req,res,url);
   if(method==='GET'&&route==='/api/v1/auth/google/callback') return googleCallback(req,res,url);
   if(method==='GET'&&route==='/api/v1/auth/session'){const user=requireUser(req,res);if(user)return ok(res,publicUser(user));return;}
-  if(route.startsWith('/api/v1/bot/'))return botApi(req,res,url);
   if(method==='POST'&&route==='/api/v1/auth/logout'){const id=cookies(req).folio_session;if(id)delete db.sessions[id];saveDb();res.writeHead(204,{'Set-Cookie':sessionCookie('',0)});return res.end();}
   const user=requireUser(req,res); if(!user)return; const w=user.workspace;
   w.archivedApplications=Array.isArray(w.archivedApplications)?w.archivedApplications:[];
@@ -465,7 +419,7 @@ async function api(req,res,url) {
   const discoveryState=discovery.ensureDiscovery(w);
   const vaultChanged=ensureCareerVault(w),jobsChanged=dedupeJobs(w);if(vaultChanged||jobsChanged)saveDb();
   if(method==='GET'&&route==='/api/v1/bootstrap'){if(completePastProcessSteps(w))saveDb();return ok(res,{...w,discovery:{...discoveryState,items:discoveryState.items.map(item=>discovery.postingView(w,item))}});}
-  if(method==='GET'&&route==='/api/v1/discovery/status')return ok(res,{items:discoveryState.items.map(item=>discovery.postingView(w,item)),bot:botTokenStatus(user)});
+  if(method==='GET'&&route==='/api/v1/discovery/status')return ok(res,{items:discoveryState.items.map(item=>discovery.postingView(w,item))});
   if(method==='GET'&&route==='/api/v1/calendar/status')return ok(res,{connected:Boolean(user.googleCalendar?.refreshToken),lastSyncedAt:user.googleCalendar?.lastSyncedAt||'',configured:Boolean(GOOGLE_CLIENT_ID&&GOOGLE_CLIENT_SECRET)});
   if(method==='GET'&&route==='/api/v1/calendar/connect')return googleCalendarStart(req,res,url,user);
   if(method==='POST'&&route==='/api/v1/calendar/sync'){try{return ok(res,await syncGoogleCalendar(user));}catch(error){console.error(error);return calendarSyncFailure(res,user,error);}}
@@ -478,12 +432,9 @@ async function api(req,res,url) {
     res.writeHead(200,{'Content-Type':item.type||'application/octet-stream','Content-Disposition':`inline; filename*=UTF-8''${encodeURIComponent(item.name)}`,'Content-Length':fs.statSync(filePath).size});return fs.createReadStream(filePath).pipe(res);
   }
   const payload=await body(req);
-  if(route.startsWith('/api/v1/discovery/')||route==='/api/v1/bot-token'){
+  if(route.startsWith('/api/v1/discovery/')){
     if(req.headers.origin&&req.headers.origin!==origin(req))return fail(res,403,'유효하지 않은 요청 출처입니다.','INVALID_ORIGIN');
     try{
-      if(method==='GET'&&route==='/api/v1/bot-token')return ok(res,botTokenStatus(user));
-      if(method==='POST'&&route==='/api/v1/bot-token'){const token=`folio_${crypto.randomBytes(32).toString('base64url')}`;user.botToken={hash:tokenHash(token),prefix:token.slice(0,10),createdAt:new Date().toISOString(),lastUsedAt:''};saveDb();return ok(res,{...botTokenStatus(user),token},201);}
-      if(method==='DELETE'&&route==='/api/v1/bot-token'){delete user.botToken;saveDb();return ok(res,botTokenStatus(user));}
       if(method==='POST'&&route==='/api/v1/discovery/postings'){
         const result=discovery.mergePosting(discoveryState.items,discovery.newPosting(payload,'manual'));
         saveDb();return ok(res,discovery.postingView(w,result.item),result.added?201:200);
@@ -612,7 +563,7 @@ async function api(req,res,url) {
   if(method==='POST'&&route==='/api/v1/jobs'){const item={...payload,id:uid(),alwaysOpen:Boolean(payload.alwaysOpen),deadline:payload.alwaysOpen?'':String(payload.deadline||''),createdAt:now()};w.jobs.unshift(item);saveDb();return ok(res,item,201);}
   const jobMatch=route.match(/^\/api\/v1\/jobs\/([^/]+)$/);
   if(jobMatch&&method==='PATCH'){const item=w.jobs.find(x=>x.id===jobMatch[1]);if(!item)return fail(res,404,'공고를 찾을 수 없습니다.','NOT_FOUND');for(const key of ['company','role','location','deadline','alwaysOpen','url','notionUrl','description','skills','companyAnalysis','pageContent','pageHtml','coverImage','pages','attachmentIds'])if(payload[key]!==undefined)item[key]=payload[key];if(item.alwaysOpen)item.deadline='';item.updatedAt=now();saveDb();return ok(res,item);}
-  if(method==='POST'&&route==='/api/v1/applications'){const same=(a,b)=>String(a||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()===String(b||'').trim().replace(/\s+/g,' ').toLocaleLowerCase(),score=(value,min,max)=>Math.min(max,Math.max(min,Number(value)||0));let job=w.jobs.find(j=>j.id===payload.jobId)||w.jobs.find(j=>same(j.company,payload.company)&&same(j.role,payload.role));if(!job){job={id:uid(),company:String(payload.company||'').trim(),role:String(payload.role||'').trim(),location:payload.location||'',deadline:payload.alwaysOpen?'':payload.deadline||'',alwaysOpen:Boolean(payload.alwaysOpen),url:payload.url||'',notionUrl:payload.notionUrl||'',description:'',skills:[]};w.jobs.unshift(job)}else for(const key of ['location','deadline','alwaysOpen','url','notionUrl'])if(payload[key]!==undefined)job[key]=payload[key];if(job.alwaysOpen)job.deadline='';const item={id:uid(),jobId:job.id,status:payload.status||'관심',considering:Boolean(payload.considering),careerGrade:['S','A','B','C','D'].includes(payload.careerGrade)?payload.careerGrade:undefined,careerLevel:Math.round(score(payload.careerLevel,0,5)),compensationLevel:Math.round(score(payload.compensationLevel,0,5)),passLevel:Math.round(score(payload.passLevel,0,5)),workLevel:Math.round(score(payload.workLevel,0,5)),applicationFitScore:score(payload.applicationFitScore,0,25),compensationScore:score(payload.compensationScore,0,15),companyScore:score(payload.companyScore,0,5),locationScore:score(payload.locationScore,0,10),processScore:score(payload.processScore,0,10),priorityAdjustment:score(payload.priorityAdjustment,-10,10),appliedAt:payload.appliedAt||'',nextProcess:payload.nextProcess||payload.next||'',nextDate:payload.nextDate||'',processSteps:Array.isArray(payload.processSteps)?payload.processSteps:[],next:payload.nextProcess||payload.next||'',memo:payload.memo||'',rejectionReason:String(payload.rejectionReason||''),createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
+  if(method==='POST'&&route==='/api/v1/applications'){const same=(a,b)=>String(a||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()===String(b||'').trim().replace(/\s+/g,' ').toLocaleLowerCase(),score=(value,min,max)=>Math.min(max,Math.max(min,Number(value)||0));let job=w.jobs.find(j=>j.id===payload.jobId)||w.jobs.find(j=>same(j.company,payload.company)&&same(j.role,payload.role));if(!job){job={id:uid(),company:String(payload.company||'').trim(),role:String(payload.role||'').trim(),location:payload.location||'',deadline:payload.alwaysOpen?'':payload.deadline||'',alwaysOpen:Boolean(payload.alwaysOpen),url:payload.url||'',notionUrl:payload.notionUrl||'',description:'',skills:[]};w.jobs.unshift(job)}else for(const key of ['location','deadline','alwaysOpen','url','notionUrl'])if(payload[key]!==undefined)job[key]=payload[key];if(job.alwaysOpen)job.deadline='';const item={id:uid(),jobId:job.id,status:payload.status||'관심',considering:Boolean(payload.considering),careerGrade:['S','A','B','C','D'].includes(payload.careerGrade)?payload.careerGrade:undefined,expectedGrade:['S','A','B','C','D'].includes(payload.expectedGrade)?payload.expectedGrade:undefined,careerLevel:Math.round(score(payload.careerLevel,0,5)),compensationLevel:Math.round(score(payload.compensationLevel,0,5)),passLevel:Math.round(score(payload.passLevel,0,5)),workLevel:Math.round(score(payload.workLevel,0,5)),applicationFitScore:score(payload.applicationFitScore,0,25),compensationScore:score(payload.compensationScore,0,15),companyScore:score(payload.companyScore,0,5),locationScore:score(payload.locationScore,0,10),processScore:score(payload.processScore,0,10),priorityAdjustment:score(payload.priorityAdjustment,-10,10),appliedAt:payload.appliedAt||'',nextProcess:payload.nextProcess||payload.next||'',nextDate:payload.nextDate||'',processSteps:Array.isArray(payload.processSteps)?payload.processSteps:[],next:payload.nextProcess||payload.next||'',memo:payload.memo||'',rejectionReason:String(payload.rejectionReason||''),createdAt:now()};w.applications.unshift(item);saveDb();return ok(res,item,201);}
   if(method==='POST'&&route==='/api/v1/tasks'){const item={...payload,id:uid(),createdAt:now()};w.tasks.unshift(item);saveDb();return ok(res,item,201);}
   let taskMatch=route.match(/^\/api\/v1\/tasks\/([^/]+)$/);
   if(taskMatch&&method==='PATCH'){const item=w.tasks.find(x=>x.id===taskMatch[1]);if(!item)return fail(res,404,'할 일을 찾을 수 없습니다.','NOT_FOUND');Object.assign(item,payload,{updatedAt:now()});saveDb();return ok(res,item);}
@@ -645,7 +596,7 @@ async function api(req,res,url) {
     w.archivedApplications.splice(index,1);delete item.archivedAt;item.updatedAt=now();w.applications.unshift(item);saveDb();return ok(res,item);
   }
   let match=route.match(/^\/api\/v1\/applications\/([^/]+)$/);
-  if(match&&method==='PATCH'){const item=w.applications.find(x=>x.id===match[1]);if(!item)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');for(const key of ['careerLevel','compensationLevel','passLevel','workLevel'])if(payload[key]!==undefined)payload[key]=Math.min(5,Math.max(0,Math.round(Number(payload[key])||0)));for(const [key,min,max] of [['applicationFitScore',0,25],['compensationScore',0,15],['companyScore',0,5],['locationScore',0,10],['processScore',0,10],['priorityAdjustment',-10,10]])if(payload[key]!==undefined)payload[key]=Math.min(max,Math.max(min,Number(payload[key])||0));if(payload.careerGrade!==undefined&&!['S','A','B','C','D'].includes(payload.careerGrade))payload.careerGrade=undefined;if(payload.documentResult!==undefined&&!['합격','불합격'].includes(payload.documentResult))payload.documentResult='';Object.assign(item,payload,{updatedAt:now()});const job=w.jobs.find(j=>j.id===item.jobId);if(job){for(const key of ['company','role','location','deadline','alwaysOpen','url','notionUrl'])if(payload[key]!==undefined)job[key]=payload[key];if(job.alwaysOpen)job.deadline='';}saveDb();return ok(res,item);}
+  if(match&&method==='PATCH'){const item=w.applications.find(x=>x.id===match[1]);if(!item)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');for(const key of ['careerLevel','compensationLevel','passLevel','workLevel'])if(payload[key]!==undefined)payload[key]=Math.min(5,Math.max(0,Math.round(Number(payload[key])||0)));for(const [key,min,max] of [['applicationFitScore',0,25],['compensationScore',0,15],['companyScore',0,5],['locationScore',0,10],['processScore',0,10],['priorityAdjustment',-10,10]])if(payload[key]!==undefined)payload[key]=Math.min(max,Math.max(min,Number(payload[key])||0));for(const key of ['careerGrade','expectedGrade'])if(payload[key]!==undefined&&!['S','A','B','C','D'].includes(payload[key]))payload[key]=undefined;if(payload.documentResult!==undefined&&!['합격','불합격'].includes(payload.documentResult))payload.documentResult='';Object.assign(item,payload,{updatedAt:now()});const job=w.jobs.find(j=>j.id===item.jobId);if(job){for(const key of ['company','role','location','deadline','alwaysOpen','url','notionUrl'])if(payload[key]!==undefined)job[key]=payload[key];if(job.alwaysOpen)job.deadline='';}saveDb();return ok(res,item);}
   if(match&&method==='DELETE'){const index=w.applications.findIndex(x=>x.id===match[1]);if(index<0)return fail(res,404,'지원 기록을 찾을 수 없습니다.','NOT_FOUND');const [item]=w.applications.splice(index,1);w.archivedApplications.unshift({...item,archivedAt:now()});saveDb();res.writeHead(204);return res.end();}
   if(method==='POST'&&route==='/api/v1/documents'){const item={...payload,id:uid(),createdAt:now(),updatedAt:now()};w.docs.unshift(item);saveDb();return ok(res,item,201);}
   match=route.match(/^\/api\/v1\/documents\/([^/]+)$/);

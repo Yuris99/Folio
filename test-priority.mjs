@@ -1,6 +1,6 @@
 import { calculateDeadlineScore, clampScore, getPriorityBreakdown, getPriorityLabel } from './src/priority.ts';
 import { scheduleWorkspace, matchesApplicationTab, applicationStatuses, applicationDeadlineForSort, applicationWaitingPeriod, compareApplicationWaiting, normalizedApplicationStatus, statusClass, daysUntil, processStageGroup } from './src/utils.ts';
-import { dashboardRecommendations, isClosedRecommendation, recommendationLevels, recommendationScoreLabel, matchesRecommendationTab } from './src/recommendations.ts';
+import { dashboardRecommendations, expectedGradeOf, isClosedRecommendation, recommendationLevels, recommendationScoreLabel, matchesRecommendationTab } from './src/recommendations.ts';
 
 function assert(condition, message) {
   if (!condition) throw new Error(`Priority test failed: ${message}`);
@@ -24,7 +24,8 @@ assert(!matchesRecommendationTab({...posting,hidden:true,suppressed:true},'거�
 assert(recommendations[0].id === 'new' && recommendations.length === 8, 'dashboard selection preserves source records');
 assert(recommendationScoreLabel({...posting,recommendation:{reason:'',score:72}}) === '적합도 72', 'a bot or hand-entered score is shown');
 assert(recommendationScoreLabel({...posting,analysis:{score:null,summary:''}}) === '', 'no score means no badge, never zero');
-assert(recommendationLevels({reason:'',careerLevel:5,careerGrade:'A',workLevel:2}).map(r=>r.label+r.level).join(',') === '커리어 가치5,직무선호도A,근무 조건2', 'filled levels are listed in the priority order');
+assert(recommendationLevels({reason:'',careerLevel:5,expectedGrade:'A',workLevel:2}).map(r=>r.label+r.level).join(',') === '커리어 가치5,예상 직무선호도A,근무 조건2', 'filled levels are listed in the priority order');
+assert(expectedGradeOf({reason:'',careerGrade:'B'}) === 'B' && expectedGradeOf({reason:'',expectedGrade:'S',careerGrade:'B'}) === 'S', 'older postings stored the expected grade as careerGrade');
 console.log('PASS dashboard recommendations');
 
 assert(applicationStatuses.includes('불합격'), 'rejected status is selectable');
@@ -84,6 +85,8 @@ assert(applicationWaitingPeriod({ ...recentWaiting, processSteps:[...recentWaiti
 assert(compareApplicationWaiting(oldWaiting, waitingJob, preparing, job, waitNow) < 0, 'unknown and non-waiting records follow known waits');
 assert(compareApplicationWaiting(preparing, job, preparing, job, waitNow) === 0, 'two unknown waits preserve their existing order');
 console.log('PASS application waiting duration and sorting');
+// Today's date in the machine's own timezone (toISOString alone gives the UTC date, a day behind in Korea before 9 a.m.).
+const localToday = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 // 지원 가치 = 커리어 30 + 직무선호 20 + 연봉 20 + 합격 20 + 근무 10, 단계 비율 5=100% 4=85% 3=65% 2=40% 1=15%
 const full = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'S', careerLevel:5, compensationLevel:5, passLevel:5, workLevel:5 }, job);
 assert(full.value === 100 && full.missing.length === 0, 'all top levels make 100');
@@ -91,9 +94,13 @@ const empty = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:''
 assert(empty.value === 65 && empty.missing.length === 5, 'unentered criteria count as middle, not zero');
 const mixed = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', careerLevel:4, compensationLevel:3, passLevel:4, workLevel:1 }, job);
 assert(mixed.value === 70, 'weighted level calculation (25.5 + 13 + 13 + 17 + 1.5)');
-const urgent = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'D', careerLevel:1, compensationLevel:1, passLevel:1, workLevel:1 }, { ...job, deadline: new Date().toISOString().slice(0, 10) });
+const guessed = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', expectedGrade:'S' }, job);
+assert(guessed.levels.preference === 5 && guessed.preferenceExpected && guessed.missing.length === 4, 'the expected grade counts until the user decides');
+const decided = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'D', expectedGrade:'S' }, job);
+assert(decided.levels.preference === 1 && !decided.preferenceExpected, 'the grade the user sets wins over the expected one');
+const urgent = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'D', careerLevel:1, compensationLevel:1, passLevel:1, workLevel:1 }, { ...job, deadline: localToday });
 assert(urgent.deadline === 15 && urgent.final === urgent.value + 15 && urgent.sortScore === urgent.final, 'deadline bonus is added to the displayed score and grade');
-assert(getPriorityLabel(getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'' }, { ...job, deadline: new Date().toISOString().slice(0, 10) }).final) === '적극 지원', 'urgent average job moves up one grade (65 + 15)');
+assert(getPriorityLabel(getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'' }, { ...job, deadline: localToday }).final) === '적극 지원', 'urgent average job moves up one grade (65 + 15)');
 assert(urgent.sortScore < full.sortScore, 'deadline cannot lift a low-value job above a high-value one');
 const legacy = getPriorityBreakdown({ id:'a', jobId:'j', status:'관심', next:'', careerGrade:'B', applicationFitScore:18, compensationScore:15, companyScore:5, locationScore:10, processScore:8 }, job);
 assert(legacy.levels.pass === 4 && legacy.levels.compensation === 5 && legacy.levels.career === 5 && legacy.levels.work === 5, 'legacy numeric scores migrate to levels');

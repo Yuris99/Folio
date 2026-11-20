@@ -30,11 +30,16 @@ export function recommendationReason(item: DiscoveredJob) {
   return item.recommendation?.reason || item.analysis?.summary || '';
 }
 
+// The recommender's guess at the preference grade (older postings stored it as careerGrade).
+export function expectedGradeOf(value?: PostingRecommendation) {
+  return value?.expectedGrade || value?.careerGrade;
+}
+
 // "커리어 가치 5 · 합격 가능성 4" style summary of whichever levels were filled in.
 export function recommendationLevels(value?: PostingRecommendation) {
   if (!value) return [] as Array<{ label: string; level: string }>;
   // Same labels and order as PRIORITY_CRITERIA in priority.ts (kept import-free so plain Node tests can load this file).
-  const rows: Array<[string, string | number | undefined]> = [['커리어 가치', value.careerLevel], ['직무선호도', value.careerGrade], ['연봉·보상', value.compensationLevel], ['합격 가능성', value.passLevel], ['근무 조건', value.workLevel]];
+  const rows: Array<[string, string | number | undefined]> = [['커리어 가치', value.careerLevel], ['예상 직무선호도', expectedGradeOf(value)], ['연봉·보상', value.compensationLevel], ['합격 가능성', value.passLevel], ['근무 조건', value.workLevel]];
   return rows.flatMap(([label, level]) => level ? [{ label, level: String(level) }] : []);
 }
 

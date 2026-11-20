@@ -211,6 +211,8 @@ export interface Application {
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
+  // 추천한 쪽(봇·AI)이 본 예상 직무선호도. careerGrade를 정하기 전까지 점수 계산에 씁니다.
+  expectedGrade?: CareerGrade;
   // 우선순위 5단계 입력 (1~5, 비우면 보통으로 계산)
   careerLevel?: number;
   compensationLevel?: number;
@@ -327,6 +329,8 @@ export interface Workspace {
 // Why a posting was recommended, plus the same five priority levels applications use.
 export interface PostingRecommendation {
   reason: string;
+  // 추천한 쪽이 본 예상 직무선호도. careerGrade는 예전 이름입니다.
+  expectedGrade?: CareerGrade;
   careerGrade?: CareerGrade;
   careerLevel?: number;
   compensationLevel?: number;
@@ -369,15 +373,7 @@ export interface RecommendationDecision {
 export interface DiscoveryState {
   items: DiscoveredJob[];
 }
-export interface BotTokenStatus {
-  active: boolean;
-  prefix: string;
-  createdAt: string;
-  lastUsedAt: string;
-}
-export interface DiscoveryStatus extends DiscoveryState {
-  bot: BotTokenStatus;
-}
+export type DiscoveryStatus = DiscoveryState;
 
 export interface VaultNote {
   id: string;
@@ -403,6 +399,8 @@ export interface ApplicationPayload {
   pinned?: boolean;
   priority?: '높음' | '보통' | '낮음';
   careerGrade?: CareerGrade;
+  // 추천한 쪽(봇·AI)이 본 예상 직무선호도. careerGrade를 정하기 전까지 점수 계산에 씁니다.
+  expectedGrade?: CareerGrade;
   // 우선순위 5단계 입력 (1~5, 비우면 보통으로 계산)
   careerLevel?: number;
   compensationLevel?: number;

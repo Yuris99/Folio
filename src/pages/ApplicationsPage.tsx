@@ -48,7 +48,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [expandedStepId, setExpandedStepId] = useState('');
   const [documentResult, setDocumentResult] = useState<DocumentResult>('');
-  const [priorityInput, setPriorityInput] = useState<PriorityInput>({ careerGrade: '', careerLevel: 0, compensationLevel: 0, passLevel: 0, workLevel: 0 });
+  const [priorityInput, setPriorityInput] = useState<PriorityInput>({ careerGrade: '', expectedGrade: '', careerLevel: 0, compensationLevel: 0, passLevel: 0, workLevel: 0 });
   const editing = editingId ? workspace.applications.find((item) => item.id === editingId) : undefined;
   // 서합율: 서류 결과를 기록한 원서 중 합격 비율. 공고보관함으로 옮긴 지원은 뺍니다.
   const docStats = useMemo(() => applicationStats(statsApplications(workspace)), [workspace]);
@@ -107,7 +107,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
     setDocumentResult(application?.documentResult || '');
     // 예전 숫자 점수는 5단계로 옮겨 보여 주고, 저장하면 새 값으로 기록됩니다.
     const levels = application ? priorityLevels(application) : undefined;
-    setPriorityInput({ careerGrade: application?.careerGrade || '', careerLevel: levels?.career || 0, compensationLevel: levels?.compensation || 0, passLevel: levels?.pass || 0, workLevel: levels?.work || 0 });
+    setPriorityInput({ careerGrade: application?.careerGrade || '', expectedGrade: application?.expectedGrade || '', careerLevel: levels?.career || 0, compensationLevel: levels?.compensation || 0, passLevel: levels?.pass || 0, workLevel: levels?.work || 0 });
     setModalOpen(true);
   }
 
@@ -155,6 +155,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
       company: String(data.get('company')), role: String(data.get('role')), location: String(data.get('location')), status: String(data.get('status')),
       considering: data.get('considering') === 'on',
       careerGrade: priorityInput.careerGrade || undefined,
+      expectedGrade: priorityInput.expectedGrade || undefined,
       careerLevel: priorityInput.careerLevel, compensationLevel: priorityInput.compensationLevel, passLevel: priorityInput.passLevel, workLevel: priorityInput.workLevel,
       // 예전 숫자 점수는 비워서 새 5단계 값만 쓰게 합니다.
       applicationFitScore: 0, compensationScore: 0, companyScore: 0, locationScore: 0, processScore: 0,
@@ -316,7 +317,7 @@ export function ApplicationsPage({ workspace, navigate, mutate }: { workspace: W
             <span className="priority-tooltip-wrap"><button type="button" className={`priority-score priority-${priorityClass(breakdown.final)}`} aria-describedby={`priority-${application.id}`}><b>{breakdown.final}</b><span>{priorityLabel}</span></button><span className="priority-tooltip" id={`priority-${application.id}`} role="tooltip"><strong>{breakdown.final}점 · {priorityLabel}{breakdown.deadline ? ` (지원 가치 ${breakdown.value} + 마감 ${breakdown.deadline})` : ''}</strong>{scoreTitle}</span></span>
             <div className="app-card-chips">
               <span className={`status status-${statusClass(application.status)}`}>{normalizedStatus}{stageGroup && !['기타', '단계 미등록'].includes(stageGroup) && <em> · {stageGroup}</em>}</span>
-              <span className={`career-grade grade-${application.careerGrade || 'none'}`} title="직무선호도">{application.careerGrade || '–'}</span>
+              {!application.careerGrade && application.expectedGrade ? <span className="career-grade grade-none expected" title={`예상 직무선호도 ${application.expectedGrade} · 아직 직접 정하지 않음`}>{application.expectedGrade}?</span> : <span className={`career-grade grade-${application.careerGrade || 'none'}`} title="직무선호도">{application.careerGrade || '–'}</span>}
             </div>
           </div>
           {isRejected(application.status) ? <div className="app-card-reason"><small>불합격 사유</small><p>{application.rejectionReason || '아직 남긴 사유가 없습니다.'}</p><button className="text-button" onClick={() => openRejection(application.id)}>사유 수정</button></div> : <>

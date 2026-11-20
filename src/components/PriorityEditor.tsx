@@ -4,37 +4,44 @@ import type { CareerGrade, Job, Profile } from '../types';
 
 export interface PriorityInput {
   careerGrade: CareerGrade | '';
+  // 추천한 쪽(봇·AI)이 본 예상 직무선호도. 직무선호도를 정하기 전까지 점수에 씁니다.
+  expectedGrade: CareerGrade | '';
   careerLevel: number;
   compensationLevel: number;
   passLevel: number;
   workLevel: number;
 }
 
-const levelField: Record<Exclude<CriterionKey, 'preference'>, keyof Omit<PriorityInput, 'careerGrade'>> = { career: 'careerLevel', compensation: 'compensationLevel', pass: 'passLevel', work: 'workLevel' };
+const levelField: Record<Exclude<CriterionKey, 'preference'>, keyof Omit<PriorityInput, 'careerGrade' | 'expectedGrade'>> = { career: 'careerLevel', compensation: 'compensationLevel', pass: 'passLevel', work: 'workLevel' };
 const gradeOfLevel: Record<Level, CareerGrade> = { 5: 'S', 4: 'A', 3: 'B', 2: 'C', 1: 'D' };
 const LEVELS: Level[] = [5, 4, 3, 2, 1];
+
+function GradeGroup({ label, value, onPick, expected = false }: { label: string; value: CareerGrade | ''; onPick: (grade: CareerGrade | '') => void; expected?: boolean }) {
+  return <div className={`prio-levels ${expected ? 'expected' : ''}`} role="radiogroup" aria-label={label}>
+    {CAREER_GRADES.map((grade) => <button type="button" role="radio" aria-checked={value === grade} className={value === grade ? 'active' : ''} key={grade} title={`${label} ${grade}`} onClick={() => onPick(value === grade ? '' : grade)}>{grade}</button>)}
+  </div>;
+}
 
 function Tip({ children }: { children: ReactNode }) {
   return <span className="prio-info" tabIndex={0} aria-label="기준 보기">ⓘ<span className="prio-tip" role="tooltip">{children}</span></span>;
 }
 
-export function PriorityEditor({ value, onChange, job, status, profile, description }: { value: PriorityInput; onChange: Dispatch<SetStateAction<PriorityInput>>; job: Pick<Job, 'deadline' | 'alwaysOpen'>; status: string; profile?: Profile; description?: string }) {
+// expectedOnly: 추천 공고 추가처럼 추천한 쪽이 채우는 곳. 직무선호도는 예상값만 받고, 내 직무선호도는 지원 건에서 정합니다.
+export function PriorityEditor({ value, onChange, job, status, profile, description, expectedOnly = false }: { value: PriorityInput; onChange: Dispatch<SetStateAction<PriorityInput>>; job: Pick<Job, 'deadline' | 'alwaysOpen'>; status: string; profile?: Profile; description?: string; expectedOnly?: boolean }) {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [message, setMessage] = useState('');
   const [suggestion, setSuggestion] = useState<ParsedPriority | null>(null);
-  const breakdown = getPriorityBreakdown({ id: '', jobId: '', next: '', status, careerGrade: value.careerGrade || undefined, careerLevel: value.careerLevel, compensationLevel: value.compensationLevel, passLevel: value.passLevel, workLevel: value.workLevel }, { id: '', company: '', role: '', url: '', description: '', skills: [], deadline: job.deadline, alwaysOpen: job.alwaysOpen });
+  const breakdown = getPriorityBreakdown({ id: '', jobId: '', next: '', status, careerGrade: expectedOnly ? undefined : value.careerGrade || undefined, expectedGrade: value.expectedGrade || undefined, careerLevel: value.careerLevel, compensationLevel: value.compensationLevel, passLevel: value.passLevel, workLevel: value.workLevel }, { id: '', company: '', role: '', url: '', description: '', skills: [], deadline: job.deadline, alwaysOpen: job.alwaysOpen });
 
-  function levelOf(key: CriterionKey): Level | undefined {
-    if (key === 'preference') return value.careerGrade ? LEVELS[CAREER_GRADES.indexOf(value.careerGrade)] : undefined;
+  function levelOf(key: Exclude<CriterionKey, 'preference'>): Level | undefined {
     const level = value[levelField[key]];
     return level >= 1 && level <= 5 ? level as Level : undefined;
   }
 
-  function setLevel(key: CriterionKey, level: Level | undefined) {
+  function setLevel(key: Exclude<CriterionKey, 'preference'>, level: Level | undefined) {
     // 빠르게 여러 번 눌러도 앞의 선택이 사라지지 않도록 항상 최신 값에서 바꿉니다.
-    if (key === 'preference') onChange((current) => ({ ...current, careerGrade: level ? gradeOfLevel[level] : '' }));
-    else onChange((current) => ({ ...current, [levelField[key]]: level || 0 }));
+    onChange((current) => ({ ...current, [levelField[key]]: level || 0 }));
   }
 
   // 복사 시점의 폼 값(회사·직무·근무지·링크·마감)으로 프롬프트를 만듭니다.
@@ -56,6 +63,8 @@ export function PriorityEditor({ value, onChange, job, status, profile, descript
       for (const [key, level] of Object.entries(parsed.levels) as Array<[Exclude<CriterionKey, 'preference'>, Level | undefined]>) if (level) next[levelField[key]] = level;
       return next;
     });
+    // AI가 본 직무선호도는 예상 직무선호도 칸에만 넣습니다.
+    if (parsed.preferenceSuggestion) onChange((current) => ({ ...current, expectedGrade: parsed.preferenceSuggestion! }));
     setSuggestion(parsed);
     setPasteOpen(false);
     setPasteText('');
@@ -69,11 +78,27 @@ export function PriorityEditor({ value, onChange, job, status, profile, descript
       <strong className={`prio-total priority-${priorityClass(breakdown.final)}`}>{breakdown.final}<small>점 · {getPriorityLabel(breakdown.final)}</small>{breakdown.deadline > 0 && <em>가치 {breakdown.value} + 마감 {breakdown.deadline}</em>}</strong>
     </div>
     {PRIORITY_CRITERIA.map((criterion) => {
-      const current = levelOf(criterion.key);
+      const tip = <Tip><b>{criterion.label} · {criterion.weight}점</b><p>{criterion.summary}</p><ol>{LEVELS.map((level) => <li key={level}><b>{criterion.key === 'preference' ? gradeOfLevel[level] : level}</b>{criterion.levels[level].replace(/^[SABCD] · /, '')}</li>)}</ol></Tip>;
+      const points = <span className="prio-points">{breakdown.points[criterion.key]}<small>/{criterion.weight}</small></span>;
+      if (criterion.key === 'preference') {
+        const own = expectedOnly ? '' : value.careerGrade, expected = value.expectedGrade;
+        const setExpected = (grade: CareerGrade | '') => onChange((current) => ({ ...current, expectedGrade: grade }));
+        const hint = own ? criterion.levels[LEVELS[CAREER_GRADES.indexOf(own)]].replace(/^[SABCD] · /, '')
+          : expected ? `예상 ${expected}로 계산해요. ${expectedOnly ? '등록한 뒤 지원 건에서 직접 정할 수 있어요.' : '직접 정하면 그 값으로 바뀌어요.'}`
+          : '비워 두면 보통(B)으로 계산해요';
+        return <div className="prio-row" key={criterion.key}>
+          <div className="prio-head"><strong>{expectedOnly ? '예상 직무선호도' : criterion.label}</strong><em>{expectedOnly ? '추천한 쪽 의견' : '내가 결정'}</em>{tip}{points}</div>
+          {expectedOnly ? <GradeGroup label="예상 직무선호도" value={expected} onPick={setExpected} expected />
+            : <GradeGroup label="직무선호도" value={own} onPick={(grade) => onChange((current) => ({ ...current, careerGrade: grade }))} />}
+          {!expectedOnly && <div className="prio-expected"><span>예상 직무선호도 <small>봇·AI 의견</small></span><GradeGroup label="예상 직무선호도" value={expected} onPick={setExpected} expected /></div>}
+          <p className={`prio-hint ${own || expected ? '' : 'empty'}`}>{hint}</p>
+        </div>;
+      }
+      const key = criterion.key, current = levelOf(key);
       return <div className="prio-row" key={criterion.key}>
-        <div className="prio-head"><strong>{criterion.label}</strong>{criterion.decidedBy === '나' && <em>내가 결정</em>}<Tip><b>{criterion.label} · {criterion.weight}점</b><p>{criterion.summary}</p><ol>{LEVELS.map((level) => <li key={level}><b>{criterion.key === 'preference' ? gradeOfLevel[level] : level}</b>{criterion.levels[level].replace(/^[SABCD] · /, '')}</li>)}</ol></Tip><span className="prio-points">{breakdown.points[criterion.key]}<small>/{criterion.weight}</small></span></div>
+        <div className="prio-head"><strong>{criterion.label}</strong>{tip}{points}</div>
         <div className="prio-levels" role="radiogroup" aria-label={criterion.label}>
-          {LEVELS.map((level) => <button type="button" role="radio" aria-checked={current === level} className={current === level ? 'active' : ''} key={level} title={criterion.levels[level]} onClick={() => setLevel(criterion.key, current === level ? undefined : level)}>{criterion.key === 'preference' ? gradeOfLevel[level] : level}</button>)}
+          {LEVELS.map((level) => <button type="button" role="radio" aria-checked={current === level} className={current === level ? 'active' : ''} key={level} title={criterion.levels[level]} onClick={() => setLevel(key, current === level ? undefined : level)}>{level}</button>)}
         </div>
         <p className={`prio-hint ${current ? '' : 'empty'}`}>{current ? criterion.levels[current].replace(/^[SABCD] · /, '') : '비워 두면 보통(3단계)으로 계산해요'}</p>
       </div>;
@@ -82,7 +107,7 @@ export function PriorityEditor({ value, onChange, job, status, profile, descript
       <div className="prio-ai-actions"><button type="button" className="button small" onClick={(event) => void copyPrompt(event)}>AI 평가 프롬프트 복사</button><button type="button" className="button ghost small" onClick={() => setPasteOpen((open) => !open)}>{pasteOpen ? '닫기' : 'AI 답변 붙여넣기'}</button></div>
       {message && <p className="prio-ai-message">{message}</p>}
       {pasteOpen && <div className="prio-paste"><textarea rows={5} value={pasteText} onChange={(event) => setPasteText(event.target.value)} placeholder="ChatGPT 답변 전체를 붙여 넣으세요. 마지막 JSON 코드블록에서 점수를 읽어요." /><button type="button" className="button primary small" disabled={!pasteText.trim()} onClick={applyResult}>점수 채우기</button></div>}
-      {suggestion?.preferenceSuggestion && value.careerGrade !== suggestion.preferenceSuggestion && <p className="prio-ai-message">AI가 본 직무선호도는 <b>{suggestion.preferenceSuggestion}</b>예요. 직무선호도는 직접 정해 주세요. <button type="button" className="text-button" onClick={() => onChange((current) => ({ ...current, careerGrade: suggestion.preferenceSuggestion! }))}>{suggestion.preferenceSuggestion}로 정하기</button></p>}
+      {suggestion?.preferenceSuggestion && <p className="prio-ai-message">AI가 본 직무선호도 <b>{suggestion.preferenceSuggestion}</b>를 예상 직무선호도에 넣었어요.{expectedOnly ? '' : ' 내 직무선호도는 직접 정해 주세요.'}</p>}
       {suggestion?.check && <p className="prio-ai-message">확인할 것: {suggestion.check}</p>}
     </div>
   </section>;

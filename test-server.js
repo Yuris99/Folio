@@ -56,7 +56,7 @@ async function json(path, options={}, cookie='') {
     const bootstrap=await json('/api/v1/bootstrap',{},cookie);
     assert.equal(bootstrap.response.status,200);
     const initialDiscovery=await json('/api/v1/discovery/status',{},cookie);
-    assert.equal(initialDiscovery.data.data.bot.active,false);
+    assert.equal('bot' in initialDiscovery.data.data,false,'the bot key status is gone');
     assert.equal('preferences' in initialDiscovery.data.data,false,'automatic collection settings are gone');
     for(const removed of ['/api/v1/discovery/collect','/api/v1/discovery/preferences']){
       const gone=await json(removed,{method:removed.endsWith('collect')?'POST':'PUT',body:'{}'},cookie);
@@ -101,34 +101,14 @@ async function json(path, options={}, cookie='') {
     assert.equal(rejectedPosting.data.data.posting.decision.note,'지방 근무');
     const invalidDecision=await json(`/api/v1/discovery/postings/${postingId}/decision`,{method:'POST',body:JSON.stringify({decision:'later'})},cookie);
     assert.equal(invalidDecision.response.status,400);
-    // Bot connection: one key per account, shown once, revocable.
-    const crossOriginToken=await json('/api/v1/bot-token',{method:'POST',headers:{Origin:'https://untrusted.example'}},cookie);
-    assert.equal(crossOriginToken.response.status,403);
-    const createdToken=await json('/api/v1/bot-token',{method:'POST'},cookie);
-    assert.equal(createdToken.response.status,201);
-    const botToken=createdToken.data.data.token;
-    assert.match(botToken,/^folio_[A-Za-z0-9_-]{43}$/);
-    assert.equal((await json('/api/v1/bot-token',{},cookie)).data.data.token,undefined,'the key is never shown again');
-    const bot=(pathName,options={})=>json(pathName,{...options,headers:{Authorization:`Bearer ${botToken}`,...(options.headers||{})}});
-    const context=await bot('/api/v1/bot/context');
-    assert.equal(context.response.status,200);
-    assert.equal(context.data.data.feedback.rejectedCount,1);
-    assert.equal(context.data.data.feedback.recent[0].note,'지방 근무');
-    assert.equal(JSON.stringify(context.data.data).includes('@'),false,'no email or contact details reach the bot');
-    const botAdd=await bot('/api/v1/bot/postings',{method:'POST',body:JSON.stringify({by:'테스트 봇',postings:[{company:'봇 회사',title:'백엔드 신입',url:'https://jobs.example.com/bot-1',deadline:'2099-11-30',recommendation:{reason:'Spring 경험',careerLevel:4,score:77}},{title:'',url:'bad'}]})});
-    assert.equal(botAdd.response.status,200);
-    assert.equal(botAdd.data.data.added,1);
-    assert.equal(botAdd.data.data.failed,1);
-    const botPosting=(await json('/api/v1/discovery/status',{},cookie)).data.data.items.find(item=>item.url==='https://jobs.example.com/bot-1');
-    assert.equal(botPosting.recommendation.by,'테스트 봇');
-    assert.equal(botPosting.recommendation.score,77);
-    assert.equal(botPosting.sources[0].source,'bot');
-    assert.equal((await bot('/api/v1/bot/postings',{method:'POST',body:JSON.stringify({postings:[]})})).response.status,400);
-    assert.equal((await json('/api/v1/bot/context',{headers:{Authorization:'Bearer folio_wrong'}})).response.status,401);
-    assert.equal((await json('/api/v1/bot/context',{},cookie)).response.status,401,'a browser session is not a bot key');
-    const revoked=await json('/api/v1/bot-token',{method:'DELETE'},cookie);
-    assert.equal(revoked.data.data.active,false);
-    assert.equal((await bot('/api/v1/bot/context')).response.status,401,'a revoked key stops working');
+    // Postings come in through the signed-in app; the expected preference grade stays a guess.
+    const crossOriginPosting=await json('/api/v1/discovery/postings',{method:'POST',headers:{Origin:'https://untrusted.example'},body:JSON.stringify({title:'백엔드 신입',url:'https://jobs.example.com/bot-1'})},cookie);
+    assert.equal(crossOriginPosting.response.status,403);
+    const botAdd=await json('/api/v1/discovery/postings',{method:'POST',body:JSON.stringify({company:'봇 회사',title:'백엔드 신입',url:'https://jobs.example.com/bot-1',deadline:'2099-11-30',recommendation:{reason:'Spring 경험',expectedGrade:'A',careerLevel:4,score:77}})},cookie);
+    assert.equal(botAdd.response.status,201);
+    assert.equal(botAdd.data.data.recommendation.expectedGrade,'A');
+    assert.equal(botAdd.data.data.recommendation.careerGrade,undefined,'a recommendation never sets the grade the user decides');
+    assert.equal((await json('/api/v1/bot-token',{method:'POST'},cookie)).response.status,404,'the bot key route is gone');
     const privateDiscovery=await json('/api/v1/discovery/status');
     assert.equal(privateDiscovery.response.status,401);
     assert.ok(Array.isArray(bootstrap.data.data.applications));

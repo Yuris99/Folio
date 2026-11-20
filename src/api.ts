@@ -1,8 +1,7 @@
-import type { BotTokenStatus, PostingRecommendation, Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, DiscoveredJob, DiscoveryStatus, Interview, Job, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
+import type { PostingRecommendation, Application, ApplicationPayload, Attachment, CareerFact, CareerSource, CareerStory, ConsultationRecord, DiscoveredJob, DiscoveryStatus, Interview, Job, Profile, SupportDocument, TaskItem, User, VaultNote, Workspace } from './types';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 // Absolute address the user's bot calls; follows the same API base as the app.
-export const botApiBase = () => `${new URL(apiBaseUrl, window.location.origin).href.replace(/\/$/, '')}/bot`;
 const requestTimeoutMs = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
 
 export class ApiError extends Error {
@@ -54,9 +53,6 @@ export const api = {
   deleteDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: true })),
   restoreDiscoveredJob: (id: string) => request<DiscoveredJob>(`/discovery/postings/${id}`, json('PATCH', { hidden: false })),
   saveDiscoveredJob: (id: string) => request<Job>(`/discovery/postings/${id}/save`, { method: 'POST' }),
-  botToken: () => request<BotTokenStatus>('/bot-token'),
-  createBotToken: () => request<BotTokenStatus & { token: string }>('/bot-token', { method: 'POST' }),
-  revokeBotToken: () => request<BotTokenStatus>('/bot-token', { method: 'DELETE' }),
   decideDiscoveredJob: (id: string, payload: { decision: 'registered' | 'rejected'; reasons: string[]; note: string }) => request<{ posting: DiscoveredJob; job: Job | null }>(`/discovery/postings/${id}/decision`, json('POST', payload)),
   calendarStatus: () => request<{ connected: boolean; lastSyncedAt: string; configured?: boolean }>('/calendar/status'),
   connectGoogleCalendar() {
